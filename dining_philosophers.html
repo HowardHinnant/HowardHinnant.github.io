@@ -1,0 +1,1338 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>Dining Philosophers Rebooted</title>
+
+	<style>
+	p {text-align:justify}
+	li {text-align:justify}
+	blockquote.note
+	{
+		background-color:#E0E0E0;
+		padding-left: 15px;
+		padding-right: 15px;
+		padding-top: 1px;
+		padding-bottom: 1px;
+	}
+	ins {color:#00A000}
+	del {color:#A00000}
+	</style>
+</head>
+<body>
+
+<address align=right>
+<br/>
+<br/>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
+2014-05-18<br/>
+<a rel="license" href="http://creativecommons.org/licenses/by/4.0/">
+<img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br />
+This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
+</address>
+<hr/>
+<h1 align=center>Dining Philosophers Rebooted</h1>
+
+<h2>Contents</h2>
+
+<ul>
+<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#Problem">Problem Description</a></li>
+<li><a href="#Solutions">The Solutions</a>
+<ul>
+    <li><a href="#Ordered">Ordered</a></li>
+    <li><a href="#Persistent">Persistent</a></li>
+    <li><a href="#Smart">Smart</a></li>
+    <li><a href="#Polite">Smart &amp; Polite</a></li>
+</ul>
+</li>
+<li><a href="#Results">The Results</a>
+<ul>
+    <li><a href="#2dp4">Round Table on a 4 Core Machine</a></li>
+    <li><a href="#d2p8">Round Table on a 8 Core Machine</a></li>
+    <li><a href="#Explanation">Explanation</a></li>
+    <li><a href="#d3p4">A 3-D Table on a 4 Core Machine</a></li>
+    <li><a href="#d3p8">A 3-D Table on an 8 Core Machine</a></li>
+</ul>
+</li>
+<li><a href="#Summary">Summary</a></li>
+<li><a href="#codeA">Appendix A: Round Table Code</a></li>
+<li><a href="#codeB">Appendix B: 3-D Table Code</a></li>
+<li><a href="#Acknowledgments">Acknowledgments</a></li>
+</ul>
+
+<a name="Introduction"></a><h2>Introduction</h2>
+
+<p>
+The
+<a href="http://en.wikipedia.org/wiki/Dining_philosophers_problem">dining
+philosophers problem</a> has been a famous computer science problem for half
+a century.  When first presented, the challenge was simply to find a solution
+that did not deadlock. I.e. a solution where none of the diners starved to
+death in the process of waiting for a chance to eat.
+</p>
+
+<p>
+This paper presents four solutions to the problem, and compares the
+performance of each solution.  Additionally the impact of the number of
+diners, and the number of processors is explored to see how these factors
+impact overall performance.  And finally, an alternate topology, where each
+diner requires 3 forks to eat, is explored with these same 4 algorithms.  It
+will be shown that there is a single algorithm that consistently performs as
+well as, or better than, the other 3 algorithms, as all factors are varied
+(number of processors, number of diners, topology). 
+</p>
+
+<p>
+The complete C++11 source code for this study is included in this paper so that
+others may easily confirm or refute the results presented herein.
+</p>
+
+<p>
+A practical application of the results of this study is the algorithm
+underlying the <code>std::lock(L1, L2, ...)</code> function in section 30.4.3
+[thread.lock.algorithm] of the C++11 and C++14 standards:
+</p>
+
+<blockquote>
+<pre>
+template &lt;class L1, class L2, class... L3&gt; void lock(L1&amp;, L2&amp;, L3&amp;...);
+</pre>
+<blockquote>
+<p>
+<i>Requires:</i> Each template parameter type shall meet the
+<code>Lockable</code> requirements, [<i>Note:</i> The
+<code>unique_lock></code> class template meets these requirements when
+suitably instantiated. &mdash; <i>end note</i>]
+</p>
+<p>
+<i>Effects:</i> All arguments are locked via a sequence of calls to
+<code>lock()</code>, <code>try_lock()</code>, or <code>unlock()</code> on
+each argument. The sequence of calls shall not result in deadlock, but is
+otherwise unspecified. [<i>Note:</i> A deadlock avoidance algorithm such as
+try-and-back-off must be used, but the specific algorithm is not specified to
+avoid over-constraining implementations. &mdash; <i>end note</i>] If a call
+to <code>lock()</code> or <code>try_lock()</code> throws an exception,
+<code>unlock()</code> shall be called for any argument that had been locked
+by a call to <code>lock()</code> or <code>try_lock()</code>.
+</p>
+</blockquote>
+</blockquote>
+
+<p>
+Indeed, all of the test software used by this paper will call
+<code>::lock</code> to obtain "forks" (lock two or three
+<code>std::mutex</code>es).  One can safely assume that <code>::lock()</code>
+in this paper represents nothing but example implementations of
+<code>std::lock()</code>.
+</p>
+
+<a name="Problem"></a><h2>Problem Description</h2>
+
+<p>
+<a href="http://en.wikipedia.org/wiki/Dining_philosophers_problem">This
+Wikipedia link</a> has a great description of the problem.  If you haven't
+read it yet, read it now.  I'll wait...
+</p>
+
+<p>
+Ok, now that we're all on the same page (and back on this one), I'll explain
+the minor deviations that this paper takes, and why.
+</p>
+
+<p>
+As it turns out, any algorithm that solves this problem without deadlock, will
+perform wonderfully when the philosophers spend any appreciable amount of time
+thinking, compared to eating.  I.e. they can each think independently (that
+is what makes them philosophers after all).  When they do as much thinking as
+they do eating, we call this a <i>low contention</i> scenario because the
+philosophers spend relatively little time <i>contending</i> for the forks.
+</p>
+
+<p>
+However when the philosophers are all <i>really</i> hungry, they tend to eat
+more and think less (just like the rest of us).  This means they spend more
+time contending for the forks, and subsequently the nature of the algorithm
+which arbitrates who gets what fork when, becomes more and more important. 
+In the limit, as thinking time goes to zero, the importance of the algorithm
+which hands out the forks becomes paramount, and dominates the performance of
+the entire meal (the application).
+</p>
+
+<p>
+Therefore in the tests included herein:
+</p>
+
+<ol>
+<li>The diners do not think at all.  They only wish to eat.</li>
+<li>The diners can only eat for at most 10 milliseconds at a time, before
+they have to relinquish their forks while they chew.  This is sometimes
+as little as 1 millisecond.  The exact duration is chosen randomly each
+time a diner obtains the forks.</li>
+<li>The diner randomly chooses what order to <i>request</i> the forks in.
+I.e. what order the forks are given to the <code>::lock()</code> algorithm.
+The actual order the forks are obtained is encapsulated within the
+<code>::lock()</code> algorithm.</li>
+<li>
+The meal is considered complete when each diner has eaten for a cumulative
+total of 30 seconds.
+</li>
+<li>
+The efficiency of the algorithm is measured by measuring the wall clock time
+elapsed from the beginning of the meal to the end of the meal (shorter is
+better).
+</li>
+</ol>
+
+<p>
+These parameters have been chosen to highlight the performance differences
+between the 4 algorithms presented herein, and to somewhat approximate a
+real-world high-contention scenario.  If the scenario is low-contention, the
+algorithm does not matter, as long as it avoids deadlock.
+</p>
+
+<a name="Solutions"></a><h2>The Solutions</h2>
+
+<p>
+For each solution, the forks are represented as a
+<code>vector&lt;mutex&gt;</code>:
+</p>
+
+<blockquote><pre>
+std::vector&lt;std::mutex&gt; table(nt);
+</pre></blockquote>
+
+<p>
+There is a <code>class Philosopher</code> which will reference two (or three)
+<code>mutex</code>es, and the table setting is represented as a
+<code>vector&lt;Philosopher&gt;</code>:
+</p>
+
+<blockquote><pre>
+std::vector&lt;Philosopher&gt; diners;
+</pre></blockquote>
+
+<ol>
+<li>
+<a name="Ordered"></a><h3>Ordered</h3>
+<p>
+The ordered solution is the one originally proposed by Edsger Dijkstra in
+1965. One assigns an order to the forks (we will use their address in the
+<code>vector</code>), and each <code>Philosopher</code> will first lock the
+lower-numbered <code>mutex</code>, and then lock the higher-numbered
+<code>mutex</code>.
+</p>
+<p>
+The two-<code>mutex</code> variant of <code>lock</code> can be coded like so
+if we assume that the template parameter <code>L0</code> is always a
+<code>std::unique_lock</code> (which is not a good assumption for
+<code>std::lock</code> but we overlook that detail here).
+</p>
+<blockquote><pre>
+template &lt;class L0&gt;
+void
+lock(L0&amp; l0, L0&amp; l1)
+{
+    if (l0.mutex() &lt; l1.mutex())
+    {
+        std::unique_lock&lt;L0&gt; u0(l0);
+        l1.lock();
+        u0.release();
+    }
+    else
+    {
+        std::unique_lock&lt;L0&gt; u1(l1);
+        l0.lock();
+        u1.release();
+    }
+}
+</pre></blockquote>
+
+<p>
+The purpose of the internal use of <code>std::unique_lock&lt;L0&gt;</code> is
+to make the code exception safe.  If the second <code>lock()</code> throws,
+the local <code>std::unique_lock&lt;L0&gt;</code> ensures that the first lock
+is unlocked while propagating the exception out.
+</p>
+
+<p>
+Note that this algorithm has a very predictable code flow.  There are only
+two ways to get the job done, and there are no loops.
+</p>
+</li>
+
+<li>
+<a name="Persistent"></a><h3>Persistent</h3>
+<p>
+No one that I'm aware of has seriously proposed this algorithm as a good
+solution.  However it is included here as there is at least one shipping
+implementation of <code>std::lock</code> that implements this exact algorithm.
+Furthermore, a naive reading of the C++ specification for
+<code>std::lock</code> has led more than one person to believe that this is
+the only algorithm possible which will conform to the C++ specification.
+Nothing could be further from the truth.
+</p>
+
+<p>
+This algorithm is called "persistent" as the <code>Philosopher</code> simply
+doggedly locks one <code>mutex</code>, and then <code>try_lock()</code> the
+others.  If the <code>try_lock()</code>s succeed, he is done, else he unlocks
+everything, and immediately tries the exact same thing again, and again, and
+again, until he succeeds.
+</p>
+<p>
+This is simple to code for the two-<code>mutex</code> variant as:
+</p>
+<blockquote><pre>
+template &lt;class L0, class L1&gt;
+void
+lock(L0&amp; l0, L1&amp; l1)
+{
+    while (true)
+    {
+        std::unique_lock&lt;L0&gt; u0(l0);
+        if (l1.try_lock())
+        {
+            u0.release();
+            break;
+        }
+    }
+}
+</pre></blockquote>
+
+<p>
+Results will later show that this algorithm, while not ideal, actually
+performs relatively well when there is plenty of spare processing power.  Or
+said differently, the algorithm works, but is power hungry.
+</p>
+</li>
+
+<li>
+<a name="Smart"></a><h3>Smart</h3>
+<p>
+A simple but important variation of the <a href="#Persistent">persistent</a>
+algorithm is when a <code>try_lock()</code> fails, then block on <i>that</i>
+<code>mutex</code>.  This eliminates a lot of useless <i>spinning</i>, thus
+consuming less power, and thus leaving more processing power available to
+other diners.  As it turns out, a diner needs not only forks to eat, he also
+needs an available processor.  If you don't have the forks, don't waste power.
+</p>
+<p>
+This is simple to code for the two-<code>mutex</code> variant as:
+</p>
+<blockquote><pre>
+template &lt;class L0, class L1&gt;
+void
+lock(L0&amp; l0, L1&amp; l1)
+{
+    while (true)
+    {
+        {
+            std::unique_lock&lt;L0&gt; u0(l0);
+            if (l1.try_lock())
+            {
+                u0.release();
+                break;
+            }
+        }
+        {
+            std::unique_lock&lt;L1&gt; u1(l1);
+            if (l0.try_lock())
+            {
+                u1.release();
+                break;
+            }
+        }
+    }
+}
+</pre></blockquote>
+
+<p>
+This algorithm still contains a theoretical infinite loop.  However it will
+go through this loop rather slowly, as each <code>mutex</code> locked besides
+the very first, is one for which the thread has just failed a call to
+<code>try_lock()</code> (and so the subsequent <code>lock()</code> is likely
+to block).
+</p>
+
+<p>
+Some people have expressed a great deal of concern about <a
+href="http://en.wikipedia.org/wiki/Deadlock#Livelock"><i>livelock</i></a>
+with this algorithm.  And indeed experiments have revealed a very small
+amount of <i>temporary</i> livelock can occur under high-contention
+conditions as emphasized by the tests herein.  The 4th algorithm is designed
+to reduce this small amount of experimentally observed livelock to zero.
+</p>
+</li>
+
+<li>
+<a name="Polite"></a><h3>Smart &amp; Polite</h3>
+<p>
+This algorithm is a minor variant of the  <a href="#Smart">smart</a>
+algorithm. It has experimentally shown small performance advantages over the
+<a href="#Smart">smart</a> algorithm on <a
+href="http://www.apple.com/osx/">OS X</a>. After the thread has failed a
+<code>try_lock()</code> on a <code>mutex</code>, but prior to blocking on
+that <code>mutex</code>, yield the processor to anyone else who might need
+it.  Results may be different on other OS's.  But on OS X, it is just the
+polite thing to do.  And the system as a whole (though not the individual
+<code>Philosopher</code>) benefits under conditions where processing power is
+already maxed out.
+</p>
+<blockquote><pre>
+template &lt;class L0, class L1&gt;
+void
+lock(L0&amp; l0, L1&amp; l1)
+{
+    while (true)
+    {
+        {
+            std::unique_lock&lt;L0&gt; u0(l0);
+            if (l1.try_lock())
+            {
+                u0.release();
+                break;
+            }
+        }
+        std::this_thread::yield();
+        {
+            std::unique_lock&lt;L1&gt; u1(l1);
+            if (l0.try_lock())
+            {
+                u1.release();
+                break;
+            }
+        }
+        std::this_thread::yield();
+    }
+}
+</pre></blockquote>
+
+</li>
+</ol>
+
+<a name="Results"></a><h2>The Results</h2>
+
+<a name="2dp4"></a><h3>Round Table on a 4 Core Machine</h3>
+
+<img src="d2p4.jpg" align="right">
+
+<p>
+In the figure to the right I have set up 31 tests.  Each test has a number of
+philosophers seated at a round table.  The number of philosophers varies from
+2 to 32.  There is one fork (<code>mutex</code>) between every two adjacent
+philosophers.  Each philosopher must obtain his two adjacent forks in order
+to eat.  This test shows timing results for a 4 processor Intel Core i5 running
+Apple OS X 10.9.2.
+</p>
+
+<p>
+The vertical axis represents the total number of seconds it takes for all
+philosophers at the table to get a total of 30 seconds each of "quality fork
+time."
+</p>
+
+<p>
+When there are only two philosophers at the table, it seems clear that only
+one of them can eat at a time, and thus it will take 60 seconds for each of
+them to eat for 30 seconds.  This is true whether that each eat for 30 seconds
+at a time, or if they each eat for a few milliseconds at a time.
+</p>
+
+<p>
+The chart shows in blue a theoretical minimum amount of time the meal must
+take for everyone to get 30 seconds.  When there is a even number of
+philosophers at the table, it is easy to see that every other philosopher can
+eat at one time (say the even numbered philosophers if you numbered them). 
+And then the odd-numbered philosophers can eat.  Whether they all eat for a
+few milliseconds or 30 seconds each, it should take no more than 60 seconds
+for everyone to get a full meal, assuming one has a sufficient number of
+processors to supply to each philosopher whenever he needs one (has obtained
+two forks).
+</p>
+
+<p>
+When the number of philosophers at the table is odd, it can be shown that the
+theoretical minimum meal time is 30 * N /((N-1)/2) seconds.  When N is 3, it
+is easy to see that there is no room for concurrency.  Just like the N == 2
+case, only one philosopher can eat at a time.  Thus the minimum meal time is
+90 seconds.  For higher odd numbers of philosophers at the table, the minimum
+time actually drops, and approaches 60 seconds as N goes to infinity.
+</p>
+
+<p>
+All 4 algorithms nail the N == 2, and N == 3 cases.  However, with N &gt;= 4,
+the <a href="#Ordered">ordered</a> algorithm breaks away from the theoretical
+minimum and climbs in a close to linear fashion with the number of dining
+philosophers.  This essentially represents the algorithm's lack of ability to
+evenly distribute processing power equally to each philosopher.  To the right
+of the chart are CPU Load graphics, one for each algorithm at the N == 32
+case.  The second from the top is for the ordered algorithm.  In this figure
+one can see that the cpu load tapers off somewhat at the end of the test,
+indicating that towards the end there are fewer and fewer philosophers that
+are still hungry. This also indicates that those still-hungry philosophers
+were experiencing mild starvation earlier in the test (else they would not
+still be hungry).
+</p>
+
+<p>
+The <a href="#Persistent">persistent</a> algorithm starts off outperforming
+the <a href="#Ordered">ordered</a> algorithm.  Up through N == 5, the results
+are virtually indistinguishable from the theoretical minimum.  And up through
+N == 7, the results are only slightly worse than the theoretical minimum. 
+But by N == 8, the cost of this algorithm starts to sharply rise as more
+philosophers come to the table.  The rise is so sharp that the algorithm
+begins to get outperformed by the <a href="#Ordered">ordered</a> algorithm by
+N == 13.  The top cpu load graphic indicates that a significant portion of
+the cpu is spent in system calls (the red area), which is consistent with the
+notion that this algorithm is needlessly locking and unlocking mutexes
+without getting any real work (eating) done.
+</p>
+
+<p>
+The <a href="#Smart">smart</a> and <a href="#Polite">smart &amp; polite</a>
+algorithms have very similar performance. They both perform identically to
+the theoretical minimum up through N == 9. This is the point that even with a
+perfectly fair distribution of processing power, the philosophers start
+collectively asking for more than 4 cpus.  As the number of philosophers
+increases, the slope of the <a href="#Polite">smart &amp; polite</a>
+algorithm is slightly less than the <a href="#Smart">smart</a> algorithm, and
+appears equal to the slope of the <a href="#Ordered">ordered</a> algorithm. 
+Note that in the CPU load factor graphics for these two algorithms, the meal
+ends relatively abruptly, with all philosophers finishing at about the same
+time.  Indeed, the success of these algorithms resides in the fact that all
+philosophers are treated equally during the meal, none getting starved any
+more than the others.
+</p>
+
+<p>
+The question naturally arises now:
+</p>
+
+<blockquote>
+<p>
+How do these results scale with the number of processors?
+</p>
+</blockquote>
+
+<a name="d2p8"></a><h3>Round Table on a 8 Core Machine</h3>
+
+<img src="d2p8.jpg" align="right">
+
+<p>
+As luck would have it, I have an 8 core Intel Core i7 running Apple OS X 10.9.2
+available to run the exact same code.
+</p>
+
+<p>
+The results are qualitatively the same.
+</p>
+
+<ul>
+<li><p>
+The <a href="#Ordered">ordered</a> algorithm again breaks from the minimum at
+N == 4, and rises.  The rise is not as rapid as on the 4 core machine, but
+neither is the performance twice as fast.
+</p></li>
+<li><p>
+The <a href="#Persistent">persistent</a> algorithm sticks to the theoretical
+minimum up to about N == 13, and then sharply rises.  The rise is sharp
+enough such that the <a href="#Ordered">ordered</a> algorithm will eventually
+outperform it, but that no longer happens below N == 32.  The CPU load
+graphic again shows excessive cpu devoted to system calls.
+</p></li>
+<li><p>
+The <a href="#Smart">smart</a> and <a href="#Polite">smart &amp; polite</a>
+algorithms stay on the theoretical minimum out to 17 philosophers, and then
+rise approximately linearly.
+</p></li>
+<li><p>
+The <a href="#Polite">smart &amp; polite</a> algorithm is consistently the
+highest performing algorithm, or at the very least, never outperformed by any
+of the other 3 algorithms.  Concerns of any significant livelock are not
+supported by these results.  Though please feel free to run <a
+href="#codeA">this test</a> on your own machine and publicly report your
+results.
+</p></li>
+</ul>
+
+
+<table style="border-spacing:20px">
+<tr>
+<td>
+<a name="Explanation"></a><h3>Explanation</h3>
+<p>
+To help visualize the problem, lets concentrate on the case of five
+philosophers.  And to simplify the analysis, assume we have enough
+cores to give each philosopher a dedicated processor.
+</p>
+<p>
+Imagine that all five philosophers try to initiate grabbing their lower-numbered
+fork at once.  Philosophers 2, 3 and 4 will lock mutexes 1, 2 and 3 respectively.
+Philosophers 0 and 1 will race to get mutex 0.  One of them will succeed, and
+the other will block.
+</p>
+<p>
+Next, the non-blocked philosophers (say 0, 2, 3 and 4) will try to lock their
+higher-numbered mutex.  Philosophers 2 and 3 will block when they do this,
+because their higher-numbered mutex is already owned by the philosopher to
+their right.  Philosophers 0 and 4 will race to obtain mutex 4.  One of them
+will get the mutex, and the other will block.
+</p>
+<p>
+The end result is that out of the 5 philosophers, 4 of them will be blocked,
+waiting for the 1 runnable philosopher to finish eating.
+</p>
+<p>
+This doesn't <i>always</i> happen.  Otherwise the graphs above would show this
+case taking 150 seconds (5 x 30 seconds) instead of about 95 seconds.  However
+the 95 second result indicates that one philosopher is blocking the other four
+from eating about half the time. 
+</p>
+<p>
+Ideally, two philosophers should be able to eat at once, 100% of the time.
+</p>
+</td>
+<td>
+<video width="480" height="360" controls>
+  <source src="dining_philosophers.m4v" type="video/mp4">
+Your browser does not support the video tag.
+</video>
+</td>
+</tr>
+
+<tr>
+<td>
+<p>
+Using the "smart" locking algorithm, assume we start out the same way as
+the ordered algorithm, with philosophers 2, 3 and 4 obtaining mutexes 1, 2
+and 3 respectively, and philosophers 0 and 1 racing to lock mutex 0.  Note
+that we don't have to start out this way.  The philosophers can try to grab
+either mutex with this algorithm.  But for the moment, assume things start
+out the same.
+</p>
+<p>
+Next, the non-blocked philosophers (say 0, 2, 3 and 4) will try to lock their
+other mutex, which in this example just happens to be their higher-numbered
+mutex (just like in the ordered algorithm).  But this is where things begin
+to deviate from the ordered algorithm.
+</p>
+<p>
+Assume that in the race between philosopher 0 and philosopher 4 for mutex 4,
+philosopher 0 wins.  If this were the ordered algorithm, philosopher 2, 3 and
+4 would block on failing to get their second mutex.  However in this algorithm
+the result is a failed <code>try_lock</code>.  The response of philosophers 2,
+3 and 4 is to unlock their first mutex and <code>lock</code> their second.
+When this happens, only philosopher 4 blocks as mutex 4 is already owned by
+philosopher 0.  Philosophers 2 and 3 succeed in locking mutexes 2 and 3
+respectively.
+</p>
+<p>
+Now philosophers 2 and 3 attempt to lock mutexes 1 and 2 respectively.
+Philosopher 2 succeeds and philosopher 3 fails, and in response philosopher 3
+unlocks mutex 3.  Philosopher 3 then blocks on attempting to lock mutex 2.
+</p>
+<p>
+At this point philosophers 0 and 2 are eating, and philosophers 1, 3 and 4
+are blocked.  For this topology, 2 philosophers eating while the other 3 are
+blocked is an optimum.  The smart locking algorithm will quickly find this
+optimum in every situation.  This is evidenced by the experimental result of
+75 seconds: exactly half of the purely sequential result of 150 seconds.
+</p>
+</td>
+<td>
+<video width="480" height="360" controls>
+  <source src="dining_philosophers2.m4v" type="video/mp4">
+Your browser does not support the video tag.
+</video>
+</td>
+</tr>
+
+</table>
+
+
+<p>
+The next question to naturally arise is:
+</p>
+
+<blockquote>
+<p>
+How do these results scale with the number of mutexes one needs to lock?
+</p>
+</blockquote>
+
+<a name="d3p4"></a><h3>A 3-D Table on a 4 Core Machine</h3>
+
+<img src="d3p4.jpg" align="right">
+
+<p>
+Though not a complete answer, I have created a partial answer to the above
+question which should shed some light.
+</p>
+
+<p>
+Instead of the philosophers sitting at a round table, imagine they are each
+seated at a vertex of a
+<a href="http://en.wikipedia.org/wiki/Platonic_solid">Platonic solid</a>.  And
+further imagine that we restrict ourselves to those solids for which each
+vertex is the intersection of exactly 3 faces (and thus 3 edges).  And finally
+imagine that there is a fork at the middle of each edge.
+</p>
+
+<p>
+Due to the limits of both Euclidean geometry, and my visualization abilities,
+this experiment will take on only 3 forms:
+</p>
+
+<ol>
+<li><a href="http://en.wikipedia.org/wiki/Tetrahedron">A tetrahedron</a>,
+representing 4 philosophers sharing 6 forks.</li>
+<li><a href="http://en.wikipedia.org/wiki/Cube">A cube</a>,
+representing 8 philosophers sharing 12 forks.</li>
+<li><a href="http://en.wikipedia.org/wiki/Dodecahedron">A dodecahedron</a>,
+representing 20 philosophers sharing 30 forks.</li>
+</ol>
+
+<p>
+In order to eat, each philosopher must obtain all 3 of his adjacent forks.
+</p>
+
+<p>
+The tetrahedron case is like the 2 and 3 philosopher round table case.  It is
+impossible for two or more philosophers to eat at once, and so the best that
+can be done is for the 4 philosophers to each eat by themselves (30 seconds
+each) for a total of 120 seconds.  All 4 algorithms nail this degenerate case.
+</p>
+
+<p>
+The cube case is easy to analyze.  Four of the eight philosophers can eat at
+any one time.  Thus in two 30 second time slots, everyone can get a full
+tummy. However only the <a href="#Smart">smart</a>, and <a
+href="#Polite">smart &amp; polite</a> algorithms are able to achieve this
+minimum (with 4 cores).  The <a href="#Persistent">persistent</a> and <a
+href="#Ordered">ordered</a> algorithms are both significantly slower than
+this.  As we saw in the 2-D tests, the <a href="#Ordered">ordered</a>
+algorithm is never faster than the degenerate sequential case.
+</p>
+
+<p>
+As we move to the dodecahedron, 4 cores are not enough for even the <a
+href="#Smart">smart</a> and <a href="#Polite">smart &amp; polite</a>
+algorithms to stay at the theoretical minimum.  But the <a
+href="#Polite">smart &amp; polite</a> shows a small advantage over the <a
+href="#Smart">smart</a> algorithm.  A small amount of livelock is visible on
+the <a href="#Smart">smart</a> algorithm's CPU load graphic (3rd from the
+top), visualized by the bits of red.
+</p>
+
+<p>
+The <a href="#Ordered">ordered</a> algorithm running on the dodecahedron
+shows a relatively gradual "trailing off" slope in the CPU load graphic,
+indicating mild starvation, and thus penalizing the performance of the
+algorithm.
+</p>
+
+<p>
+The <a href="#Persistent">persistent</a> algorithm running on the
+dodecahedron performs the worst.  In the CPU load graphic a significant
+amount of cpu wasted on system calls is quite evident.
+</p>
+
+<a name="d3p8"></a><h3>A 3-D Table on a 8 Core Machine</h3>
+
+<img src="d3p8.jpg" align="right">
+
+<p>
+Running the
+<a href="#codeB">same test</a> on an 8 core machine is qualitatively the same
+but with a few differences worth pointing out:
+</p>
+
+<ul>
+<li><p>
+The persistent algorithm now has enough processing power to nail the theoretical
+minimum on the cube.
+</p></li>
+<li><p>
+The slope of the expense of the <a href="#Persistent">persistent</a>
+algorithm from the cube to the dodecahedron appears greater than that of the
+<a href="#Ordered">ordered</a> algorithm, and thus would likely eventually
+become more expensive than the <a href="#Ordered">ordered</a> algorithm as
+more philosophers are added.
+</p></li>
+<li><p>
+The <a href="#Smart">smart</a> and <a href="#Polite">smart &amp; polite</a>
+algorithms now have enough processing power to very nearly nail the
+theoretical minimum on the dodecahedron.  This theoretical minimum requires 8
+processors, so this machine is just on the edge of delivering that minimum.
+</p></li>
+</ul>
+
+<p>
+Concerns of any significant livelock appear to be 100% addressed by the smart
+&amp; polite algorithm. Please feel free to run <a href="#codeB">this
+test</a> on your own machine and publicly report your results.
+</p>
+
+<a name="Summary"></a><h2>Summary</h2>
+
+<p>
+Four algorithms have been presented and performance tested on 4 and 8 core
+machines, and under a variety of tests.  Each of these four algorithms is a
+different implementation for <code>std::lock()</code> for the two and three
+mutex locking case.  An algorithm termed herein as <a href="#Polite">smart
+&amp; polite</a> has been shown to never be worse than any other algorithm,
+and often significantly superior.
+</p>
+
+<p>
+The <a href="#Polite">smart &amp; polite</a> algorithm attempts to lock the
+first mutex in the group and then try-lock the rest.  If any mutex fails the
+try-lock, everything is unlocked, a call to yield is made, and then the
+algorithm repeats except that the mutex that previously failed the try-lock
+is the first one locked.  Code is given for the 2 and 3 mutex cases. 
+Expanding this algorithm to N variadic mutexes is left as an exercise for the
+reader, but has been implemented in <a
+href="http://libcxx.llvm.org">libc++</a> (i.e. it is not unreasonably
+difficult).
+</p>
+
+<a name="codeA"></a><h2>Appendix A: Round Table Code</h2>
+
+<blockquote><pre>
+#include &lt;chrono&gt;
+#include &lt;mutex&gt;
+#include &lt;random&gt;
+#include &lt;array&gt;
+#include &lt;vector&gt;
+#include &lt;thread&gt;
+#include &lt;iostream&gt;
+
+#ifdef SMART_POLITE
+
+template &lt;class L0, class L1&gt;
+void
+lock(L0&amp; l0, L1&amp; l1)
+{
+    while (true)
+    {
+        {
+            std::unique_lock&lt;L0&gt; u0(l0);
+            if (l1.try_lock())
+            {
+                u0.release();
+                break;
+            }
+        }
+        std::this_thread::yield();
+        {
+            std::unique_lock&lt;L1&gt; u1(l1);
+            if (l0.try_lock())
+            {
+                u1.release();
+                break;
+            }
+        }
+        std::this_thread::yield();
+    }
+}
+
+#elif defined(SMART)
+
+template &lt;class L0, class L1&gt;
+void
+lock(L0&amp; l0, L1&amp; l1)
+{
+    while (true)
+    {
+        {
+            std::unique_lock&lt;L0&gt; u0(l0);
+            if (l1.try_lock())
+            {
+                u0.release();
+                break;
+            }
+        }
+        {
+            std::unique_lock&lt;L1&gt; u1(l1);
+            if (l0.try_lock())
+            {
+                u1.release();
+                break;
+            }
+        }
+    }
+}
+
+#elif defined(PERSISTENT)
+
+template &lt;class L0, class L1&gt;
+void
+lock(L0&amp; l0, L1&amp; l1)
+{
+    while (true)
+    {
+        std::unique_lock&lt;L0&gt; u0(l0);
+        if (l1.try_lock())
+        {
+            u0.release();
+            break;
+        }
+    }
+}
+
+#elif defined(ORDERED)
+
+template &lt;class L0&gt;
+void
+lock(L0&amp; l0, L0&amp; l1)
+{
+    if (l0.mutex() &lt; l1.mutex())
+    {
+        std::unique_lock&lt;L0&gt; u0(l0);
+        l1.lock();
+        u0.release();
+    }
+    else
+    {
+        std::unique_lock&lt;L0&gt; u1(l1);
+        l0.lock();
+        u1.release();
+    }
+}
+
+#endif
+
+class Philosopher
+{
+    std::mt19937_64 eng_{std::random_device{}()};
+
+    std::mutex&amp; left_fork_;
+    std::mutex&amp; right_fork_;
+    std::chrono::milliseconds eat_time_{0};
+    static constexpr std::chrono::seconds full_{30};
+
+public:
+    Philosopher(std::mutex&amp; left, std::mutex&amp; right);
+    void dine();
+
+private:
+    void eat();
+    bool flip_coin();
+    std::chrono::milliseconds get_eat_duration();
+};
+
+constexpr std::chrono::seconds Philosopher::full_;
+
+Philosopher::Philosopher(std::mutex&amp; left, std::mutex&amp; right)
+    : left_fork_(left)
+    , right_fork_(right)
+{}
+
+void
+Philosopher::dine()
+{
+    while (eat_time_ &lt; full_)
+        eat();
+}
+
+void
+Philosopher::eat()
+{
+    using Lock = std::unique_lock&lt;std::mutex&gt;;
+    Lock first;
+    Lock second;
+    if (flip_coin())
+    {
+        first = Lock(left_fork_, std::defer_lock);
+        second = Lock(right_fork_, std::defer_lock);
+    }
+    else
+    {
+        first = Lock(right_fork_, std::defer_lock);
+        second = Lock(left_fork_, std::defer_lock);
+    }
+    auto d = get_eat_duration();
+    ::lock(first, second);
+    auto end = std::chrono::steady_clock::now() + d;
+    while (std::chrono::steady_clock::now() &lt; end)
+        ;
+    eat_time_ += d;
+}
+
+bool
+Philosopher::flip_coin()
+{
+    std::bernoulli_distribution d;
+    return d(eng_);
+}
+
+std::chrono::milliseconds
+Philosopher::get_eat_duration()
+{
+    std::uniform_int_distribution&lt;&gt; ms(1, 10);
+    return std::min(std::chrono::milliseconds(ms(eng_)), full_ - eat_time_);
+}
+
+int
+main()
+{
+#ifdef SMART_POLITE
+    std::cout &lt;&lt; "SMART_POLITE\n";
+#elif defined(SMART)
+    std::cout &lt;&lt; "SMART\n";
+#elif defined(PERSISTENT)
+    std::cout &lt;&lt; "PERSISTENT\n";
+#elif defined(ORDERED)
+    std::cout &lt;&lt; "ORDERED\n";
+#endif
+    for (unsigned nt = 2; nt &lt;= 32; ++nt)
+    {
+        std::vector&lt;std::mutex&gt; table(nt);
+        std::vector&lt;Philosopher&gt; diners;
+        for (unsigned i = 0; i &lt; table.size(); ++i)
+        {
+            int j = i;
+            int k = j &lt; table.size() -1 ? j+1 : 0;
+            diners.push_back(Philosopher(table[j], table[k]));
+        }
+        std::vector&lt;std::thread&gt; threads(diners.size());
+        unsigned i = 0;
+        auto t0 = std::chrono::high_resolution_clock::now();
+        for (auto&amp; t : threads)
+        {
+            t = std::thread(&amp;Philosopher::dine, diners[i]);
+            ++i;
+        }
+        for (auto&amp; t : threads)
+            t.join();
+        auto t1 = std::chrono::high_resolution_clock::now();
+        using secs = std::chrono::duration&lt;float&gt;;
+        std::cout &lt;&lt; "nt = " &lt;&lt; nt &lt;&lt; " : " &lt;&lt; secs(t1-t0).count() &lt;&lt; std::endl;
+    }
+}
+</pre></blockquote>
+
+<a name="codeB"></a><h2>Appendix B: 3-D Table Code</h2>
+
+<blockquote><pre>
+#include &lt;chrono&gt;
+#include &lt;mutex&gt;
+#include &lt;random&gt;
+#include &lt;array&gt;
+#include &lt;vector&gt;
+#include &lt;thread&gt;
+#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+
+#ifdef SMART_POLITE
+
+template &lt;class L0, class L1, class L2&gt;
+void
+lock(L0&amp; l0, L1&amp; l1, L2&amp; l2)
+{
+    int i = 0;
+    while (true)
+    {
+        switch (i)
+        {
+        case 0:
+            {
+                std::unique_lock&lt;L0&gt; u0(l0);
+                i = std::try_lock(l1, l2);
+                if (i == -1)
+                {
+                    u0.release();
+                    return;
+                }
+            }
+            ++i;
+            std::this_thread::yield();
+            break;
+        case 1:
+            {
+                std::unique_lock&lt;L1&gt; u1(l1);
+                i = try_lock(l2, l0);
+                if (i == -1)
+                {
+                    u1.release();
+                    return;
+                }
+            }
+            if (i == 1)
+                i = 0;
+            else
+                i = 2;
+            std::this_thread::yield();
+            break;
+        case 2:
+            {
+                std::unique_lock&lt;L2&gt; u2(l2);
+                i = try_lock(l0, l1);
+                if (i == -1)
+                {
+                    u2.release();
+                    return;
+                }
+            }
+            std::this_thread::yield();
+            break;
+        }
+    }
+}
+
+#elif defined(SMART)
+
+template &lt;class L0, class L1, class L2&gt;
+void
+lock(L0&amp; l0, L1&amp; l1, L2&amp; l2)
+{
+    int i = 0;
+    while (true)
+    {
+        switch (i)
+        {
+        case 0:
+            {
+                std::unique_lock&lt;L0&gt; u0(l0);
+                i = std::try_lock(l1, l2);
+                if (i == -1)
+                {
+                    u0.release();
+                    return;
+                }
+            }
+            ++i;
+            break;
+        case 1:
+            {
+                std::unique_lock&lt;L1&gt; u1(l1);
+                i = try_lock(l2, l0);
+                if (i == -1)
+                {
+                    u1.release();
+                    return;
+                }
+            }
+            if (i == 1)
+                i = 0;
+            else
+                i = 2;
+            break;
+        case 2:
+            {
+                std::unique_lock&lt;L2&gt; u2(l2);
+                i = try_lock(l0, l1);
+                if (i == -1)
+                {
+                    u2.release();
+                    return;
+                }
+            }
+            break;
+        }
+    }
+}
+
+#elif defined(PERSISTENT)
+
+template &lt;class L0, class L1, class L2&gt;
+void
+lock(L0&amp; l0, L1&amp; l1, L2&amp; l2)
+{
+    while (true)
+    {
+        std::unique_lock&lt;L0&gt; u0(l0);
+        if (std::try_lock(l1, l2) == -1)
+        {
+            u0.release();
+            break;
+        }
+    }
+}
+
+#elif defined(ORDERED)
+
+template &lt;class Compare, class ForwardIterator&gt;
+void
+sort3(ForwardIterator x, ForwardIterator y, ForwardIterator z, Compare c)
+{
+    using std::swap;
+    if (!c(*y, *x))          // if x &lt;= y
+    {
+        if (!c(*z, *y))      // if y &lt;= z
+            return;            // x &lt;= y &amp;&amp; y &lt;= z
+                                   // x &lt;= y &amp;&amp; y &gt; z
+        swap(*y, *z);          // x &lt;= z &amp;&amp; y &lt; z
+        if (c(*y, *x))       // if x &gt; y
+            swap(*x, *y);      // x &lt; y &amp;&amp; y &lt;= z
+        return;                // x &lt;= y &amp;&amp; y &lt; z
+    }
+    if (c(*z, *y))           // x &gt; y, if y &gt; z
+    {
+        swap(*x, *z);          // x &lt; y &amp;&amp; y &lt; z
+        return;
+    }
+    swap(*x, *y);              // x &gt; y &amp;&amp; y &lt;= z
+    if (c(*z, *y))           // if y &gt; z
+        swap(*y, *z);          // x &lt;= y &amp;&amp; y &lt; z
+}                                  // x &lt;= y &amp;&amp; y &lt;= z
+
+template &lt;class L0&gt;
+void
+lock(L0&amp; l0, L0&amp; l1, L0&amp; l2)
+{
+    L0* locks[] = {&amp;l0, &amp;l1, &amp;l2};
+    sort3(&amp;locks[0], &amp;locks[1], &amp;locks[2],
+          [](L0* x, L0* y)
+          {
+               return x-&gt;mutex() &lt; y-&gt;mutex();
+          });
+    std::unique_lock&lt;L0&gt; u0(*locks[0]);
+    std::unique_lock&lt;L0&gt; u1(*locks[1]);
+    locks[2]-&gt;lock();
+    u1.release();
+    u0.release();
+}
+
+#endif
+
+class Philosopher
+{
+    std::mt19937_64 eng_{std::random_device{}()};
+
+    std::mutex&amp; left_fork_;
+    std::mutex&amp; center_fork_;
+    std::mutex&amp; right_fork_;
+    std::chrono::milliseconds eat_time_{0};
+    static constexpr std::chrono::seconds full_{30};
+
+public:
+    Philosopher(std::mutex&amp; left, std::mutex&amp; center, std::mutex&amp; right);
+    void dine();
+
+private:
+    void eat();
+    std::chrono::milliseconds get_eat_duration();
+};
+
+constexpr std::chrono::seconds Philosopher::full_;
+
+Philosopher::Philosopher(std::mutex&amp; left, std::mutex&amp; center, std::mutex&amp; right)
+    : left_fork_(left)
+    , center_fork_(center)
+    , right_fork_(right)
+{}
+
+void
+Philosopher::dine()
+{
+    while (eat_time_ &lt; full_)
+        eat();
+}
+
+void
+Philosopher::eat()
+{
+    using Lock = std::unique_lock&lt;std::mutex&gt;;
+    std::mutex* mutexes[] = {&amp;left_fork_, &amp;center_fork_, &amp;right_fork_};
+    std::shuffle(std::begin(mutexes), std::end(mutexes), eng_);
+    Lock first(*mutexes[0], std::defer_lock);
+    Lock second(*mutexes[1], std::defer_lock);
+    Lock third(*mutexes[2], std::defer_lock);
+    auto d = get_eat_duration();
+    ::lock(first, second, third);
+    auto end = std::chrono::steady_clock::now() + d;
+    while (std::chrono::steady_clock::now() &lt; end)
+        ;
+    eat_time_ += d;
+}
+
+std::chrono::milliseconds
+Philosopher::get_eat_duration()
+{
+    std::uniform_int_distribution&lt;&gt; ms(1, 10);
+    return std::min(std::chrono::milliseconds(ms(eng_)), full_ - eat_time_);
+}
+
+int
+main()
+{
+#ifdef SMART_POLITE
+    std::cout &lt;&lt; "SMART_POLITE\n";
+#elif defined(SMART)
+    std::cout &lt;&lt; "SMART\n";
+#elif defined(PERSISTENT)
+    std::cout &lt;&lt; "PERSISTENT\n";
+#elif defined(ORDERED)
+    std::cout &lt;&lt; "ORDERED\n";
+#endif
+#if 0
+    std::cout &lt;&lt; "tetrahedron\n";
+    std::vector&lt;std::mutex&gt; table(6);
+    std::vector&lt;Philosopher&gt; diners;
+    diners.push_back(Philosopher(table[0], table[2], table[3]));
+    diners.push_back(Philosopher(table[0], table[1], table[4]));
+    diners.push_back(Philosopher(table[1], table[2], table[5]));
+    diners.push_back(Philosopher(table[3], table[4], table[5]));
+#elif 0
+    std::cout &lt;&lt; "cube\n";
+    std::vector&lt;std::mutex&gt; table(12);
+    std::vector&lt;Philosopher&gt; diners;
+    diners.push_back(Philosopher(table[0], table[3], table[4]));
+    diners.push_back(Philosopher(table[0], table[1], table[5]));
+    diners.push_back(Philosopher(table[1], table[2], table[6]));
+    diners.push_back(Philosopher(table[2], table[3], table[7]));
+    diners.push_back(Philosopher(table[4], table[8], table[11]));
+    diners.push_back(Philosopher(table[5], table[8], table[9]));
+    diners.push_back(Philosopher(table[6], table[9], table[10]));
+    diners.push_back(Philosopher(table[7], table[10], table[11]));
+#elif 1
+    std::cout &lt;&lt; "dodecahedron\n";
+    std::vector&lt;std::mutex&gt; table(30);
+    std::vector&lt;Philosopher&gt; diners;
+    diners.push_back(Philosopher(table[0], table[4], table[5]));
+    diners.push_back(Philosopher(table[0], table[1], table[6]));
+    diners.push_back(Philosopher(table[1], table[2], table[7]));
+    diners.push_back(Philosopher(table[2], table[3], table[8]));
+    diners.push_back(Philosopher(table[3], table[4], table[9]));
+    diners.push_back(Philosopher(table[5], table[10], table[19]));
+    diners.push_back(Philosopher(table[10], table[11], table[20]));
+    diners.push_back(Philosopher(table[6], table[11], table[12]));
+    diners.push_back(Philosopher(table[12], table[13], table[21]));
+    diners.push_back(Philosopher(table[7], table[13], table[14]));
+    diners.push_back(Philosopher(table[14], table[15], table[22]));
+    diners.push_back(Philosopher(table[8], table[15], table[16]));
+    diners.push_back(Philosopher(table[16], table[17], table[23]));
+    diners.push_back(Philosopher(table[9], table[17], table[18]));
+    diners.push_back(Philosopher(table[18], table[19], table[24]));
+    diners.push_back(Philosopher(table[20], table[25], table[29]));
+    diners.push_back(Philosopher(table[21], table[25], table[26]));
+    diners.push_back(Philosopher(table[22], table[26], table[27]));
+    diners.push_back(Philosopher(table[23], table[27], table[28]));
+    diners.push_back(Philosopher(table[24], table[28], table[29]));
+#endif
+    std::vector&lt;std::thread&gt; threads(diners.size());
+    unsigned i = 0;
+    auto t0 = std::chrono::high_resolution_clock::now();
+    for (auto&amp; t : threads)
+    {
+        t = std::thread(&amp;Philosopher::dine, diners[i]);
+        ++i;
+    }
+    for (auto&amp; t : threads)
+        t.join();
+    auto t1 = std::chrono::high_resolution_clock::now();
+    using secs = std::chrono::duration&lt;float&gt;;
+    std::cout &lt;&lt; secs(t1-t0).count() &lt;&lt; '\n';
+}
+</pre></blockquote>
+
+<a name="Acknowledgments"></a><h2>Acknowledgments</h2>
+
+<p>
+Thanks to Jonathan Wakely for his careful review.
+</p>
+
+</body>
+</html>
