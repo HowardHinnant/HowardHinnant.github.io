@@ -1,0 +1,2196 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+        "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>chrono-Compatible Low-Level Date Algorithms</title>
+    <style type="text/css">
+    p {text-align:justify}
+    li {text-align:justify}
+    blockquote.note
+    {
+        background-color:#E0E0E0;
+        padding-left: 15px;
+        padding-right: 15px;
+        padding-top: 1px;
+        padding-bottom: 1px;
+    }
+    ins {background-color:#A0FFA0}
+    del {background-color:#FFA0A0}
+    </style>
+</head>
+<body>
+
+<address align=right>
+<br>
+<a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
+
+2013-09-07
+</address>
+<hr>
+<h1 align=center><code>chrono</code>-Compatible Low-Level Date Algorithms</h1>
+
+<h2>Contents</h2>
+
+<ul>
+<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#days_from_civil"><code>days_from_civil</code></a></li>
+<li><a href="#civil_from_days"><code>civil_from_days</code></a></li>
+<li><a href="#is_leap"><code>is_leap</code></a></li>
+<li><a href="#last_day_of_month_common_year"><code>last_day_of_month_common_year</code></a></li>
+<li><a href="#last_day_of_month_leap_year"><code>last_day_of_month_leap_year</code></a></li>
+<li><a href="#last_day_of_month"><code>last_day_of_month</code></a></li>
+<li><a href="#weekday_from_days"><code>weekday_from_days</code></a></li>
+<li><a href="#weekday_difference"><code>weekday_difference</code></a></li>
+<li><a href="#next_weekday"><code>next_weekday</code></a></li>
+<li><a href="#prev_weekday"><code>prev_weekday</code></a></li>
+<li><a href="#Yes, but how do you know this all really works?">Yes, but how do you know this all really works?</a></li>
+<li><a href="#What can I do with that <code>chrono</code> compatibility?">What can I do with that <code>chrono</code> compatibility?</a></li>
+<li><a href="#Example:  Finding nth weekday of month">Example:  Finding nth weekday of month</a></li>
+<li><a href="#Example: Converting between the civil calendar and the ISO week calendar">Example: Converting between the civil calendar and the ISO week calendar</a></li>
+<li><a href="#Example: Converting between the civil calendar and the Julian calendar">Example: Converting between the civil calendar and the Julian calendar</a></li>
+<li><a href="#How can I confirm that your assertions about <code>chrono</code> compatibility are correct?">How can I confirm that your assertions about <code>chrono</code> compatibility are correct?</a></li>
+<li><a href="#Summary">Summary</a></li>
+<li><a href="#Acknowledgments">Acknowledgments</a></li>
+</ul>
+
+<h2><a name="Introduction"></a>Introduction</h2>
+
+<p>
+The purpose of this paper is <b>not</b> to propose a date class.
+</p>
+
+<p>
+This paper derives and documents key algorithms that enable one to write
+their own date class.  The purpose of this paper is to allow everyone to
+easily write their own date class, using algorithms that are well
+documented, and easily modified to meet individual needs.  The
+algorithms presented are efficient. They require no external tables. 
+They do not require C++11 or C++1y features, though if C++11 is
+available, the algorithms should be <code>noexcept</code>, and if C++1y
+is available, they can trivially be made <code>constexpr</code>.
+</p>
+
+<p>
+This paper does not document a library.  It is a <i>how-to</i> manual
+for writing the algorithm part of your own date class.  The syntax and
+some of the language features come from C++11 and even C++1y.  However
+the algorithms can be ported to any language.
+</p>
+
+<p>
+The algorithms are interoperable with every known implementation of
+<code>std::chrono::system_clock</code>, though that interoperability depends
+on an unspecified property of the <code>system_clock</code>: its epoch.  Example
+code will be shown how these algorithms can take advantage of the common
+(but unspecified) <code>system_clock</code> epoch.
+</p>
+
+<p>
+The algorithms implement a
+<a href="http://en.wikipedia.org/wiki/Proleptic_Gregorian_calendar">proleptic Gregorian calendar</a>.
+That is, the
+rules which adopted the Julian calendar in 1582 in Rome are applied both
+backwards and forwards in time.  This includes a year 0, and then
+negative years before that, all following the rules for the Gregorian
+calendar.  From hence forth this paper will refer to this as the
+<i>civil</i> calendar.  The accuracy of the algorithms under these rules
+is exact, until overflow occurs.  Using 32 bit arithmetic, overflow
+occurs approximately at +/- 5.8 million years.  Using 64 bit arithmetic
+overflow occurs far beyond +/- the age of the universe.  The intent is
+to make range checking superfluous.
+</p>
+
+<p>
+The algorithms implement no validity checking.  The intent is that any desired
+validity checking on the triple <code>year/month/day</code> can be added on
+top of these algorithms if and where desired.
+</p>
+
+<p>
+Ten low-level algorithms are presented:
+</p>
+
+<ol>
+<li>
+<p>
+Convert from a <code>year/month/day</code> triple to a serial day number.
+</p>
+<blockquote><pre>
+template &lt;class Int&gt;
+constexpr
+Int
+days_from_civil(Int y, unsigned m, unsigned d) noexcept;
+</pre></blockquote>
+</li>
+
+<li>
+<p>
+Convert from a serial day number to a <code>year/month/day</code> triple.
+</p>
+<blockquote><pre>
+template &lt;class Int&gt;
+constexpr
+std::tuple&lt;Int, unsigned, unsigned&gt;
+civil_from_days(Int z) noexcept;
+</pre></blockquote>
+</li>
+
+<li>
+<p>
+Determine if a year is a leap year.
+</p>
+<blockquote><pre>
+template &lt;class Int&gt;
+constexpr
+bool
+is_leap(Int y) noexcept;
+</pre></blockquote>
+</li>
+
+<li>
+<p>
+Given the month, return the last day of the month of a common year.
+</p>
+<blockquote><pre>
+constexpr
+unsigned
+last_day_of_month_common_year(unsigned m) noexcept;
+</pre></blockquote>
+</li>
+
+<li>
+<p>
+Given the month, return the last day of the month of a leap year.
+</p>
+<blockquote><pre>
+constexpr
+unsigned
+last_day_of_month_leap_year(unsigned m) noexcept;
+</pre></blockquote>
+</li>
+
+<li>
+<p>
+Given the year and month, return the last day of the month.
+</p>
+<blockquote><pre>
+template &lt;class Int&gt;
+constexpr
+unsigned
+last_day_of_month(Int y, unsigned m) noexcept;
+</pre></blockquote>
+</li>
+
+<li>
+<p>
+Convert from a serial day number to a day of the week.
+</p>
+<blockquote><pre>
+template &lt;class Int&gt;
+constexpr
+unsigned
+weekday_from_days(Int z) noexcept;
+</pre></blockquote>
+</li>
+
+<li>
+<p>
+Subtract one weekday from another (e.g. Sun - Sat is 1, and Sat - Sun is 6).
+</p>
+<blockquote><pre>
+constexpr
+unsigned
+weekday_difference(unsigned x, unsigned y) noexcept;
+</pre></blockquote>
+</li>
+
+<li>
+<p>
+Get the weekday following a weekday (e.g. Mon follows Sun).
+</p>
+<blockquote><pre>
+constexpr
+unsigned
+next_weekday(unsigned wd) noexcept;
+</pre></blockquote>
+</li>
+
+<li>
+<p>
+Get the weekday prior to a weekday (e.g. Sat comes before Sun).
+</p>
+<blockquote><pre>
+constexpr
+unsigned
+prev_weekday(unsigned wd) noexcept;
+</pre></blockquote>
+</li>
+
+</ol>
+
+<p>
+The algorithms are templated on year number type and serial day number
+type so that you can easily vary the range (use <code>int</code>,
+<code>long long</code>, <code>big_num</code>, or whatever).  For those
+fields that are known to be unsigned and small (e.g. month)
+<code>unsigned</code> is used.  Feel free to substitute any type you
+like. The use of <code>unsigned</code> is just to demonstrate that this
+particular field is constrained in the algorithm to always remain within
+a non-negative range.
+</p>
+
+<p>
+Building upon these low-level algorithms, higher-level algorithms can
+easily be written, and this paper shows several examples of such
+higher-level algorithms.
+</p>
+
+<h2><a name="days_from_civil"></a><code>days_from_civil</code></h2>
+
+<p>
+First the algorithm, and then the explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Returns number of days since civil 1970-01-01.  Negative values indicate</font>
+<font color="#C80000">//    days prior to 1970-01-01.</font>
+<font color="#C80000">// Preconditions:  y-m-d represents a date in the civil (Gregorian) calendar</font>
+<font color="#C80000">//                 m is in [1, 12]</font>
+<font color="#C80000">//                 d is in [1, last_day_of_month(y, m)]</font>
+<font color="#C80000">//                 y is "approximately" in</font>
+<font color="#C80000">//                   [numeric_limits&lt;Int&gt;::min()/366, numeric_limits&lt;Int&gt;::max()/366]</font>
+<font color="#C80000">//                 Exact range of validity is:</font>
+<font color="#C80000">//                 [civil_from_days(numeric_limits&lt;Int&gt;::min()),</font>
+<font color="#C80000">//                  civil_from_days(numeric_limits&lt;Int&gt;::max()-719468)]</font>
+template &lt;class Int&gt;
+constexpr
+Int
+days_from_civil(Int y, unsigned m, unsigned d) noexcept
+{
+    static_assert(std::numeric_limits&lt;unsigned&gt;::digits &gt;= 18,
+             "This algorithm has not been ported to a 16 bit unsigned integer");
+    static_assert(std::numeric_limits&lt;Int&gt;::digits &gt;= 20,
+             "This algorithm has not been ported to a 16 bit signed integer");
+    y -= m &lt;= 2;
+    const Int era = (y &gt;= 0 ? y : y-399) / 400;
+    const unsigned yoe = static_cast&lt;unsigned&gt;(y - era * 400);      <font color="#C80000">// [0, 399]</font>
+    const unsigned doy = (153*(m + (m &gt; 2 ? -3 : 9)) + 2)/5 + d-1;  <font color="#C80000">// [0, 365]</font>
+    const unsigned doe = yoe * 365 + yoe/4 - yoe/100 + doy;         <font color="#C80000">// [0, 146096]</font>
+    return era * 146097 + static_cast&lt;Int&gt;(doe) - 719468;
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+As explained in the introduction, the type of <code>year</code> is templated
+so that you can easily set your own range based on your own needs.  And if
+you dislike the use of <code>unsigned</code> for <code>month</code> and
+<code>day</code>, please change them to whatever suits you.  Doing so will
+not impact the correctness of the algorithm.  And if you're not compiling under
+C++1y <code>constexpr</code> rules, you will need to remove (or comment out)
+the <code>constexpr</code>.  If you are compiling in C++98/03 you can substitute
+<code>throw()</code> for <code>noexcept</code>, or remove the exception
+specification entirely.
+</p>
+
+<p>
+The first two algorithms also do some static checking on the range of
+<code>Int</code> and <code>unsigned</code>.  It is possible to port
+these algorithms to a 16 bit machine.  It just involves being more
+careful with casts, and the use of integral types that are known to be
+at least 32 bits in a few key places.  For the purposes of presentation,
+and because it has been a long time since I've personally come in
+contact with a 16 bit machine, I've chosen to assume the machine is at
+least 32 bits, but documented that assumption with
+<code>static_assert</code>.  If you are interested in porting these algorithms
+to a 16 bit machine, then you need to pay attention to the lines which are
+commented with the ranges of the variable being computed.
+</p>
+
+<p>
+These algorithms internally assume that March 1 is the first day of the year.
+This is convenient because it puts the leap day, Feb. 29 as the last day of the
+year, or actually the preceding year.  That is, Feb. 15, 2000, is considered by
+this algorithm to be the 15th day of the last month of the year 1999.  Don't
+worry, this complication is securely encapsulated in this and the other
+algorithms.  This detail is only important for understanding how the algorithm
+works, and is not exposed to the client of these algorithms.
+</p>
+
+<p>
+Additionally the first two algorithms make use of the concept of an <i>era</i>.
+This concept is not exposed to the client, but is very handy in creating an
+algorithm that is valid over extremely large ranges.  In these algorithms, an
+era is a 400 year period.  As it turns out, the civil calendar exactly
+repeats itself every 400 years.  And so these algorithms will first compute the
+era of a <code>year/month/day</code> triple, or the era of a serial date, and
+then factor the era out of the computation.  The rest of the computation centers
+on concepts such as:
+</p>
+
+<ul>
+<li>
+What is the year of the era (<code>yoe</code>)?  This is always in the
+range <code>[0, 399]</code>.
+</li>
+<li>
+What is the day of the era (<code>doe</code>)?  This is always in the
+range <code>[0, 146096]</code>.
+</li>
+</ul>
+
+<p>
+The wonderful thing about this approach is that you only need to debug a single
+era (146097 days), and the transformation to and from eras, and then you have
+all time debugged.  Below is a table of eras mapped to civil dates.
+Note that in this table the year number is the civil year number for Jan.
+and Feb., not the internal year number used within the algorithm.
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr>
+<th>era</th><th>start date</th><th>end date</th>
+</tr>
+<tr>
+<td>-2</td><td>-0800-03-01</td><td>-0400-02-29</td>
+</tr>
+<tr>
+<td>-1</td><td>-0400-03-01</td><td>0000-02-29</td>
+</tr>
+<tr>
+<td>0</td><td>0000-03-01</td><td>0400-02-29</td>
+</tr>
+<tr>
+<td>1</td><td>0400-03-01</td><td>0800-02-29</td>
+</tr>
+<tr>
+<td>2</td><td>0800-03-01</td><td>1200-02-29</td>
+</tr>
+<tr>
+<td>3</td><td>1200-03-01</td><td>1600-02-29</td>
+</tr>
+<tr>
+<td>4</td><td>1600-03-01</td><td>2000-02-29</td>
+</tr>
+<tr>
+<td>5</td><td>2000-03-01</td><td>2400-02-29</td>
+</tr>
+</table>
+</blockquote>
+
+<p>
+So the first thing the <code>days_from_civil</code> algorithm does is
+transform the <code>year</code> number to the internal one for Jan. and
+Feb.  And then the era is computed.  For non-negative years, the era is
+simply <code>y/400</code>. But for negative years one has to be careful
+that years [-400, -1] map to era -1.  By using
+<a href="http://en.wikipedia.org/wiki/Modulo_operation">floored</a>
+or
+<a href="http://en.wikipedia.org/wiki/Euclidean_division">Euclidean</a>
+division, negative years are correctly accounted for.  Also note that in
+C++98/03 it is implementation defined whether integral division is
+implemented as truncated, floored or Euclidean.  Only C++11 specifies truncated
+division.  So if you are using a C++98/03 compiler that implements
+floored or Euclidean division you can actually simplify the computation of the
+<code>era</code> to simply <code>y / 400</code>. Again, once the
+algorithm takes negative years into account in this one place,
+everything else can be done with unsigned arithmetic: everything else is
+non-negative.
+</p>
+
+<p>
+Once the <code>era</code> is known (this is generally a signed number of
+unknown range), the year-of-era can easily be computed by subtracting
+off the <code>year</code> from <code>era * 400</code>.  This is the same
+as the modulo operation, but assuming
+<a href="http://en.wikipedia.org/wiki/Modulo_operation">floored</a>
+or
+<a href="http://en.wikipedia.org/wiki/Euclidean_division">Euclidean</a>
+division, as opposed to the truncated division/modulo operation that C++11
+specifies. This will result in an unsigned number in the range of [0,
+399], whether the <code>era</code> is negative or non-negative.
+</p>
+
+<p>
+At the same time as the <code>yoe</code> computation is happening, we can also
+compute the day-of-year (<code>doy</code>) which is an unsigned number in the
+range of [0, 364] for a non-leap year, and for leap years has a range of
+[0, 365].  A value of 0 corresponds to Mar 1, and a value of 364 corresponds to
+Feb. 28 of the following (civil) year.
+</p>
+
+<p>
+The <code>doy</code> computation is quite unintuitive and deserves an in-depth
+explanation.
+</p>
+
+<blockquote>
+
+<h3><a name="Computing day-of-year from month and day-of-month"></a>Computing day-of-year from month and day-of-month</h3>
+
+<p>
+We need a formula that maps Mar. 1 to 0, Mar. 2 to 1, etc. up to
+Feb. 29 of the following year to 365.  This computation can be broken down into
+several parts:
+</p>
+
+<ul>
+<li>
+Map civil month number [1, 12] (Jan. - Dec.) into the internal month
+numbering [0, 11] (Mar. - Feb.).
+</li>
+<li>
+Compute the number of days between Mar. 1 and the first day of the current
+month.
+</li>
+<li>
+Add the number of days between the current day of the month and the first day
+of the current month.
+</li>
+</ul>
+
+<p>
+Let's start with the second bullet:  Map a month number <code>m'</code>
+in the range [0, 11] (Mar. - Feb.) into a range such that the first day
+of the month <code>m'</code> is <code>x</code> number of days after Mar.
+1.
+</p>
+
+<p>
+This can be exactly expressed as a table:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr>
+<th>month</th><th><code>m'</code></th><th>days after m'-01</th>
+</tr>
+<tr>
+<td>Mar</td><td>0</td><td>0</td>
+</tr>
+<tr>
+<td>Apr</td><td>1</td><td>31</td>
+</tr>
+<tr>
+<td>May</td><td>2</td><td>61</td>
+</tr>
+<tr>
+<td>Jun</td><td>3</td><td>92</td>
+</tr>
+<tr>
+<td>Jul</td><td>4</td><td>122</td>
+</tr>
+<tr>
+<td>Aug</td><td>5</td><td>153</td>
+</tr>
+<tr>
+<td>Sep</td><td>6</td><td>184</td>
+</tr>
+<tr>
+<td>Oct</td><td>7</td><td>214</td>
+</tr>
+<tr>
+<td>Nov</td><td>8</td><td>245</td>
+</tr>
+<tr>
+<td>Dec</td><td>9</td><td>275</td>
+</tr>
+<tr>
+<td>Jan</td><td>10</td><td>306</td>
+</tr>
+<tr>
+<td>Feb</td><td>11</td><td>337</td>
+</tr>
+</table>
+</blockquote>
+
+<p>
+However we would like to translate this table into a linear polynomial.
+</p>
+
+<blockquote>
+<i>a1 m' + a0</i>
+</blockquote>
+
+<p>
+Note that a beautiful property of this table is that it does not depend
+upon whether or not the current year is a leap year.  The leap day is
+either applied to the end of the last month in the table or not, and can
+not impact any rows in the table, not even the last row.
+</p>
+
+<p>
+The slope of this straight line can be easily computed by <code>337/11
+== 30.63636363636364</code>. However integral round off complicates this
+formula, and the y-intercept of this linear equation can be manipulated
+to give the desired results.  Assume we have the following function but with
+known constants for <code>a1</code> and <code>a0</code>:
+</p>
+
+<blockquote><pre>
+int
+doy_from_month(int mp)
+{
+    return a1 * mp + a0;
+}
+</pre></blockquote>
+
+<p>
+With this we can easily
+write a comprehensive unit test for <code>doy_from_month</code>:
+</p>
+
+<blockquote><pre>
+#include &lt;cassert&gt;
+
+// Returns day of year for 1st day of month mp, mp == 0 is Mar, mp == 11 is Feb.
+int
+doy_from_month(int mp)
+{
+    return a1 * mp + a0;
+}
+
+int
+main()
+{
+    int a[12] = {0, 31, 61, 92, 122, 153, 184, 214, 245, 275, 306, 337};
+    for (int mp = 0; mp &lt; 12; ++mp)
+        assert(doy_from_month(mp) == a[mp]);
+}
+</pre></blockquote>
+
+<p>
+If we make <code>a1 == 30</code> or <code>a1 == 31</code>, there is no
+value for <code>a0</code> we can assign to make this unit test pass.  However
+we can manipulate the y-intercept (<code>a0</code>) in a very fine manner if
+we express the equation as:
+</p>
+
+<blockquote><pre>
+return (b1 * mp + b0) / a0;
+</pre></blockquote>
+
+<p>
+The first best guess is to make <code>b1 == 337</code> and <code>a0 ==
+11</code>.  However when doing so there is no value of <code>b0</code> that
+will pass the unit test.  However if we make <code>b1 == 306</code> and
+<code>a0 == 10</code> (i.e. <code>306/10 &#8776; 30.63636363636364</code>) then
+there are actually two formulations that pass all unit tests:
+</p>
+
+<ul>
+<li>
+<code>return (306 * mp + 4) / 10;</code>
+</li>
+<li>
+<code>return (306 * mp + 5) / 10;</code>
+</li>
+</ul>
+
+<p>
+I first arbitrarily selected the second.  However note that the first can be
+simplified down to:
+</p>
+
+<ul>
+<li>
+<code>return (153 * mp + 2) / 5;</code>
+</li>
+</ul>
+
+<p>
+For reasons I do not fully understand, this latter formula tests slightly faster
+(about 2%) than the others.
+</p>
+
+<p>
+Now <code>mp</code> represents
+<code>m'</code> or the month number that starts with Mar == 0.  We also
+need to map the civil month number (Mar == 3) (<code>m</code>) to
+our internal month number (<code>mp</code>).  This can be done by adding
+9 to <code>m</code>, and taking the modulus of the result by 12:
+</p>
+
+<blockquote><pre>
+mp = (m + 9) % 12;
+</pre></blockquote>
+
+<p>
+This formula results in the following relationship:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr>
+<th><code>m</code></th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td>
+</tr>
+
+<tr>
+<th><code>mp</code></th><td>10</td><td>11</td><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td>
+</tr>
+
+</table>
+</blockquote>
+
+<p>
+After some performance testing I discovered that replacing the <code>%</code>
+with a branch was actually slightly faster, at least on the Core i5 I'm testing
+on:
+</p>
+
+<blockquote><pre>
+mp = m + (m &gt; 2 ? -3 : 9);
+</pre></blockquote>
+
+<p>
+Putting this together we now have a formula for taking a civil month number
+and computing the number of days between the first of that month, and Mar 1:
+</p>
+
+<blockquote><pre>
+(153*(m + (m &gt; 2 ? -3 : 9)) + 2)/5
+</pre></blockquote>
+
+<p>
+Now to get the day-of-year from the double <code>month/day</code> one simply
+adds the day-of-the-month, minus 1:
+</p>
+
+<blockquote><pre>
+const unsigned doy = (153*(m + (m &gt; 2 ? -3 : 9)) + 2)/5 + d - 1;
+</pre></blockquote>
+
+<p>
+One can spot-check this formula in a few places:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr>
+<th><code>m</code></th><td>3</td><td>2</td><td>2</td>
+</tr>
+
+<tr>
+<th><code>d</code></th><td>1</td><td>29</td><td>28</td>
+</tr>
+
+<tr>
+<th><code>doy</code></th><td>0</td><td>365</td><td>364</td>
+</tr>
+
+</table>
+</blockquote>
+
+</blockquote>
+
+<p>
+Now given year-of-era (<code>yoe</code>) and day-of-year (<code>doy</code>),
+we can easily calculate the day-of-era (<code>doe</code>).  This is simply 365
+days for every year, plus another day for every 4 years, minus a day for every
+hundred years, plus the day-of-year:
+</p>
+
+<blockquote><pre>
+const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+</pre></blockquote>
+
+<p>
+Those familiar with this particular computation might question the lack of the
+term:
+</p>
+
+<blockquote><pre>
++ yoe / 400
+</pre></blockquote>
+
+<p>
+in the above formula.  It would actually be correct to put it in.  However note
+that <code>yoe</code> is always in the range [0, 399], and so the contribution
+of this term is always 0.
+</p>
+
+<p>
+The final computation in <code>days_from_civil</code> is computing the serial date
+from the <code>era</code> and from the day-of-era (<code>doe</code>).  This
+is simply:
+</p>
+
+<blockquote><pre>
+return era * 146097 + static_cast&lt;Int&gt;(doe)
+</pre></blockquote>
+
+<p>
+which gives the number of days, before, or after, 0000-03-01.  However note
+that I've also subtracted 719468 from this final computation in the actual
+<code>days_from_civil</code> code.  This is a shift which aligns this algorithm
+with all known implementations of <code>std::chrono::system_clock</code>.  It
+makes the serial date 0 be equivalent to 1970-01-01 instead of 0000-03-01.
+</p>
+
+<p>
+All known implementations of <code>std::chrono::system_clock</code> count
+seconds from 1970-01-01, neglecting leap seconds.  This is known as
+<a href="http://en.wikipedia.org/wiki/Unix_time">unix time</a>.  Implementations
+are not required by the standard to use this measure.  But it can be handy to
+take advantage of it.
+</p>
+
+<h2><a name="civil_from_days"></a><code>civil_from_days</code></h2>
+
+<p>
+Now that we can use <code>days_from_civil</code> to convert a
+<code>year/month/day</code> triple into a serial date, it is really
+handy to be able to go the other way: convert a serial date into a
+<code>year/month/day</code> triple.  And this is exactly what
+<code>civil_from_days</code> does.  First the algorithm, and then the
+explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Returns year/month/day triple in civil calendar</font>
+<font color="#C80000">// Preconditions:  z is number of days since 1970-01-01 and is in the range:</font>
+<font color="#C80000">//                   [numeric_limits&lt;Int&gt;::min(), numeric_limits&lt;Int&gt;::max()-719468].</font>
+template &lt;class Int&gt;
+constexpr
+std::tuple&lt;Int, unsigned, unsigned&gt;
+civil_from_days(Int z) noexcept
+{
+    static_assert(std::numeric_limits&lt;unsigned&gt;::digits &gt;= 18,
+             "This algorithm has not been ported to a 16 bit unsigned integer");
+    static_assert(std::numeric_limits&lt;Int&gt;::digits &gt;= 20,
+             "This algorithm has not been ported to a 16 bit signed integer");
+    z += 719468;
+    const Int era = (z &gt;= 0 ? z : z - 146096) / 146097;
+    const unsigned doe = static_cast&lt;unsigned&gt;(z - era * 146097);          <font color="#C80000">// [0, 146096]</font>
+    const unsigned yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365;  <font color="#C80000">// [0, 399]</font>
+    const Int y = static_cast&lt;Int&gt;(yoe) + era * 400;
+    const unsigned doy = doe - (365*yoe + yoe/4 - yoe/100);                <font color="#C80000">// [0, 365]</font>
+    const unsigned mp = (5*doy + 2)/153;                                   <font color="#C80000">// [0, 11]</font>
+    const unsigned d = doy - (153*mp+2)/5 + 1;                             <font color="#C80000">// [1, 31]</font>
+    const unsigned m = mp + (mp &lt; 10 ? 3 : -9);                            <font color="#C80000">// [1, 12]</font>
+    return std::tuple&lt;Int, unsigned, unsigned&gt;(y + (m &lt;= 2), m, d);
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+Many of the same concepts used in developing <code>days_from_civil</code> are reused
+here.  If you've skipped that section because you're just interested in this
+algorithm, you may want to go back and read it anyway, as the concepts will not
+be re-explained here.
+</p>
+
+<p>
+The first step in the computation is to shift the epoch from 1970-01-01 to
+0000-03-01:
+</p>
+
+<blockquote><pre>
+z += 719468;
+</pre></blockquote>
+
+<p>
+Now we can compute the <code>era</code> from the serial date by simply dividing
+by the number of days in an <code>era</code> (146097).  Again
+<a href="http://en.wikipedia.org/wiki/Modulo_operation">floored</a>
+or
+<a href="http://en.wikipedia.org/wiki/Euclidean_division">Euclidean</a>
+division must be used to correctly handle negative days.
+</p>
+
+<blockquote><pre>
+const Int era = (z &gt;= 0 ? z : z - 146096) / 146097;
+</pre></blockquote>
+
+<p>
+The day-of-era (<code>doe</code>) can then be found by subtracting the
+era number times the number of days per era, from the serial date. This
+is the same as the modulo operation, but assuming
+<a href="http://en.wikipedia.org/wiki/Modulo_operation">floored</a>
+or
+<a href="http://en.wikipedia.org/wiki/Euclidean_division">Euclidean</a>
+division. This always results in a <code>doe</code> in the range [0,
+146096].
+</p>
+
+<blockquote><pre>
+const unsigned doe = static_cast&lt;unsigned&gt;(z - era * 146097);
+</pre></blockquote>
+
+<p>
+From the day-of-era (<code>doe</code>), the year-of-era (<code>yoe</code>,
+range [0, 399]) can be computed.  This formula can be derived one piece at a
+time.  To start, the <code>yoe</code> can be approximated by simply dividing
+<code>doe</code> by 365:
+</p>
+
+<blockquote><pre>
+const unsigned yoe = doe / 365;
+</pre></blockquote>
+
+<p>
+This is actually correct for <code>doe</code> in the range [0, 1459],
+yielding a <code>yoe</code> in the range of [0, 3].  However 1460 / 365
+is 4.  But there are 1461 days in the first 4 years of an era (4*365+1),
+which are labeled as years 0 thru 3.  So we must alter the formula so
+that 1460 (the last day of year 3) results in 3, but 1461 (the first day
+of year 4) results in 4:
+</p>
+
+<blockquote><pre>
+const unsigned yoe = (doe - doe / 1460) / 365;
+</pre></blockquote>
+
+<p> Now the formula is accurate for <code>doe</code> in the range [0,
+36523], yielding a <code>yoe</code> in the range of [0, 99].  but the
+first hundred years of an era has 36524 days in it (365 * 100 + 100/4 -
+1 == 36524).  36524 (the first day of year 100) should yield 100, but
+instead yields 99 in the above formula which is incorrect.  To correct this
+the formula can be augmented again:
+</p>
+
+<blockquote><pre>
+const unsigned yoe = (doe - doe/1460 + doe/36524) / 365;
+</pre></blockquote>
+
+<p>
+Now inputing 36524 yields 100.  And indeed the formula is now correct up until
+the very last day in an era, day number 146096.  On this day, the last day of
+the era, and the last day of year 399, the above formula yields 400 instead of
+399.  The formula can be made exact for every day in the era with one more
+adjustment:
+</p>
+
+<blockquote><pre>
+const unsigned yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365;
+</pre></blockquote>
+
+<p>
+Given year-of-era, and era, one can now compute the year number:
+</p>
+
+<blockquote><pre>
+const Int y = static_cast&lt;Int&gt;(yoe) + era * 400;
+</pre></blockquote>
+
+<p>
+Note though that this year number is still in terms of a year that begins on
+Mar. 1, not Jan. 1.
+</p>
+
+<p>
+Also the day-of-year, again with the year beginning on Mar. 1, can be computed
+from the day-of-era and year-of-era.  One simply subtracts from the day-of-era
+the days that have occurred in all prior years of this era:
+</p>
+
+<blockquote><pre>
+const unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+</pre></blockquote>
+
+<p>
+Again note the absence of the correct term <code>+ yoe / 400</code> because the
+contribution of this term is always zero since 399 is the upper range of
+<code>yoe</code>.
+</p>
+
+<blockquote>
+<h3><a name="Computing month from day-of-year"></a>Computing month from day-of-year</h3>
+
+<p>
+When developing <code>days_from_civil</code> we had to develop a linear equation
+to compute the day-of-year from the first day of month <code>m'</code> where
+<code>m'</code> is in the range [0, 11] representing [Mar, Feb].
+</p>
+
+<blockquote><pre>
+int
+doy_from_month(int mp)
+{
+    return (153 * mp + 2) / 5;
+}
+</pre></blockquote>
+
+<p>
+Now we need the inverse of this formula:  Given day-of-year, we need to find
+the month number.  If integral arithmetic was exact, the derivation would be
+straight forward algebra and we would get:
+</p>
+
+<blockquote><pre>
+int
+month_from_doy(int doy)
+{
+    return (5 * doy - 2) / 153;
+}
+</pre></blockquote>
+
+<p>
+Before accepting this as the correct answer, it is wise to build a unit test
+for this function.  The one developed for <code>doy_from_month</code> can easily
+be augmented to test both of these functions at the same time:
+</p>
+
+<blockquote><pre>
+int
+main()
+{
+    int a[12][2] =
+    {
+        {0, 30},
+        {31, 60},
+        {61, 91},
+        {92, 121},
+        {122, 152},
+        {153, 183},
+        {184, 213},
+        {214, 244},
+        {245, 274},
+        {275, 305},
+        {306, 336},
+        {337, 365}
+    };
+
+    for (int mp = 0; mp &lt; 12; ++mp)
+    {
+        assert(doy_from_month(mp) == a[mp][0]);
+        assert(month_from_doy(a[mp][0]) == mp);
+        assert(month_from_doy(a[mp][1]) == mp);
+    }
+}
+</pre></blockquote>
+
+<p>
+The pair of numbers in <code>a</code> are the first and last numbers of the
+day-of-year for each month in [0, 11].  We already have a function
+<code>doy_from_month(mp)</code> which computes the starting day-of-year for
+each month, and tested by the first <code>assert</code> in the program.  And
+now two more <code>assert</code>s are added to test that given both the
+first and last day of each month, <code>month_from_doy</code> can transform
+that day-of-year into the correct month number <code>mp</code>.
+</p>
+
+<p>
+Running this test on the <code>month_from_doy</code> given above, we see that
+our first attempt at derivation using simple algebra is incorrect.  However it
+is close.  The slope of the linear equation is correct.  We just need to
+experiment with the y-intercept to discover the correct formula.  There exist
+three which will pass the above unit test:
+</p>
+
+<ul>
+<li><code>return (10*doy + 4) / 306;</code></li>
+<li><code>return ( 5*doy + 2) / 153;</code></li>
+<li><code>return (10*doy + 5) / 306;</code></li>
+</ul>
+
+<p>
+I've chosen the second for use in <code>civil_from_days</code> because it
+appears to have a slight performance advantage:
+</p>
+
+</blockquote>
+
+<blockquote><pre>
+const unsigned mp = (5*doy + 2)/153;
+</pre></blockquote>
+
+<p>
+From day-of-year and month-of-year we can now easily compute
+day-of-month by reusing the <code>doy_from_month</code> formula
+developed for <code>days_from_civil</code>. One just subtracts from the
+day-of-year all of the days that occurred in the previous months of this
+year.  One is added to the result since the day count is 1-based instead
+of 0-based.
+</p>
+
+<blockquote><pre>
+const unsigned d = doy - (153*mp+2)/5 + 1;
+</pre></blockquote>
+
+<p>
+Next we need to transform the month number from the [0, 11] / [Mar, Feb] system
+to the civil system: [1, 12].  I've found that branching is faster than using
+<code>%</code>:
+</p>
+
+<blockquote><pre>
+const unsigned m = mp + (mp &lt; 10 ? 3 : -9);
+</pre></blockquote>
+
+<p>
+Now the only thing left to do is to transform the year number from the internal
+format (begins in Mar.) to the civil format (begins in Jan.).  This is done
+simply by adding 1 to the year if the month is Jan. or Feb.  I've returned
+this result in a <code>std::tuple</code> for no good reason at all.  You should
+return the triple <code>year/month/day</code> in whatever format is convenient
+for you.
+</p>
+
+<blockquote><pre>
+return std::tuple&lt;Int, unsigned, unsigned&gt;(y + (m &lt;= 2), m, d);
+</pre></blockquote>
+
+<h2><a name="is_leap"></a><code>is_leap</code></h2>
+
+<p>
+Even though the conversions between <code>year/month/day</code> and the
+serial date do not need to compute whether or not a year is a leap year,
+it is still very handy to know whether or not a year is a leap year. 
+This function answers that question.  First the algorithm, and then the
+explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Returns: true if y is a leap year in the civil calendar, else false</font>
+template &lt;class Int&gt;
+constexpr
+bool
+is_leap(Int y) noexcept
+{
+    return  y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+The formula is designed to return an answer as quickly as possible for a random
+year.  75.75% of all years are not leap years.  We can find 99% of the non-leap years
+with only one test: <code>y % 4 != 0</code>.  If the year is not evenly
+divisible by 4, then it is definitely not a leap year, and short circuiting will
+cause a return at this point without evaluating the rest of the formula.
+</p>
+
+<p>
+Of the 25% of the years that are evenly divisibly by 4, these <i>might</i> be a
+leap year.  96% of these 25% are and can be dispatched with a second test:
+<code>y %100 != 0</code>.  If the year is evenly divisible by 4 and not evenly
+divisible by 100, then it is definitely a leap year, and short circuiting will
+return here for those years.  The remaining 4% of the 25% (or 1% of the total
+number of years) require one more test.  These are years that are known to be
+divisible by 100.  If they are also evenly divisible by 400, then they are a
+leap year, else they are not.
+</p>
+
+<p>
+In summary, given a uniformly distributed random year:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr>
+<th>This percentage of the time</th><th>this will get executed</th>
+</tr>
+<tr>
+<td>75%</td><td><code>y % 4 == 0</code>, typically optimized to <code>!(y &amp; 0x3)</td>
+</tr>
+<tr>
+<td>24%</td><td><code>(y % 4 == 0) && (y % 100 != 0)</code></td>
+</tr>
+<tr>
+<td>1%</td><td><code>(y % 4 == 0) && (y % 100 != 0) && (y % 400 == 0)</code></td>
+</tr>
+</table>
+</blockquote>
+
+<h2><a name="last_day_of_month_common_year"></a><code>last_day_of_month_common_year</code></h2>
+
+<p>
+Given a month, and with the assumption that this is a month in a common
+(non-leap) year, return the number of days in the month, or equivalently
+the day of the last day of the month.  First the algorithm, and then the
+explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Preconditions: m is in [1, 12]</font>
+<font color="#C80000">// Returns: The number of days in the month m of common year</font>
+<font color="#C80000">// The result is always in the range [28, 31].</font>
+constexpr
+unsigned
+last_day_of_month_common_year(unsigned m) noexcept
+{
+    constexpr unsigned char a[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    return a[m-1];
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+If you know you have a common year, this is the fastest mapping I know of to
+translate the month into the last day of the month.  <code>unsigned char</code>
+is used as the table type as both a speed and size optimization.
+</p>
+
+<h2><a name="last_day_of_month_leap_year"></a><code>last_day_of_month_leap_year</code></h2>
+
+<p>
+Given a month, and with the assumption that this is a month in a leap
+year, return the number of days in the month, or equivalently
+the day of the last day of the month.  First the algorithm, and then the
+explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Preconditions: m is in [1, 12]</font>
+<font color="#C80000">// Returns: The number of days in the month m of leap year</font>
+<font color="#C80000">// The result is always in the range [29, 31].</font>
+constexpr
+unsigned
+last_day_of_month_leap_year(unsigned m) noexcept
+{
+    constexpr unsigned char a[] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    return a[m-1];
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+If you know you have a leap year, this is the fastest mapping I know of to
+translate the month into the last day of the month.  <code>unsigned char</code>
+is used as the table type as both a speed and size optimization.
+</p>
+
+<h2><a name="last_day_of_month"></a><code>last_day_of_month</code></h2>
+
+<p>
+Given a year and month, often one needs to quickly find out how many
+days are in the month.  Or equivalently, what is the last day of the
+month.  First the algorithm, and then the explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Preconditions: m is in [1, 12]</font>
+<font color="#C80000">// Returns: The number of days in the month m of year y</font>
+<font color="#C80000">// The result is always in the range [28, 31].</font>
+template &lt;class Int&gt;
+constexpr
+unsigned
+last_day_of_month(Int y, unsigned m) noexcept
+{
+    return m != 2 || !is_leap(y) ? last_day_of_month_common_year(m) : 29u;
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+The algorithm looks so simple that it hardly needs any explanation.  However I'm
+going to bore you with one anyway.  An early reviewer noted that sometimes one
+already has the information that <code>y</code> is (or not) a leap year, and so
+taking advantage of that information for performance reasons would be nice,
+instead of recomputing it within <code>last_day_of_month</code>.  I found this
+argument compelling, and set off to measure how much time I could save.
+</p>
+
+<p>
+It turns out that if one simply replaces <code>Int y</code> with
+<code>bool is_leap</code> in the above algorithm, the savings is
+actually quite tiny.  So tiny it is hard to measure.  I was surprised by
+this result, however the basic concept that the reviewer had: "avoid
+<code>is_leap(y)</code> when possible," is sound.  And this was the
+genesis of <code>last_day_of_month_common_year</code> and
+<code>last_day_of_month_leap_year</code>.
+</p>
+
+<blockquote>
+<p>
+First an analysis of the current implementation of
+<code>last_day_of_month</code>:
+</p>
+
+<p>
+Given a uniformly distributed <code>y</code>, and a uniformly distributed <code>m</code>
+in the range [1, 12], the following table gives the odds of exactly what gets
+executed in a call to <code>last_day_of_month(y, m)</code>:
+</p>
+
+<table border="1" cellpadding="10">
+<tr>
+<th>This percentage of the time</th><th>this will get executed</th>
+</tr>
+<tr>
+<td>91&frac23;%</td><td><code>m != 2</code></td>
+</tr>
+<tr>
+<td>6&frac14;%</td><td><code>(m != 2) && (y % 4 == 0)</code></td>
+</tr>
+<tr>
+<td>2%</td><td><code>(m != 2) && (y % 4 == 0) && (y % 100 != 0)</code></td>
+</tr>
+<tr>
+<td><sup>1</sup>/<sub>12</sub>%</td><td><code>(m != 2) && (y % 4 == 0) && (y % 100 != 0) && (y % 400 == 0)</code></td>
+</tr>
+</table>
+
+<p>
+In English, over 91% of the time, neither the function
+<code>is_leap(y)</code>, nor the <code>bool is_leap</code> is even
+touched.  Additionally in over 6% of the cases, the only additional code
+is a <code>% 4</code> which is typically optimized to a <code>&
+0x3</code>.  Bitwise-ands are so fast they are practically free.  So
+we're up to 97<sup>11</sup>/<sub>12</sub>% of the time actually
+computing <code>is_leap(y)</code> is just as fast or very nearly just as
+fast.  In 2% of the cases, avoiding the <code>is_leap(y)</code>
+computation saves a <code>%</code> operation.  And in
+<sup>1</sup>/<sub>12</sub> of 1% of the cases, avoiding the
+<code>is_leap(y)</code> computation saves two <code>%</code> operations.
+Although a <code>%</code> operation is a significant expense, they
+happen so rarely in this code that this just isn't good enough to
+justify another signature.
+</p>
+
+</blockquote>
+
+<p>
+However if one can remove <b>all</b> branches from an entire year's
+worth of calls to <code>last_day_of_month</code>, then you've got a
+small but measurable performance optimization.  For example if you're
+looping over all months in a year, then you should be able to compute
+<code>is_leap(y)</code> exactly once, then branch exactly once, and then
+get the number of days in each month with no further testing.  And this
+is the reason <code>last_day_of_month_common_year</code> and
+<code>last_day_of_month_leap_year</code> are introduced.
+</p>
+
+<h2><a name="weekday_from_days"></a><code>weekday_from_days</code></h2>
+
+<p>
+The day-of-the-week is most conveniently computed from the serial date. 
+These formulas use the C and C++ convention that [0, 6] represents [Sun,
+Sat].  First the algorithm, and then the explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Returns day of week in civil calendar [0, 6] -> [Sun, Sat]</font>
+<font color="#C80000">// Preconditions:  z is number of days since 1970-01-01 and is in the range:</font>
+<font color="#C80000">//                   [numeric_limits&lt;Int&gt;::min(), numeric_limits&lt;Int&gt;::max()-4].</font>
+template &lt;class Int&gt;
+constexpr
+unsigned
+weekday_from_days(Int z) noexcept
+{
+    return static_cast&lt;unsigned&gt;(z &gt;= -4 ? (z+4) % 7 : (z+5) % 7 + 6);
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+There are really two formulas, both based on doing <code>% 7</code>. 
+When the lhs argument for the % operator is not negative, then
+<code>(z+4) % 7</code> has pleasing results.  Recall that <code>z ==
+0</code> corresponds to 1970-01-01. It is easily verified that this day
+was a Thursday.  Thus <code>weekday_from_days(0)</code> should yield 4,
+<code>weekday_from_days(1)</code> should yield 5, and so on. <code>(z+4) %
+7</code> achieves this and it is easy to see will always be correct for
+all dates after 1970-01-01.
+</p>
+
+<p>
+Getting weekdays prior to 1970-01-01 requires a bit more work.  But we
+can start with <code>weekday_from_days(-1)</code> should yield 3 (the day before
+Thursday is Wednesday).  This actually works with <code>(z+4) % 7</code>, but
+stops working by the time we get to <code>weekday_from_days(-5)</code>, which should be
+6 (Sat).  Instead the formula yields -1.  For these and all previous dates,
+after we <code>% 7</code>, giving a number in the range [-6, 0], we need to add
+6 to get the number back into the desired range [0, 6].  And furthermore we
+need a new offset to ensure that <code>weekday_from_days(-5) == 6</code>.  The formula
+<code>(z+5) % 7 + 6</code> does the trick.
+</p>
+
+<p>
+This is all equivalent to a
+<a href="http://en.wikipedia.org/wiki/Modulo_operation">modulo operation based on floored or Euclidean division.</a>
+So if your C++98/03 compiler implements floored or Euclidean division (it
+may or may not), then you can simply <code>return (z+4) % 7</code>.  If
+you are unsure, the unit tests below will detect the error if the code
+is inconsistent with the compiler's definition of integral division.
+</p>
+
+<h2><a name="weekday_difference"></a><code>weekday_difference</code></h2>
+
+<p>
+It turns out to be very handy to ask: Given two weekdays, how many days
+do you have to increment to get from one to the other.  This question
+has been cast in the form of subtraction between two weekdays.  First
+the algorithm, and then the explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Preconditions: x &lt;= 6 &amp;&amp; y &lt;= 6</font>
+<font color="#C80000">// Returns: The number of days from the weekday y to the weekday x.</font>
+<font color="#C80000">// The result is always in the range [0, 6].</font>
+constexpr
+unsigned
+weekday_difference(unsigned x, unsigned y) noexcept
+{
+    x -= y;
+    return x &lt;= 6 ? x : x + 7;
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+This algorithm views the range [Sun, Sat] ([0, 6]) as a circular range.  Once
+you reach Sat, it is not the end of the range.  Instead Sun is the next element
+in the range.  And the cycle repeats.  Given that, how many days do you need to
+add to <code>y</code> to get <code>x</code>?
+</p>
+
+<p>
+The algorithm takes advantage of the requirement that unsigned integers shall
+obey the laws of arithmetic modulo 2<sup><i>n</i></sup> where <i>n</i> is the
+number of bits in the value representation of that particular size of integer.
+That is, if <code>x -= y</code> "underflows", it is brought back into range with
+<code>+ 7</code>.  Because this is unsigned arithmetic, there is no undefined
+behavior.
+</p>
+
+<p>
+A higher-level library may choose to provide pre-condition checking prior to
+calling this low-level algorithm.
+</p>
+
+<p>
+Here is a complete unit-test for this function:
+</p>
+
+<blockquote><pre>
+#include &lt;cassert&gt;
+
+void
+test_weekday_difference()
+{
+    constexpr unsigned a[7][7] =
+    {<font color="#C80000">// -    Sun Mon Tue Wed Thu Fri Sat</font>
+     <font color="#C80000">/*Sun*/</font> {0,  6,  5,  4,  3,  2,  1},
+     <font color="#C80000">/*Mon*/</font> {1,  0,  6,  5,  4,  3,  2},
+     <font color="#C80000">/*Tue*/</font> {2,  1,  0,  6,  5,  4,  3},
+     <font color="#C80000">/*Wed*/</font> {3,  2,  1,  0,  6,  5,  4},
+     <font color="#C80000">/*Thu*/</font> {4,  3,  2,  1,  0,  6,  5},
+     <font color="#C80000">/*Fri*/</font> {5,  4,  3,  2,  1,  0,  6},
+     <font color="#C80000">/*Sat*/</font> {6,  5,  4,  3,  2,  1,  0}
+    };
+    for (unsigned x = 0; x &lt; 7; ++x)
+        for (unsigned y = 0; y &lt; 7; ++y)
+            assert(weekday_difference(x, y) == a[x][y]);
+}
+</pre></blockquote>
+
+<h2><a name="next_weekday"></a><code>next_weekday</code></h2>
+
+<p>
+It is convenient to find the next weekday in the circular range [Sun,
+Sat].  First the algorithm, and then the explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Preconditions: wd &lt;= 6</font>
+<font color="#C80000">// Returns: The weekday following wd</font>
+<font color="#C80000">// The result is always in the range [0, 6].</font>
+constexpr
+unsigned
+next_weekday(unsigned wd) noexcept
+{
+    return wd &lt; 6 ? wd+1 : 0;
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+If <code>wd</code> is not Sat, <code>wd+1</code> is returned, else Sun is
+returned.
+</p>
+
+<h2><a name="prev_weekday"></a><code>prev_weekday</code></h2>
+
+<p>
+It is convenient to find the previous weekday in the circular range [Sun,
+Sat].  First the algorithm, and then the explanation:
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<tr><td>
+<pre>
+<font color="#C80000">// Preconditions: wd &lt;= 6</font>
+<font color="#C80000">// Returns: The weekday prior to wd</font>
+<font color="#C80000">// The result is always in the range [0, 6].</font>
+inline
+constexpr
+unsigned
+prev_weekday(unsigned wd) noexcept
+{
+    return wd &gt; 0 ? wd-1 : 6;
+}
+</pre>
+</td></tr>
+</table>
+</blockquote>
+
+<p>
+If <code>wd</code> is not Sun, <code>wd-1</code> is returned, else Sat is
+returned.
+</p>
+
+<h2><a name="Yes, but how do you know this all really works?"></a>Yes, but how do you know this all really works?</h2>
+
+<p>
+These functions can and should be tested.  Below is a very thorough unit test
+for 7 of the ten functions:
+</p>
+
+<blockquote><pre>
+#include &lt;iostream&gt;
+#include &lt;chrono&gt;
+#include &lt;cassert&gt;
+
+static_assert(<b>days_from_civil(1970, 1, 1)</b> == 0, "1970-01-01 is day 0");
+static_assert(<b>civil_from_days(0)</b> == std::make_tuple(1970, 1, 1), "1970-01-01 is day 0");
+static_assert(<b>weekday_from_days(days_from_civil(1970, 1, 1))</b> == 4, "1970-01-01 is a Thursday");
+
+int
+main()
+{
+    int ystart = -1000000;
+    int prev_z = <b>days_from_civil(ystart, 1, 1)</b> - 1;
+    assert(prev_z &lt; 0);
+    int prev_wd = <b>weekday_from_days(prev_z)</b>;
+    assert(0 &lt;= prev_wd &amp;&amp; prev_wd &lt;= 6);
+    auto t0 = std::chrono::system_clock::now();
+    for (int y = ystart; y &lt;= -ystart; ++y)
+    {
+        for (unsigned m = 1; m &lt;= 12; ++m)
+        {
+            unsigned e = <b>last_day_of_month(y, m)</b>;
+            for (unsigned d = 1; d &lt;= e; ++d)
+            {
+                int z = <b>days_from_civil(y, m, d)</b>;
+                assert(prev_z &lt; z);
+                assert(z == prev_z+1);
+                int yp;
+                unsigned mp, dp;
+                std::tie(yp, mp, dp) = <b>civil_from_days(z)</b>;
+                assert(y == yp);
+                assert(m == mp);
+                assert(d == dp);
+                unsigned wd = <b>weekday_from_days(z)</b>;
+                assert(0 &lt;= wd &amp;&amp; wd &lt;= 6);
+                assert(wd == <b>next_weekday(prev_wd)</b>);
+                assert(prev_wd == <b>prev_weekday(wd)</b>);
+                prev_z = z;
+                prev_wd = wd;
+            }
+        }
+    }
+    auto t1 = std::chrono::system_clock::now();
+    typedef std::chrono::duration&lt;float&gt; sec;
+    std::cout &lt;&lt; sec(t1-t0).count() &lt;&lt; '\n';
+    std::cout &lt;&lt; <b>days_from_civil(1000000, 12, 31)</b> - <b>days_from_civil(-1000000, 1, 1)</b> &lt;&lt; '\n';
+}
+</pre></blockquote>
+
+<p>
+First some static_asserts are performed to nail down some basics.  If
+your compiler does not support the C++1y constexpr rules, you will need
+to verify these at run time with <code>assert</code> instead.  The
+<code>static_assert</code>s confirm that 1970-01-01 is day 0, and that
+this day is a Thursday.
+</p>
+
+<p>
+In <code>main()</code> I've chosen to test every day between
+-1,000,000-01-01 and 1,000,000-12-31.  This is a total of 730,485,366
+days, spanning a range far greater than the civil calendar is actually
+valid.  So the test is overkill. However one of the goals of these
+formulas is to not burden the client with the need to range check, or
+worry about the range of validity of the formulas.  All the user really
+has to worry about is if he really should be using the civil
+calendar for the Jurassic period (certainly possible when these
+functions are instantiated with <code>long long</code>).
+</p>
+
+<p>
+The test loops over each year, each month of each year, and each day of each
+month.  It computes the serial date from each <code>year/month/day</code>
+triple and ensures that this is 1 greater than the previous iteration.  It
+then converts the serial date back to a <code>year/month/day</code> triple
+and ensures that this is the same triple it started this iteration with.  And
+finally the test ensures that the weekday for this date is one day later in the
+week than was the weekday for the previous iteration.
+</p>
+
+<p>
+I've also timed the entire test.  On my machine (2.8 GHz Intel Core i5
+iMac) this executes at -O3 in about 17.1 seconds which means it is
+testing each date in about 23.4 ns.  These functions are not slow.
+</p>
+
+<h2><a name="What can I do with that <code>chrono</code> compatibility?"></a>What can I do with that <code>chrono</code> compatibility?</h2>
+
+<p>
+Here is a short program that prints out the current local date and time
+without going through the C interface:
+</p>
+
+<blockquote><pre>
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;chrono&gt;
+
+int
+main()
+{
+    using namespace std;
+    using namespace std::chrono;
+    typedef duration&lt;int, ratio_multiply&lt;hours::period, ratio&lt;24&gt;&gt;&gt; days;
+    auto utc_offset = hours(-4);  <font color="#C80000">// my current UTC offset</font>
+    <font color="#C80000">// Get duration in local units</font>
+    auto now = system_clock::now().time_since_epoch() + utc_offset;
+    <font color="#C80000">// Get duration in days</font>
+    auto today = duration_cast&lt;days&gt;(now);
+    int year;
+    unsigned month;
+    unsigned day;
+    <font color="#C80000">// Convert days into year/month/day</font>
+    <b>std::tie(year, month, day) = civil_from_days(today.count());</b>
+    <font color="#C80000">// Subtract off days, leaving now containing time since local midnight</font>
+    now -= today;
+    auto h = duration_cast&lt;hours&gt;(now);
+    now -= h;
+    auto m = duration_cast&lt;minutes&gt;(now);
+    now -= m;
+    auto s = duration_cast&lt;seconds&gt;(now);
+    now -= s;
+    auto us = duration_cast&lt;microseconds&gt;(now);
+    cout.fill('0');
+    cout &lt;&lt; "Today is "
+         &lt;&lt; year &lt;&lt; '-' &lt;&lt; setw(2) &lt;&lt; month &lt;&lt; '-' &lt;&lt; setw(2) &lt;&lt; day
+         &lt;&lt; " at " &lt;&lt; setw(2) &lt;&lt; h.count() &lt;&lt; ':'
+         &lt;&lt; setw(2) &lt;&lt; m.count() &lt;&lt; ':'
+         &lt;&lt; setw(2) &lt;&lt; s.count() &lt;&lt; '.' &lt;&lt; setw(6) &lt;&lt; us.count() &lt;&lt; '\n';
+}
+</pre></blockquote>
+
+<p>
+For me this outputs:
+</p>
+
+<blockquote><pre>
+Today is 2013-08-04 at 20:21:22.043095
+</pre></blockquote>
+
+<p>
+I've used <code>civil_from_days</code> to turn a <code>chrono::duration</code>
+obtained from <code>system_clock::now()</code> into a
+<code>year/month/day</code> triple. For grins I've also subtracted off
+the days from the duration to get the hours, subtracted off the hours to
+get minutes, and subtracted off the minutes to get seconds, so I can
+print out the current time along with the current date.  On my system I
+can even print the current time with microsecond accuracy if I want
+(something not even possible with the C interface).
+</p>
+
+<p>
+One can also go the other way:  Specify a date in terms of a
+<code>year/month/day</code> triple and then convert that into a
+<code>system_clock::time_point</code>:
+</p>
+
+<blockquote><pre>
+int
+main()
+{
+    using namespace std;
+    using namespace std::chrono;
+    typedef duration&lt;int, ratio_multiply&lt;hours::period, ratio&lt;24&gt;&gt;&gt; days;
+    auto utc_offset = hours(-4);
+    <font color="#C80000">// Build a time point in local days::hours::minutes and then convert to UTC</font>
+    <b>auto wakeup_at = system_clock::time_point(days(days_from_civil(2013, 8, 4))
+                                              + hours(20) + minutes(59) - utc_offset);</b>
+    this_thread::sleep_until(wakeup_at);
+    print_current_date_time();
+}
+
+Today is 2013-08-04 at 20:59:00.021702
+</pre></blockquote>
+
+<h2><a name="Example:  Finding nth weekday of month"></a>Example:  Finding nth weekday of month</h2>
+
+<p>
+<code>weekday_difference</code> is handy for computing dates like the
+4th Saturday in May, or the last Sunday of Jun.  For an example of the
+former consider:
+</p>
+
+<blockquote><pre>
+std::tuple&lt;int, unsigned, unsigned&gt;
+get_nth_dow_month_year(unsigned n, unsigned wd, unsigned month, int year)
+{
+    <font color="#C80000">// Do validation here</font>
+    assert(n <= 4);  <font color="#C80000">// We could possibly allow n == 5, but it would sometimes fail</font>
+    assert(wd <= 6);
+    assert(1 <= month && month <= 12);
+    const unsigned wd_1st = weekday_from_days(days_from_civil(year, month, 1));
+    const unsigned day = <b>weekday_difference(wd, wd_1st)</b> + 1 + (n-1)*7;
+    return std::tuple&lt;int, unsigned, unsigned&gt;(year, month, day);
+}
+</pre></blockquote>
+
+<p>
+First compute the weekday of the first day of the month.  Then add to the first
+day of the month the difference between the weekday you want and the weekday you
+have.  This will be some number between 0 and 6.  And then add to that n-1 weeks.
+Now you have a <code>year/month/day</code> triple.  If instead you wanted to
+return a <code>system_clock::time_point</code>, that is just as easy:
+</p>
+
+<blockquote><pre>
+std::chrono::system_clock::time_point
+get_nth_dow_month_year(unsigned n, unsigned wd, unsigned month, int year)
+{
+    <font color="#C80000">// Do validation here</font>
+    <font color="#C80000">// Don't actually need to check n</font>
+    assert(wd <= 6);
+    assert(1 <= month && month <= 12);
+    using namespace std;
+    using namespace std::chrono;
+    typedef duration&lt;int, ratio_multiply&lt;hours::period, ratio&lt;24&gt;&gt;&gt; days;
+    int d = days_from_civil(year, month, 1);
+    const unsigned wd_1st = weekday_from_days(d);
+    d += <b>weekday_difference(wd, wd_1st)</b> + (n-1)*7;
+    return system_clock::time_point(days(d));
+}
+</pre></blockquote>
+
+<p>
+If you are wanting to get the last weekday of a month, this is also very easy
+using <code>weekday_difference</code>:
+</p>
+
+<blockquote><pre>
+std::tuple&lt;int, unsigned, unsigned&gt;
+get_last_dow_month_year(unsigned wd, unsigned month, int year)
+{
+    <font color="#C80000">// Do validation here</font>
+    assert(wd <= 6);
+    assert(1 <= month && month <= 12);
+    const unsigned last = last_day_of_month(year, month);
+    const unsigned wd_last = weekday_from_days(days_from_civil(year, month, last));
+    const unsigned day = last - <b>weekday_difference(wd_last, wd)</b>;
+    return std::tuple&lt;int, unsigned, unsigned&gt;(year, month, day);
+}
+</pre></blockquote>
+
+<p>
+You simply compute the weekday of the last day of the month, and then use
+<code>weekday_difference</code> to find the number of days that need to be
+subtracted from the last day of the month to get to the desired weekday.
+</p>
+
+<p>
+In some circumstances you might want to find the next weekday, not counting
+the "current day".  For example you may need the next Thu from today, and if
+today is a Thu, you need a week from today, not today.  In this use case,
+combining <code>weekday_difference</code> with <code>next_weekday</code> is
+very handy:
+</p>
+
+<blockquote><pre>
+int meeting_day = tomorrow + <b>weekday_difference(</b>desired_weekday, <b>next_weekday(</b>todays_weekday<b>))</b>;
+</pre></blockquote>
+
+<p>
+Where <code>tomorrow</code> is just <code>today+1</code> and
+<code>todays_weekday</code> is today's weekday.
+</p>
+
+<h2><a name="Example: Converting between the civil calendar and the ISO week calendar"></a>Example: Converting between the civil calendar and the ISO week calendar</h2>
+
+<p>
+These algorithms can be used to easily convert between the civil calendar and the
+ISO week-based calendar.  The ISO rules for this calendar are:
+</p>
+
+<ol>
+<li>
+The week starts with Monday, and ends with Sunday.
+</li>
+<li>
+The first day of the year is the Monday that occurs on or before Jan. 4.
+</li>
+<li>
+A date is specified by the week number [1 - 53], day of the week [Mon -
+Sun] and year number.
+</li>
+<li>
+The year number is the same as the civil year number for the Thursday
+that follows the start of the week-based year.
+<ul>
+<li>
+This makes it possible for a day in the week-based year to have a
+different year number than in the civil calendar for that day.
+</li>
+</ul>
+</li>
+</ol>
+
+<p>
+ISO 8601 gives two examples:
+</p>
+
+<ol>
+<li>
+Sunday Jan. 1, 1995 is the Sunday of week 52 of the year 1994. (Week 1
+of 1995 starts on Monday Jan. 2, 1995)
+</li>
+<li>
+Tuesday Dec. 31, 1996 is the Tuesday of week 1 of the year 1997. (The
+first day of the week-based year 1997 begins on Monday Dec. 30, 1996, which is
+the first Monday on or before Jan. 4, 1997, a Saturday)
+</li>
+</ol>
+
+<p>
+Here are functions for converting from <code>year/month/day</code> to
+<code>year/week/weekday</code> and back.  It is first convenient to create
+a function that finds the "time_point" (count of days since epoch) of the
+first day of the week-based year given the year number.  This year number is
+actually the week-based year number, not the civil year number:
+</p>
+
+<blockquote><pre>
+int
+iso_week_start_from_year(int y)
+{
+    const unsigned Monday = 1;
+    const unsigned Jan = 1;
+    const int tp = days_from_civil(y, Jan, 4);
+    const unsigned wd = weekday_from_days(tp);
+    return tp - static_cast&lt;int&gt;(weekday_difference(wd, Monday));
+}
+</pre></blockquote>
+
+<p>
+To ease confusion and allow reuse of the code we've developed, we
+continue to encode our days [Sun, Sat] as [0, 6], despite the fact that
+Sun/0 is now the last day of the week instead of the first.
+</p>
+
+<p>
+Given the tools in our toolbox, this function is remarkably easy to create from
+rule 2 above:
+</p>
+
+<ol>
+<li>
+Turn y-01-04 into a serial date.
+</li>
+<li>
+Get the weekday of y-01-04.
+</li>
+<li>
+Subtract off the number of days the current weekday is past Monday.
+</li>
+</ol>
+
+<p>
+Using the <code>iso_week_start_from_year</code> helper function, it is
+now easy to convert from <code>year/month/day</code> to
+<code>year/week_number/week_day</code>:
+</p>
+
+<blockquote><pre>
+<font color="#C80000">// year, week[1, 53], weekday[0, 6]</font>
+std::tuple&lt;int, unsigned, unsigned&gt;
+iso_week_from_civil(int y, unsigned m, unsigned d)
+{
+    const unsigned Monday = 1;
+    const unsigned Thursday = 4;
+    const int tp = days_from_civil(y, m, d);
+    int iso_week_start = iso_week_start_from_year(y);
+    if (tp &lt; iso_week_start)
+        iso_week_start = iso_week_start_from_year(y-1);
+    else
+    {
+        const int iso_week_next_year_start = iso_week_start_from_year(y+1);
+        if (tp &gt;= iso_week_next_year_start)
+            iso_week_start = iso_week_next_year_start;
+    }
+    const unsigned weekday = weekday_from_days(tp);
+    const unsigned week = (tp - iso_week_start) / 7 + 1;
+    int year;
+    std::tie(year, std::ignore, std::ignore) =
+        civil_from_days(iso_week_start + int(Thursday - Monday));
+    return std::tuple&lt;int, unsigned, unsigned&gt;(year, week, weekday);
+}
+</pre></blockquote>
+
+<p>
+We're going to need to easily compare dates using less-than.  To do that we
+need to work in terms of serial dates, so we convert both the <code>y/m/d</code>
+and the start of the ISO week-based year into serial dates (<code>tp</code> and
+<code>iso_week_start</code>).
+</p>
+
+<p>
+Recall that the input to <code>iso_week_start_from_year</code> is the
+week-based year number, not the civil year number.  So it is possible
+that our year number is one off, causing the current date to fall
+outside of the range of the ISO week-based year we just computed.  The
+ISO 8601 examples given above are both cases where this happens.  So we
+test if <code>tp</code> is prior to <code>iso_week_start</code>.  If it
+is, then we need to change the start of the ISO week to that of the
+previous year.  Otherwise we need to check if <code>tp</code> falls in
+the following ISO week-based year, and if so change
+<code>iso_week_start</code> to the following year.
+</p>
+
+<p>
+Once past the if-statement, <code>iso_week_start</code> is the correct beginning
+of the week-based year that contains <code>tp</code>.  We need the weekday of
+<code>tp</code>, easily computed with <code>weekday_from_days</code>.  We need
+the week number, easily computed by finding out how many weeks <code>tp</code>
+is beyond <code>iso_week_start</code>, and recalling that the week number is
+1-based, not 0-based.  And finally we need to implement ISO rule 4 which says
+that the year number is that of the civil date for the Thursday that follows
+the start of the ISO week-based year.
+</p>
+
+<p>
+The reverse conversion, from <code>year/week_number/week_day</code> to
+<code>year/month/day</code> is even easier:
+</p>
+
+<blockquote><pre>
+<font color="#C80000">// year, month[1, 12], day[1, 31]</font>
+std::tuple&lt;int, unsigned, unsigned&gt;
+civil_from_iso_week(int y, unsigned w, unsigned wd)
+{
+    int tp = iso_week_start_from_year(y) + (w-1) * 7 + (wd == 0 ? 6 : wd - 1);
+    return civil_from_days(tp);
+}
+</pre></blockquote>
+
+<p>
+One simply converts the week-based year into a serial date by using our helper
+function <code>iso_week_start_from_year</code>, the number of 1-based weeks,
+and the day of the week.  For the latter, recall that Sunday is the last day of
+the week, or day 6 of the week, and Monday is the first day of the week, or day
+0 of the week.  Once we have a serial date, it is now trivial to convert that
+to a civil date using <code>civil_from_days</code>.
+</p>
+
+<p>
+Note that in any of these formulas, the variable named <code>tp</code> is a
+serial date, compatible with <code>chrono::system_clock::time_point</code>,
+and so you could just as easily be converting to or from a
+<code>chrono::system_clock::time_point</code> using:
+</p>
+
+<blockquote><pre>
+typedef duration&lt;int, ratio_multiply&lt;hours::period, ratio&lt;24&gt;&gt;&gt; days;
+<font color="#C80000">// tp -&gt; time_point</font>
+system_clock::time_point time_point(days(tp));
+<font color="#C80000">// time_point -&gt; tp</font>
+int tp2 = duration_cast&lt;days&gt;(time_point.time_since_epoch()).count();
+</pre></blockquote>
+
+<p>
+And actually, if you anticipate converting negative <code>system_clock::time_point</code>s
+you should create yourself a <code>round_down</code> function and use that in
+place of <code>duration_cast</code>:
+</p>
+
+<blockquote><pre>
+template &lt;class To, class Rep, class Period&gt;
+To
+round_down(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
+{
+    To t = std::chrono::duration_cast&lt;To&gt;(d);
+    if (t &gt; d)
+        --t;
+    return t;
+}
+</pre></blockquote>
+
+<p>
+For example if your <code>system_clock::time_point</code> contains a duration
+of seconds(-1), and you convert that to <code>days</code>, you want
+<code>days</code> to be -1 (midnight 1969-12-31), not 0 (midnight 1970-01-01).
+</p>
+
+<blockquote><pre>
+<font color="#C80000">// time_point -&gt; tp</font>
+int tp2 = round_down&lt;days&gt;(time_point.time_since_epoch()).count();
+</pre></blockquote>
+
+<h2><a name="Example: Converting between the civil calendar and the Julian calendar"></a>Example: Converting between the civil calendar and the Julian calendar</h2>
+
+<p>
+It is relatively straight forward to derive <code>days_from_julian</code> from
+<code>days_from_civil</code> by simply adjusting the constants in
+<code>days_from_civil</code>:
+</p>
+
+<blockquote><pre>
+<font color="#C80000">// Returns number of days since civil 1970-01-01.  Negative values indicate</font>
+<font color="#C80000">//    days prior to 1970-01-01.</font>
+<font color="#C80000">// Preconditions:  y-m-d represents a date in the Julian calendar</font>
+<font color="#C80000">//                 m is in [1, 12]</font>
+<font color="#C80000">//                 d is in [1, last_day_of_month_julian(y, m)]</font>
+<font color="#C80000">//                 y is "approximately" in</font>
+<font color="#C80000">//                   [numeric_limits&lt;Int&gt;::min()/366, numeric_limits&lt;Int&gt;::max()/366]</font>
+template &lt;class Int&gt;
+constexpr
+Int
+days_from_julian(Int y, unsigned m, unsigned d) noexcept
+{
+    static_assert(std::numeric_limits&lt;Int&gt;::digits &gt;= 20,
+             "This algorithm has not been ported to a 16 bit signed integer");
+    y -= m &lt;= 2;
+    const Int era = (y &gt;= 0 ? y : y-3) / 4;
+    const unsigned yoe = static_cast&lt;unsigned&gt;(y - era * 4);        <font color="#C80000">// [0, 3]</font>
+    const unsigned doy = (153*(m + (m &gt; 2 ? -3 : 9)) + 2)/5 + d-1;  <font color="#C80000">// [0, 365]</font>
+    const unsigned doe = yoe * 365 + doy;                           <font color="#C80000">// [0, 1460]</font>
+    return era * 1461 + static_cast&lt;Int&gt;(doe) - 719470;
+}
+</pre></blockquote>
+
+<p>
+In the Julian calendar the era is only 4 years long instead of 400.  This greatly
+simplifies everything.  Otherwise we still use the the same basic design and
+algorithms as developed for <code>days_from_civil</code>.  The one tricky part
+is that the constant to shift the epoch to the <code>chrono</code>-compatible
+<b>civil</b> 1970-01-01, the constant 719468 needs to be adjusted.  To find the
+right shift, it is handy to note that there is a well-documented equivalence
+between the Julian and civil calendars:
+</p>
+
+<blockquote><pre>
+static_assert(days_from_julian(1582, 10, 5) == days_from_civil(1582, 10, 15),
+              "Rome switches from Julian to Gregorian");
+</pre></blockquote>
+
+<p>
+If this equivalence does not hold true, then the epochs are not properly
+aligned.
+</p>
+
+<p>
+Similarly, <code>julian_from_days</code> is derived from
+<code>civil_from_days</code> by simply adjusting the constants:
+</p>
+
+<blockquote><pre>
+<font color="#C80000">// Returns year/month/day triple in Julian calendar</font>
+<font color="#C80000">// Preconditions:  z is number of days since 1970-01-01 (civil) and is not "too close"</font>
+<font color="#C80000">//                   to numeric_limits&lt;Int&gt;::min() or numeric_limits&lt;Int&gt;::max().</font>
+template &lt;class Int&gt;
+constexpr
+std::tuple&lt;Int, unsigned, unsigned&gt;
+julian_from_days(Int z) noexcept
+{
+    static_assert(std::numeric_limits&lt;Int&gt;::digits &gt;= 20,
+             "This algorithm has not been ported to a 16 bit signed integer");
+    z += 719470;
+    const Int era = (z &gt;= 0 ? z : z - 1460) / 1461;
+    const unsigned doe = static_cast&lt;unsigned&gt;(z - era * 1461);  <font color="#C80000">// [0, 1460]</font>
+    const unsigned yoe = (doe - doe/1460) / 365;                 <font color="#C80000">// [0, 3]</font>
+    const Int y = static_cast&lt;Int&gt;(yoe) + era * 4;
+    const unsigned doy = doe - 365 * yoe;                        <font color="#C80000">// [0, 365]</font>
+    const unsigned mp = (5*doy + 2)/153;                         <font color="#C80000">// [0, 11]</font>
+    const unsigned d = doy - (153*mp+2)/5 + 1;                   <font color="#C80000">// [1, 31]</font>
+    const unsigned m = mp + (mp &lt; 10 ? 3 : -9);                  <font color="#C80000">// [1, 12]</font>
+    return std::tuple&lt;Int, unsigned, unsigned&gt;(y + (m &lt;= 2), m, d);
+}
+</pre></blockquote>
+
+<p>
+And now one can easily convert between the civil and Julian calendars by simply
+converting to the serial calendar in between, for example:
+</p>
+
+<blockquote><pre>
+std::tuple&lt;int, unsigned, unsigned&gt;
+julian_from_civil(int y, unsigned m, unsigned d)
+{
+    return julian_from_days(days_from_civil(y, m, d));
+}
+</pre></blockquote>
+
+<p>
+It is also interesting, and somewhat amusing, to note that the
+<code>weekday_from_days</code> function is just as valid for the Julian calendar
+as it is for the civil calendar.  Some things even the pope won't mess with!
+But note that <code>is_leap</code> and <code>last_day_of_month</code> are not
+valid for the Julian calendar.  Though it is certainly trivial to write
+Julian versions of these functions if desired.
+</p>
+
+<h2><a name="How can I confirm that your assertions about <code>chrono</code> compatibility are correct?"></a>How can I confirm that your assertions about <code>chrono</code> compatibility are correct?</h2>
+
+<p>
+Good question.  I could be full of hot air.
+</p>
+
+<p>
+Run the following program while noting through an independent source what the
+current time in the UTC timezone is:
+</p>
+
+<blockqote><pre>
+#include &lt;iostream&gt;
+#include &lt;chrono&gt;
+#include &lt;iomanip&gt;
+
+void
+print_current_utc_date_time()
+{
+    using namespace std;
+    using namespace std::chrono;
+    typedef duration&lt;int, ratio_multiply&lt;hours::period, ratio&lt;24&gt;&gt;&gt; days;
+    auto now = system_clock::now().time_since_epoch();
+    auto today = duration_cast&lt;days&gt;(now);
+    int year;
+    unsigned month;
+    unsigned day;
+    std::tie(year, month, day) = civil_from_days(today.count());
+    now -= today;
+    auto h = duration_cast&lt;hours&gt;(now);
+    now -= h;
+    auto m = duration_cast&lt;minutes&gt;(now);
+    now -= m;
+    auto s = duration_cast&lt;seconds&gt;(now);
+    cout.fill('0');
+    cout &lt;&lt; "Today is "
+         &lt;&lt; year &lt;&lt; '-'
+         &lt;&lt; setw(2) &lt;&lt; (unsigned)month &lt;&lt; '-'
+         &lt;&lt; setw(2) &lt;&lt; (unsigned)day
+         &lt;&lt; " at " &lt;&lt; setw(2) &lt;&lt; h.count() &lt;&lt; ':'
+         &lt;&lt; setw(2) &lt;&lt; m.count() &lt;&lt; ':'
+         &lt;&lt; setw(2) &lt;&lt; s.count() &lt;&lt; " UTC\n";
+}
+
+int
+main()
+{
+    print_current_utc_date_time();
+}
+</pre></blockquote>
+
+<p>
+The reported time through this program, and your independent source should be
+identical down to the nearest second.  If they are, then the assumptions about
+your <code>std::chrono::system_clock</code> epoch are correct.  If the two
+times disagree, you can still fix it.
+</p>
+
+<p>
+If the times differ by more than 86400 seconds, then you can alter the constant
+719468 in <code>days_from_civil</code> and <code>civil_from_days</code> to
+whatever it takes to bring the difference down below 86400 seconds.
+</p>
+
+<p>
+If the times differ by less than 86400 seconds then you will need to
+add/subtract that many seconds whenever you convert a <code>days</code>
+duration from <code>days_from_civil</code> to/from a
+<code>std::chrono::system_clock::time_point</code>.  One possibility is that
+the <code>std::chrono::system_clock</code> implementation is taking
+<a href="http://en.wikipedia.org/wiki/Leap_seconds">leap seconds</a> into
+account.
+</p>
+
+<p>
+My best guess is that you will never run into this problem.  I have
+surveyed the LLVM libc++, the GNU libstdc++, and MVC++.  My personal
+experience with this survey is only with libc++.  I'm counting on
+reports from others for libstdc++ and MVC++.  But in all cases I'm
+seeing the use of <a href="http://en.wikipedia.org/wiki/Unix_time">unix
+time</a>.  Implementations will not easily change their epoch, even
+though the epoch is unspecified, as the epoch is detectible.  I.e. the
+epoch is part of an implementation's ABI.
+</p>
+
+<h2><a name="Summary"></a>Summary</h2>
+
+<p>
+We don't have a modern date class in the std::lib, and that is somewhat of a
+pain.  However these formulas are nice to have in your toolbox, and can be
+quite useful, even without a type-safe date class.  Maybe they don't have quite
+the right interface.  Maybe the names aren't the best.  But the formulas are
+good.  Consider these donated to the public domain.  Perhaps you can use them
+to create the next great date class!
+</p>
+
+<h2><a name="Acknowledgments"></a>Acknowledgments</h2>
+
+<p>
+I do not claim that any of these formulas are original.  For example I've seen
+the shift to March as the first month of the year many times before.  I haven't
+seen the use of eras before, nor the use of the equation that transforms a
+day-of-era into a year-of-era before.  However I would be surprised if this was
+the first use of these formulations.
+</p>
+
+<p>
+Thanks to Vicente J. Botet whose comments caused me to rethink several aspects
+of this paper.
+</p>
+
+<p>
+Thanks to Jonathan Sauer who pointed out to me that C++98/03 compilers
+are allowed to implement truncated, floored or Euclidean integral
+division.  However C++11 specifies truncated.  I am unaware of any
+C++98/03 compiler that does not implement truncated division, which is probably
+why C++11 was able to change from implementation defined to truncated.
+</p>
+
+</body>
+</html>
