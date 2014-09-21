@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>On vector&lt;bool&gt;</title>
+<style>
+p {text-align:justify}
+li {text-align:justify}
+blockquote.note
+{
+    background-color:#E0E0E0;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+ins {background-color:#FFFFA0}
+del {background-color:#FFFFA0}
+</style>
+</head>
+<body>
+
+<address align=right>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br>
+2012-08-05
+</address>
+<hr>
+
+<h1 align="center">On <code>vector&lt;bool&gt;</code></h1>
+
+<p>
+<code>vector&lt;bool&gt;</code> has taken a lot of heat over the past decade,
+and not without reason.  However I believe it is way past time to draw back
+some of the criticism and explore this area with a dispassionate scrutiny of
+detail.
+</p>
+
+<p>
+There are really two issues here:
+</p>
+
+<ol>
+<li>
+Is the data structure of an array of bits a good data structure?
+</li>
+<li>
+Should the aforementioned data structure be named
+<code>vector&lt;bool&gt;</code>?
+</li>
+</ol>
+
+<p>
+I have strong opinions on both of these questions.  And to get this out of the
+way up front:
+</p>
+
+<ol>
+<li>
+Yes.
+</li>
+<li>
+No.
+</li>
+</ol>
+
+<p>
+The <i>array of bits</i> data structure is a <b>wonderful</b> data structure. It
+is often both a space <b>and</b> speed optimization over the <i>array of
+bools</i> data structure if properly implemented.  However it does not behave
+exactly as an array of bools, and so should not pretend to be one.
+</p>
+
+<h2>First, what's wrong with <code>vector&lt;bool&gt;</code>?</h2>
+
+<p>
+Because <code>vector&lt;bool&gt;</code> holds bits instead of bools, it can't
+return a <code>bool&</code> from its indexing operator or iterator dereference.
+This can play havoc on quite innocent looking generic code.  For example:
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+void
+process(T&amp; t)
+{
+    <font color="#C80000">// do something with t</font>
+}
+
+template &lt;class T, class A&gt;
+void
+test(std::vector&lt;T, A&gt;&amp; v)
+{
+    for (auto&amp; t : v)
+        process(t);
+}
+</pre></blockquote>
+
+<p>
+The above code works for all <code>T</code> <i>except</i> <code>bool</code>.
+When instantiated with <code>bool</code>, you will receive a compile time
+error along the lines of:
+</p>
+
+<blockquote><pre>
+error: non-const lvalue reference to type 'std::__bit_reference&lt;std::vector&lt;bool, std::allocator&lt;bool&gt;&gt;, true&gt;' cannot bind to
+      a temporary of type 'reference' (aka 'std::__bit_reference&lt;std::vector&lt;bool, std::allocator&lt;bool&gt;&gt;, true&gt;')
+    for (auto&amp; t : v)
+               ^ ~
+note: in instantiation of function template specialization 'test&lt;bool, std::allocator&lt;bool&gt;&gt;' requested here
+    test(v);
+    ^
+vector:2124:14: note: selected 'begin' function
+      with iterator type 'iterator' (aka '__bit_iterator&lt;std::vector&lt;bool, std::allocator&lt;bool&gt;&gt;, false&gt;')
+    iterator begin()
+             ^
+1 error generated.
+</pre></blockquote>
+
+<p>
+This is not a great error message.  But it is about the best the compiler can
+do.  The user is confronted with implementation details of <code>vector</code>
+and in a nutshell says that the <code>vector</code> is not working with a
+perfectly valid <i>ranged-based for</i> statement.  The conclusion the client
+comes to here is that the implementation of <code>vector</code> is broken.
+And he would be at least partially correct.
+</p>
+
+<p>
+But consider if instead of <code>vector&lt;bool&gt;</code> being a
+specialization instead there existed a separate class template
+<code>std::bit_vector&lt;A = std::allocator&lt;bool&gt;&gt;</code> and the coder
+had written:
+</p>
+
+<blockquote><pre>
+template &lt;class A&gt;
+void
+test(bit_vector&lt;A&gt;&amp; v)
+{
+    for (auto&amp; t : v)
+        process(t);
+}
+</pre></blockquote>
+
+<p>
+Now one gets a similar error message:
+</p>
+
+<blockquote><pre>
+error: non-const lvalue reference to type 'std::__bit_reference&lt;std::bit_vector&lt;std::allocator&lt;bool&gt;&gt;, true&gt;' cannot bind to
+      a temporary of type 'reference' (aka 'std::__bit_reference&lt;std::bit_vector&lt;std::allocator&lt;bool&gt;&gt;, true&gt;')
+    for (auto&amp; t : v)
+               ^ ~
+note: in instantiation of function template specialization 'test&lt;std::allocator&lt;bool&gt;&gt;' requested here
+    test(v);
+    ^
+bit_vector:2124:14: note: selected 'begin' function
+      with iterator type 'iterator' (aka '__bit_iterator&lt;std::bit_vector&lt;std::allocator&lt;bool&gt;&gt;, false&gt;')
+    iterator begin()
+             ^
+1 error generated.
+</pre></blockquote>
+
+<p>
+And although the error message is similar, the coder is far more likely to see
+that he is using a dynamic array of bits data structure and it is understandable
+that you can't form a reference to a bit.
+</p>
+
+<p>
+I.e. names <b>are</b> important.  And creating a specialization that has
+different behavior than the primary, when the primary template would have
+worked, is poor practice.
+</p>
+
+<h2>But what's right with <code>vector&lt;bool&gt;</code>?</h2>
+
+For the rest of this article assume that we did indeed have a
+<code>std::bit_vector&lt;A = std::allocator&lt;bool&gt;&gt;</code> and that
+<code>vector</code> was <i>not</i> specialized on <code>bool</code>.
+
+<code>bit_vector&lt;&gt;</code> can be much more than simply a space
+optimization over <code>vector&lt;bool&gt;</code>, it can also be a very
+significant <i>performance</i> optimization.  But to achieve this higher
+performance, your vendor has to adapt many of the std::algorithms to have
+specialized code (optimizations) when processing sequences defined by
+<code>bit_vector&lt;&gt;::iterator</code>s.
+
+<h3><code>find</code></h3>
+
+<p>
+For example consider this code:
+</p>
+
+<blockquote><pre>
+template &lt;class C&gt;
+typename C::iterator
+test()
+{
+    C c(100000);
+    c[95000] = true;
+    return std::find(c.begin(), c.end(), true);
+}
+</pre></blockquote>
+
+<p>
+How long does <code>std::find</code> take in the above example for:
+</p>
+
+<ol type="A">
+<li>A hypothetical non-specialized <code>vector&lt;bool&gt;</code>?</li>
+<li>A hypothetical <code>bit_vector&lt;&gt;</code> using an optimized
+<code>find</code>?</li>
+<li>A hypothetical <code>bit_vector&lt;&gt;</code> using the unoptimized
+generic <code>find</code>?</li>
+</ol>
+
+<p>
+I'm testing on an Intel Core i5 in 64 bit mode.  I am normalizing all answers
+such that the speed of A is 1 (smaller is faster):
+</p>
+
+<ol type="A">
+<li>1.0</li>
+<li>0.013</li>
+<li>1.6</li>
+</ol>
+
+<p>
+An array of bits can be a <b>very</b> fast data structure for a sequential
+search!  The optimized <code>find</code> is inspecting 64 bits at a time.  And
+due to the space optimization, it is much less likely to cause a cache miss.
+However if the implementation fails to do this, and naively checks one bit at a
+time, then this giant 75X optimization turns into a significant pessimization.
+</p>
+
+<h3><code>count</code></h3>
+
+<p>
+<code>std::count</code> can be optimized much like <code>std::find</code> to
+process a word of bits at a time:
+</p>
+
+<blockquote><pre>
+template &lt;class C&gt;
+typename C::difference_type
+test()
+{
+    C c(100000);
+    c[95000] = true;
+    return std::count(c.begin(), c.end(), true);
+}
+</pre></blockquote>
+
+<p>
+My results are:
+</p>
+
+<ol type="A">
+<li>1.0</li>
+<li>0.044</li>
+<li>1.02</li>
+</ol>
+
+<p>
+Here the results are not quite as dramatic as for the <code>std::find</code>
+case.  However any time you can speed up your code by a factor of 20, one
+should do so!
+</p>
+
+<h3><code>fill</code></h3>
+
+<p>
+<code>std::fill</code> is yet another example:
+</p>
+
+<blockquote><pre>
+template &lt;class C&gt;
+void
+test()
+{
+    C c(100000);
+    std::fill(c.begin(), c.end(), true);
+}
+</pre></blockquote>
+
+<p>
+My results are:
+</p>
+
+<ol type="A">
+<li>1.0</li>
+<li>0.40</li>
+<li>38.</li>
+</ol>
+
+<p>
+The optimized fill is over twice as fast as the non-specialized
+<code>vector&lt;bool&gt;</code>.  But if the vendor neglects to specialize
+<code>fill</code> for bit-iterators the results are disastrous!  Naturally
+the results are identical for the closely related <code>fill_n</code>.
+</p>
+
+<h3><code>copy</code></h3>
+
+<p>
+<code>std::copy</code> is yet another example:
+</p>
+
+<blockquote><pre>
+template &lt;class C&gt;
+void
+test()
+{
+    C c1(100000);
+    C c2(100000);
+    std::copy(c1.begin(), c1.end(), c2.begin());
+}
+</pre></blockquote>
+
+<p>
+My results are:
+</p>
+
+<ol type="A">
+<li>1.0</li>
+<li>0.36</li>
+<li>34.</li>
+</ol>
+
+<p>
+The optimized copy is approaches three times as fast as the non-specialized
+<code>vector&lt;bool&gt;</code>.  But if the vendor neglects to specialize
+<code>fill</code> for bit-iterators the results are not good.  If the copy is
+not aligned on word boundaries (as in the above example), then the optimized
+copy slows down to the same speed as the copy for A.  Results for
+<code>copy_backward</code>, <code>move</code> and <code>move_backward</code> are
+similar.
+</p>
+
+<h3><code>swap_ranges</code></h3>
+
+<p>
+<code>std::swap_ranges</code> is yet another example:
+</p>
+
+<blockquote><pre>
+template &lt;class C&gt;
+void
+test()
+{
+    C c1(100000);
+    C c2(100000);
+    std::swap_ranges(c1.begin(), c1.end(), c2.begin());
+}
+</pre></blockquote>
+
+<p>
+My results are:
+</p>
+
+<ol type="A">
+<li>1.0</li>
+<li>0.065</li>
+<li>4.0</li>
+</ol>
+
+<p>
+Yet another example of really good results with an optimized algorithm and
+really poor results without this extra attention.
+</p>
+
+<h3><code>rotate</code></h3>
+
+<p>
+<code>std::rotate</code> is yet another example:
+</p>
+
+<blockquote><pre>
+template &lt;class C&gt;
+void
+test()
+{
+    C c(100000);
+    std::rotate(c.begin(), c.begin()+c.size()/4, c.end());
+}
+</pre></blockquote>
+
+<p>
+My results are:
+</p>
+
+<ol type="A">
+<li>1.0</li>
+<li>0.59</li>
+<li>17.9</li>
+</ol>
+
+<p>
+Yet another example of good results with an optimized algorithm and
+very poor results without this extra attention.
+</p>
+
+<h3><code>equal</code></h3>
+
+<p>
+<code>std::equal</code> is yet another example:
+</p>
+
+<blockquote><pre>
+template &lt;class C&gt;
+bool
+test()
+{
+    C c1(100000);
+    C c2(100000);
+    return std::equal(c1.begin(), c1.end(), c2.begin());
+}
+</pre></blockquote>
+
+<p>
+My results are:
+</p>
+
+<ol type="A">
+<li>1.0</li>
+<li>0.016</li>
+<li>3.33</li>
+</ol>
+
+<p>
+Yet another example of excellent results with an optimized algorithm and
+very poor results without this extra attention.
+</p>
+
+<h2>Summary</h2>
+
+<p>
+The dynamic array of bits is a very good data structure if attention is paid
+to optimizing algorithms that can process up to a word of bits at a time.  In
+this case it becomes not only a space optimization but a very significant speed
+optimization.  If such attention to detail is not given, then the space
+optimization leads to a very significant speed pessimization.
+</p>
+
+<p>
+But it is a shame that the C++ committee gave this excellent data structure
+the name <code>vector&lt;bool&gt;</code> and that it gives no guidance nor
+encouragement on the critical generic algorithms that need to be optimized for
+this data structure.  Consequently, few std::lib implementations go to this
+trouble.
+</p>
+
+</body>
+</html>

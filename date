@@ -1,0 +1,1039 @@
+//  date
+//
+//  (C) Copyright Howard Hinnant
+//  Use, modification and distribution are subject to the Boost Software License,
+//  Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
+//  http://www.boost.org/LICENSE_1_0.txt).
+
+#ifndef DATE
+#define DATE
+
+/*
+    date synopsis
+
+namespace std
+{
+namespace chrono
+{
+
+// A date
+class date
+{
+public:
+    static date today();
+
+    // system_clock::time_point conversions
+    explicit date(std::chrono::system_clock::time_point tp);
+    explicit operator std::chrono::system_clock::time_point () const;
+
+    // obervers
+    day day() const noexcept;
+    month month() const noexcept;
+    year year() const noexcept;
+    weekday weekday() const noexcept;
+    bool is_leap_year() const noexcept;
+
+    // day arithmetic
+    date& operator+=(days d);
+    date& operator++();
+    date  operator++(int);
+    date& operator-=(days d);
+    date& operator--();
+    date  operator--(int);
+
+    // month arithmetic
+    date& operator+=(months m);
+    date& operator-=(months m);
+
+    // year arithmetic
+    date& operator+=(years y);
+    date& operator-=(years y);
+};
+
+// date relational
+bool operator==(const date& x, const date& y) noexcept;
+bool operator!=(const date& x, const date& y) noexcept;
+bool operator< (const date& x, const date& y) noexcept;
+bool operator> (const date& x, const date& y) noexcept;
+bool operator<=(const date& x, const date& y) noexcept;
+bool operator>=(const date& x, const date& y) noexcept;
+
+// date day arithmetic
+date operator+(date dt, days d);
+date operator+(days d, date dt);
+date operator-(date dt, days d);
+days operator-(date x, date y) noexcept;
+
+// date month arithmetic
+date operator+(date dt, months m);
+date operator+(months m, date dt);
+date operator-(date dt, months m);
+
+// date year arithmetic
+date operator+(date dt, years y);
+date operator+(years y, date dt);
+date operator-(date dt, years y);
+
+// Specifiers
+
+// A year specifier
+class year
+{
+public:
+    explicit year(std::int16_t y);
+    operator int() const noexcept;
+};
+
+// A month specifier
+class month
+{
+public:
+    explicit month(int);
+    operator int() const noexcept;
+};
+
+extern const month jan;
+extern const month feb;
+extern const month mar;
+extern const month apr;
+extern const month may;
+extern const month jun;
+extern const month jul;
+extern const month aug;
+extern const month sep;
+extern const month oct;
+extern const month nov;
+extern const month dec;
+
+// A day specifier
+class day
+{
+public:
+    explicit day(int);
+    day(__unnamed) noexcept;
+    operator int() const noexcept;
+};
+
+// A day of the week specifier
+class weekday
+{
+public:
+    explicit weekday(int);
+    operator int() const noexcept;
+};
+
+extern const weekday sun;
+extern const weekday mon;
+extern const weekday tue;
+extern const weekday wed;
+extern const weekday thu;
+extern const weekday fri;
+extern const weekday sat;
+
+// A year + month specifier
+class year_month
+{
+    // no public members
+};
+
+// A month + day specifier
+class month_day
+{
+    // no public members
+};
+
+class __unnamed
+{
+    // no public members
+};
+
+extern const __unnamed _1st;
+extern const __unnamed _2nd;
+extern const __unnamed _3rd;
+extern const __unnamed _4th;
+extern const __unnamed _5th;
+extern const __unnamed last;
+
+// Date generation functions
+
+date operator/(year_month, day);    // year(2011)/month(8)/day(19)
+date operator/(month_day, year);    // month(8)/day(19)/year(2011)
+                                    // day(19)/month(8)/year(2011)
+
+year_month operator/(year, month) noexcept;  // year(2011)/month(8)
+
+month_day operator/(day, month) noexcept;    // day(19)/month(8)
+month_day operator/(month, day) noexcept;    // month(8)/day(19)
+
+// Date durations
+
+typedef duration<int_least32_t, ratio<86400>> days;
+
+days operator+(days x, days y);
+days operator-(days x, days y);
+days operator*(days x, days::rep y);
+days operator*(days::rep x, days y);
+days operator/(days x, days::rep y);
+days::rep operator/(days x, days y);
+days operator%(days x, days::rep y);
+days operator%(days x, days y);
+
+bool operator==(days x, days y);
+bool operator!=(days x, days y);
+bool operator< (days x, days y);
+bool operator> (days x, days y);
+bool operator<=(days x, days y);
+bool operator>=(days x, days y);
+
+class months
+{
+public:
+    typedef std::int32_t rep;
+    months() = default;
+    explicit months(rep x) noexcept;
+
+    rep count() const noexcept;
+
+    months operator+() const noexcept;
+    months operator-() const noexcept;
+
+    months& operator++() noexcept;
+    months  operator++(int) noexcept;
+    months& operator--() noexcept;
+    months  operator--(int) noexcept;
+
+    months& operator+=(const months& x) noexcept;
+    months& operator-=(const months& x) noexcept;
+
+    months& operator*=(const rep& rhs) noexcept;
+    months& operator/=(const rep& rhs) noexcept;
+    months& operator%=(const rep& rhs) noexcept;
+    months& operator%=(const months& rhs) noexcept;
+};
+
+months operator+(months x, months y) noexcept;
+months operator-(months x, months y) noexcept;
+months operator*(months x, months::rep y) noexcept;
+months operator*(months::rep x, months y) noexcept;
+months operator/(months x, months::rep y) noexcept;
+months::rep operator/(months x, months y) noexcept;
+months operator%(months x, months::rep y) noexcept;
+months operator%(months x, months y) noexcept;
+
+bool operator==(months x, months y) noexcept;
+bool operator!=(months x, months y) noexcept;
+bool operator< (months x, months y) noexcept;
+bool operator> (months x, months y) noexcept;
+bool operator<=(months x, months y) noexcept;
+bool operator>=(months x, months y) noexcept;
+
+class years
+{
+public:
+    typedef std::int32_t rep;
+    years() = default;
+    explicit years(rep x) noexcept;
+
+    rep count() const noexcept;
+
+    years operator+() const noexcept;
+    years operator-() const noexcept;
+
+    years& operator++() noexcept;
+    years  operator++(int) noexcept;
+    years& operator--() noexcept;
+    years  operator--(int) noexcept;
+
+    years& operator+=(const years& x) noexcept;
+    years& operator-=(const years& x) noexcept;
+
+    years& operator*=(const rep& rhs) noexcept;
+    years& operator/=(const rep& rhs) noexcept;
+    years& operator%=(const rep& rhs) noexcept;
+    years& operator%=(const years& rhs) noexcept;
+};
+
+years operator+(years x, years y) noexcept;
+years operator-(years x, years y) noexcept;
+years operator*(years x, years::rep y) noexcept;
+years operator*(years::rep x, years y) noexcept;
+years operator/(years x, years::rep y) noexcept;
+years::rep operator/(years x, years y) noexcept;
+years operator%(years x, years::rep y) noexcept;
+years operator%(years x, years y) noexcept;
+
+bool operator==(years x, years y) noexcept;
+bool operator!=(years x, years y) noexcept;
+bool operator< (years x, years y) noexcept;
+bool operator> (years x, years y) noexcept;
+bool operator<=(years x, years y) noexcept;
+bool operator>=(years x, years y) noexcept;
+
+date operator< (weekday wd, date x) noexcept;
+date operator<=(weekday wd, date x) noexcept;
+date operator> (weekday wd, date x) noexcept;
+date operator>=(weekday wd, date x) noexcept;
+
+class bad_date
+    : public std::exception
+{
+public:
+    virtual const char* what() const noexcpt();
+};
+
+template <class CharT>
+class datepunct
+    : public std::locale::facet
+{
+public:
+    typedef std::basic_string<CharT> string_type;
+
+private:
+    string_type fmt_;  // exposition only
+
+public:
+    static std::locale::id id;
+
+    explicit datepunct(std::size_t refs = 0,
+                        const string_type& fmt = string_type("%F"));
+    explicit datepunct(std::size_t refs,
+                        string_type&& fmt);
+
+    const string_type& fmt() const noexcept;
+};
+
+template<class CharT>
+unspecified
+date_fmt(std::basic_string<CharT> fmt);
+
+template<class CharT>
+unspecified
+date_fmt(const CharT* fmt);
+
+template<class CharT, class Traits>
+std::basic_istream<CharT,Traits>&
+operator>>(std::basic_istream<CharT,Traits>& is, date& d);
+
+template<class CharT, class Traits>
+std::basic_ostream<CharT, Traits>&
+operator<<(std::basic_ostream<CharT, Traits>& os, const date& d);
+
+}  // chrono
+}  // std
+
+*/
+
+#include <exception>
+#include <istream>
+#include <ostream>
+#include <locale>
+#include <stdexcept>
+#ifdef _LIBCPP_VERSION
+    #include <cstdint>
+    #include <chrono>
+#else
+    #include <stdint.h>
+#endif
+
+#ifndef __has_feature
+#  define __has_feature(x) 0
+#endif
+
+#if !__has_feature(cxx_noexcept)
+#  define noexcept throw()
+#endif
+
+#ifndef DESIGN
+#define DESIGN 1
+#endif
+
+#ifdef _LIBCPP_BEGIN_NAMESPACE_STD
+_LIBCPP_BEGIN_NAMESPACE_STD
+#else
+namespace std {
+#endif
+namespace chrono
+{
+
+#ifdef _LIBCPP_VERSION
+    typedef std::int64_t  Int64_t;
+    typedef std::int32_t  Int32_t;
+    typedef std::uint32_t UInt32_t;
+    typedef std::int16_t  Int16_t;
+    typedef std::uint16_t UInt16_t;
+    typedef std::uint8_t  UInt8_t;
+#else
+    typedef int64_t      Int64_t;
+    typedef int32_t      Int32_t;
+    typedef uint32_t     UInt32_t;
+    typedef int16_t      Int16_t;
+    typedef uint16_t     UInt16_t;
+    typedef uint8_t      UInt8_t;
+#endif
+
+class bad_date
+    : public std::runtime_error
+{
+public:
+    explicit bad_date(const std::string& s) : std::runtime_error(s) {}
+    explicit bad_date(const char* s) : std::runtime_error(s) {}
+};
+/*
+template <class T, int>
+class __duration_type
+{
+public:
+    typedef T rep;
+private:
+    rep x_;
+public:
+    explicit __duration_type(rep x = rep()) noexcept : x_(x) {}
+
+    rep count() const noexcept {return x_;}
+
+    __duration_type operator+() const noexcept {return *this;}
+    __duration_type operator-() const noexcept {return __duration_type(-x_);}
+
+    __duration_type& operator++() noexcept      {++x_; return *this;}
+    __duration_type  operator++(int) noexcept   {return __duration_type(x_++);}
+    __duration_type& operator--() noexcept      {--x_; return *this;}
+    __duration_type  operator--(int) noexcept   {return __duration_type(x_--);}
+
+    __duration_type& operator+=(const __duration_type& __d) noexcept
+                                                   {x_ += __d.x_; return *this;}
+    __duration_type& operator-=(const __duration_type& __d) noexcept
+                                                   {x_ -= __d.x_; return *this;}
+
+    friend __duration_type operator+(__duration_type x, __duration_type y) noexcept
+                                                             {x += y; return x;}
+    friend __duration_type operator-(__duration_type x, __duration_type y) noexcept
+                                                             {x -= y; return x;}
+
+    __duration_type& operator*=(const rep& rhs) noexcept {x_ *= rhs; return *this;}
+    __duration_type& operator/=(const rep& rhs) noexcept {x_ /= rhs; return *this;}
+    __duration_type& operator%=(const rep& rhs) noexcept {x_ %= rhs; return *this;}
+    __duration_type& operator%=(const __duration_type& rhs) noexcept
+                                                   {x_ %= rhs.x_; return *this;}
+
+    friend __duration_type operator*(__duration_type x, rep y) noexcept
+                                                             {x *= y; return x;}
+    friend __duration_type operator*(rep x, __duration_type y) noexcept
+                                                             {y *= x; return y;}
+    friend __duration_type operator/(__duration_type x, rep y) noexcept
+                                                             {x /= y; return x;}
+    friend rep operator/(__duration_type x, __duration_type y) noexcept
+                                                           {return x.x_ / y.x_;}
+    friend __duration_type operator%(__duration_type x, rep y) noexcept
+                                                             {x %= y; return x;}
+    friend __duration_type operator%(__duration_type x, __duration_type y) noexcept
+                                                          {x %= y.x_; return x;}
+
+    friend bool operator==(__duration_type x, __duration_type y) noexcept
+                                                          {return x.x_ == y.x_;}
+    friend bool operator!=(__duration_type x, __duration_type y) noexcept
+                                                             {return !(x == y);}
+    friend bool operator< (__duration_type x, __duration_type y) noexcept
+                                                           {return x.x_ < y.x_;}
+    friend bool operator> (__duration_type x, __duration_type y) noexcept
+                                                                 {return y < x;}
+    friend bool operator<=(__duration_type x, __duration_type y) noexcept
+                                                              {return !(y < x);}
+    friend bool operator>=(__duration_type x, __duration_type y) noexcept
+                                                              {return !(x < y);}
+
+    friend class date;    
+    friend class year_month;    
+};
+typedef __duration_type<Int32_t, 1> months;
+typedef __duration_type<Int32_t, 2> years;
+typedef duration<Int32_t, std::ratio<86400> > days;
+*/
+
+typedef duration<Int32_t, ratio_multiply<hours::period, ratio<24>>>         days;
+typedef duration<Int32_t, ratio_multiply<days::period, ratio<7>>>           weeks;
+typedef duration<Int32_t, ratio_multiply<days::period, ratio<146097, 400>>> years;
+typedef duration<Int32_t, ratio_divide<years::period, ratio<12>>>           months;
+
+class date;
+class year;
+class month;
+class day;
+class weekday;
+class year_month;
+class month_day;
+class __day_spec;
+
+month_day operator/(day, month) noexcept;
+month_day operator/(month, day) noexcept;
+year_month operator/(year, month) noexcept;
+year_month operator/(month, year) noexcept;
+
+date operator/(year_month, day);
+date operator/(year_month, int);
+date operator/(month_day, year);
+date operator/(month_day, int);
+
+struct no_check_t {} const no_check {};
+
+class year
+{
+    Int32_t y_;
+public:
+    explicit year(Int32_t y);
+    year(Int32_t y, no_check_t)
+        : y_(y) {}
+    operator int() const noexcept {return y_;}
+
+    friend date operator/(month_day, year);
+    friend class date;
+};
+
+class month
+{
+    UInt8_t m_;
+public:
+    explicit month(int);
+    month(int m, no_check_t)
+        : m_(m) {}
+    operator int() const noexcept {return m_;}
+
+    friend class date;
+};
+
+extern const month jan;
+extern const month feb;
+extern const month mar;
+extern const month apr;
+extern const month may;
+extern const month jun;
+extern const month jul;
+extern const month aug;
+extern const month sep;
+extern const month oct;
+extern const month nov;
+extern const month dec;
+
+class __day_spec
+{
+    UInt8_t s_;
+    __day_spec(UInt8_t s)  noexcept : s_(s) {}
+    friend __day_spec __make_spec(UInt8_t) noexcept;
+    friend class day;
+    friend class weekday;
+};
+
+extern const __day_spec last;
+extern const __day_spec _1st;
+extern const __day_spec _2nd;
+extern const __day_spec _3rd;
+extern const __day_spec _4th;
+extern const __day_spec _5th;
+
+class day
+{
+    UInt16_t d_ : 5;
+    UInt16_t n_ : 3;
+    UInt16_t dow_ : 3;
+
+    day(UInt8_t d, UInt8_t n, UInt8_t dow) noexcept
+        : d_(d), n_(n), dow_(dow) {}
+public:
+    explicit day(int d) noexcept
+        : d_(d), n_(7), dow_(7) {}
+    day(__day_spec s) noexcept
+        : d_(0), n_(s.s_), dow_(7) {}
+    operator int() const noexcept {return n_ == 7 ? d_ : n_;}
+
+    friend date operator/(year_month, day);
+    friend class date;
+    friend class weekday;
+};
+
+class weekday
+{
+    UInt8_t wd_;
+
+public:
+    explicit weekday(int);
+    weekday(int wd, no_check_t)
+        : wd_(wd) {}
+    operator int() const noexcept {return wd_;}
+
+    day operator[](int) const;
+    day operator[](__day_spec s) const noexcept {return day(0, s.s_, wd_);}
+};
+
+extern const weekday sun;
+extern const weekday mon;
+extern const weekday tue;
+extern const weekday wed;
+extern const weekday thu;
+extern const weekday fri;
+extern const weekday sat;
+
+class year_month
+{
+    year y_;
+    month m_;
+    year_month(year y, month m) noexcept
+        : y_(y),
+          m_(m) {}
+
+public:
+    chrono::month month() const {return m_;}
+    chrono::year year() const {return y_;}
+    bool is_leap_year() const noexcept;
+
+    year_month& operator+=(months m);
+    year_month& operator++() {return *this += months(1);}
+    year_month  operator++(int) {year_month tmp(*this); ++(*this); return tmp;}
+    year_month& operator-=(months m) {return *this += -m;}
+    year_month& operator--() {return *this -= months(1);}
+    year_month  operator--(int) {year_month tmp(*this); --(*this); return tmp;}
+
+    friend year_month operator+(year_month ym, months m) {ym += m; return ym;}
+    friend year_month operator+(months m, year_month ym) {ym += m; return ym;}
+    friend year_month operator-(year_month ym, months m) {ym -= m; return ym;}
+    friend months operator-(year_month x, year_month y) noexcept;
+
+    year_month& operator+=(years y)
+        {y_ = chrono::year(y_ + y.count()); return *this;}
+    year_month& operator-=(years y) {return *this += years(-y.count());}
+
+    friend year_month operator+(year_month ym, years y) {ym += y; return ym;}
+    friend year_month operator+(years y, year_month ym) {ym += y; return ym;}
+    friend year_month operator-(year_month ym, years y) {ym -= y; return ym;}
+
+    friend year_month operator/(chrono::year y, chrono::month m) noexcept;
+    friend year_month operator/(chrono::month m, chrono::year y) noexcept;
+    friend year_month operator/(chrono::year y, int m) noexcept;
+    friend year_month operator/(int m, chrono::year y) noexcept;
+    friend year_month operator/(int y, chrono::month m) noexcept;
+    friend year_month operator/(chrono::month m, int y) noexcept;
+    friend date operator/(year_month, day);
+    friend class date;
+};
+
+inline
+year_month operator/(chrono::year y, chrono::month m) noexcept
+        {return year_month(y, m);}
+
+inline
+year_month operator/(chrono::month m, chrono::year y) noexcept
+        {return year_month(y, m);}
+
+inline
+year_month operator/(chrono::year y, int m) noexcept
+        {return year_month(y, chrono::month(m));}
+
+inline
+year_month operator/(int m, chrono::year y) noexcept
+        {return year_month(y, chrono::month(m));}
+
+inline
+year_month operator/(int y, chrono::month m) noexcept
+        {return year_month(chrono::year(y), m);}
+
+inline
+year_month operator/(chrono::month m, int y) noexcept
+        {return year_month(chrono::year(y), m);}
+
+class month_day
+{
+    month m_;
+    day d_;
+    month_day(month m, day d) noexcept
+        : m_(m),
+          d_(d) {}
+
+    friend month_day operator/(month m, day d) noexcept;
+    friend month_day operator/(day d, month m) noexcept;
+    friend date operator/(month_day, year);
+};
+
+inline month_day operator/(month m, day d) noexcept {return month_day(m, d);}
+inline month_day operator/(day d, month m) noexcept {return month_day(m, d);}
+
+class date
+{
+public:
+#if DESIGN == 1
+    // Store x, y/m/d, n, dow
+    UInt32_t x_;
+    Int16_t y_;
+    UInt16_t m_ : 4;
+    UInt16_t d_ : 5;
+    UInt16_t leap_ : 1;
+    UInt16_t n_ : 3;
+    UInt16_t dow_ : 3;
+#elif DESIGN == 2
+    // Store x, n, dow
+    UInt32_t x_ : 26;
+    UInt32_t n_ : 3;
+    UInt32_t dow_ : 3;
+#elif DESIGN == 3
+    // Store y/m/d, n, dow
+    Int16_t y_;
+    UInt16_t m_ : 4;
+    UInt16_t d_ : 5;
+    UInt16_t leap_ : 1;
+    UInt16_t n_ : 3;
+    UInt16_t dow_ : 3;
+#endif
+
+    friend date operator/(year_month ym, day d);
+    friend date operator/(month_day md, year y);
+public:
+    static date today() noexcept;
+
+    date() noexcept;
+    date(chrono::year, chrono::month, chrono::day);
+    date(chrono::year, chrono::month, chrono::day, no_check_t);
+
+#ifdef _LIBCPP_VERSION
+    explicit date(std::chrono::system_clock::time_point tp);
+    // explicit
+        operator std::chrono::system_clock::time_point () const;
+#endif
+
+#if DESIGN == 1 || DESIGN == 3
+    chrono::day day() const noexcept {return chrono::day(d_);}
+    chrono::month month() const noexcept {return chrono::month(m_, no_check);}
+    chrono::year year() const noexcept {return chrono::year(y_, no_check);}
+    bool is_leap_year() const noexcept {return leap_;}
+    chrono::year_month year_month() const noexcept
+        {return chrono::year_month(chrono::year(y_), chrono::month(m_));}
+#elif DESIGN == 2
+    chrono::day day() const noexcept {return chrono::day(day_from_day_number());}
+    chrono::month month() const noexcept {return chrono::month(month_from_day_number());}
+    chrono::year year() const noexcept {return chrono::year(year_from_day_number());}
+    bool is_leap_year() const noexcept {return leap_from_day_number();}
+#endif
+#if DESIGN == 1 || DESIGN == 2
+    chrono::weekday weekday() const noexcept
+        {return chrono::weekday((x_+1) % 7, no_check);}
+#elif DESIGN == 3
+    chrono::weekday weekday() const noexcept
+        {return chrono::weekday((day_number_from_ymd()+1) % 7, no_check);}
+#endif
+
+    date& operator+=(days d);
+    date& operator++() {return *this += days(1);}
+    date  operator++(int) {date tmp(*this); ++(*this); return tmp;}
+    date& operator-=(days d) {return *this += -d;}
+    date& operator--() {return *this -= days(1);}
+    date  operator--(int) {date tmp(*this); --(*this); return tmp;}
+
+    friend date operator+(date dt, days d) {dt += d; return dt;}
+    friend date operator+(days d, date dt) {dt += d; return dt;}
+    friend date operator-(date dt, days d) {dt -= d; return dt;}
+#if DESIGN == 1 || DESIGN == 2
+    friend days operator-(date x, date y) noexcept {return days(x.x_ - y.x_);}
+#elif DESIGN == 3
+    friend days operator-(date x, date y) noexcept
+        {return days(x.day_number_from_ymd() - y.day_number_from_ymd());}
+#endif
+
+    date& operator+=(months m);
+    date& operator-=(months m) {return *this += months(-m.count());}
+
+    friend date operator+(date dt, months m) {dt += m; return dt;}
+    friend date operator+(months m, date dt) {dt += m; return dt;}
+    friend date operator-(date dt, months m) {dt -= m; return dt;}
+
+    date& operator+=(years y);
+    date& operator-=(years y) {return *this += years(-y.count());}
+
+    friend date operator+(date dt, years y) {dt += y; return dt;}
+    friend date operator+(years y, date dt) {dt += y; return dt;}
+    friend date operator-(date dt, years y) {dt -= y; return dt;}
+
+#if DESIGN == 1 || DESIGN == 2
+    friend bool operator==(const date& x, const date& y) noexcept {return x.x_ == y.x_;}
+    friend bool operator< (const date& x, const date& y) noexcept {return x.x_ < y.x_;}
+#elif DESIGN == 3
+    friend bool operator==(const date& x, const date& y) noexcept
+    {
+        return x.y_ == y.y_ && x.m_ == y.m_ && x.d_ == y.d_;
+    }
+    friend bool operator< (const date& x, const date& y)
+    {
+        return x.y_ < y.y_ || 
+               (!(y.y_ < x.y_) && (x.m_ < y.m_ ||
+                                  (!(y.m_ < x.m_) && x.d_ < y.d_)));
+    }
+#endif
+    friend bool operator!=(const date& x, const date& y) noexcept {return !(x == y);}
+    friend bool operator> (const date& x, const date& y) noexcept {return y < x;}
+    friend bool operator<=(const date& x, const date& y) noexcept {return !(y < x);}
+    friend bool operator>=(const date& x, const date& y) noexcept {return !(x < y);}
+
+#if DESIGN == 2
+private:
+    UInt16_t day_from_day_number() const noexcept;
+    UInt16_t month_from_day_number() const noexcept;
+    Int16_t year_from_day_number() const noexcept;
+    bool leap_from_day_number() const noexcept;
+#elif DESIGN == 3
+    UInt32_t day_number_from_ymd() const noexcept;
+#endif
+};
+
+inline date operator/(year_month ym, day d) {return date(ym.y_, ym.m_, d);}
+inline date operator/(month_day md, year y) {return date(y, md.m_, md.d_);}
+inline date operator/(year_month ym, int d) {return ym / day(d);}
+inline date operator/(month_day md, int y) {return md / year(y);}
+
+inline
+date
+operator<(weekday wd, date x)
+{
+    const int a = static_cast<int>(wd);
+    const int b = static_cast<int>(x.weekday());
+    if (a < b)
+        return x - days(b-a);
+    return x - days(7 - (a-b));
+}
+
+inline
+date
+operator<=(weekday wd, date x)
+{
+    const int a = static_cast<int>(wd);
+    const int b = static_cast<int>(x.weekday());
+    if (a <= b)
+        return x - days(b-a);
+    return x - days(7 - (a-b));
+}
+
+inline
+date
+operator>(weekday wd, date x)
+{
+    const int a = static_cast<int>(x.weekday());
+    const int b = static_cast<int>(wd);
+    if (a < b)
+        return x + days(b-a);
+    return x + days(7 - (a-b));
+}
+
+inline
+date
+operator>=(weekday wd, date x)
+{
+    const int a = static_cast<int>(x.weekday());
+    const int b = static_cast<int>(wd);
+    if (a <= b)
+        return x + days(b-a);
+    return x + days(7 - (a-b));
+}
+
+template <class charT>
+class datepunct
+    : public std::locale::facet
+{
+public:
+    typedef std::basic_string<charT> string_type;
+
+private:
+    string_type fmt_;
+
+public:
+    static std::locale::id id;
+
+    explicit datepunct(std::size_t refs = 0)
+        : std::locale::facet(refs)
+        {fmt_.push_back('%'); fmt_.push_back('F');}
+
+    explicit datepunct(string_type fmt, std::size_t refs = 0)
+        : std::locale::facet(refs),
+          fmt_(std::move(fmt)) {}
+
+    const string_type& fmt() const noexcept {return fmt_;}
+};
+
+template <class CharT>
+std::locale::id
+datepunct<CharT>::id;
+
+template<class charT>
+struct date_manip
+{
+    std::basic_string<charT> fmt_;
+
+    explicit date_manip(std::basic_string<charT> fmt)
+#if __has_feature(cxx_rvalue_references)
+        : fmt_(std::move(fmt)) {}
+#else
+        : fmt_(fmt) {}
+#endif
+};
+
+template<class charT, class traits>
+std::basic_ostream<charT, traits>&
+operator <<(std::basic_ostream<charT, traits>& os, date_manip<charT> m)
+{
+#if __has_feature(cxx_rvalue_references)
+    os.imbue(std::locale(os.getloc(), new datepunct<charT>(std::move(m.fmt_))));
+#else
+    os.imbue(std::locale(os.getloc(), new datepunct<charT>(m.fmt_)));
+#endif
+    return os;
+}
+
+template<class charT, class traits>
+std::basic_istream<charT, traits>&
+operator >>(std::basic_istream<charT, traits>& is, date_manip<charT> m)
+{
+#if __has_feature(cxx_rvalue_references)
+    is.imbue(std::locale(is.getloc(), new datepunct<charT>(std::move(m.fmt_))));
+#else
+    is.imbue(std::locale(is.getloc(), new datepunct<charT>(m.fmt_)));
+#endif
+    return is;
+}
+
+template<class charT>
+inline
+date_manip<charT>
+date_fmt(std::basic_string<charT> fmt)
+{
+#if __has_feature(cxx_rvalue_references)
+    return date_manip<charT>(std::move(fmt));
+#else
+    return date_manip<charT>(fmt);
+#endif
+}
+
+template<class charT>
+inline
+date_manip<charT>
+date_fmt(const charT* fmt)
+{
+    return date_manip<charT>(fmt);
+}
+
+template<class charT, class traits>
+std::basic_istream<charT,traits>&
+operator >>(std::basic_istream<charT,traits>& is, date& item)
+{
+    typename std::basic_istream<charT,traits>::sentry ok(is);
+    if (ok)
+    {
+        std::ios_base::iostate err = std::ios_base::goodbit;
+        try
+        {
+            const std::time_get<charT>& tg = std::use_facet<std::time_get<charT> >
+                                                           (is.getloc());
+            std::tm t;
+            charT pattern[] = {'%', 'F'};
+            const charT* pb = pattern;
+            const charT* pe = pb + 2;
+            typedef datepunct<charT> F;
+            std::locale loc = is.getloc();
+            if (std::has_facet<F>(loc))
+            {
+                const F& f = std::use_facet<F>(loc);
+                pb = f.fmt().data();
+                pe = pb + f.fmt().size();
+            }
+            tg.get(is, 0, is, err, &t, pb, pe);
+            if (!(err & std::ios_base::failbit))
+                item = month(t.tm_mon+1, no_check) / day(t.tm_mday) / year(t.tm_year+1900, no_check);
+        }
+        catch (...)
+        {
+            err |= std::ios_base::badbit | std::ios_base::failbit;
+        }
+        is.setstate(err);
+    }
+    return is;
+}
+
+template<class charT, class traits>
+std::basic_ostream<charT, traits>&
+operator <<(std::basic_ostream<charT, traits>& os, const date& item)
+{
+    typename std::basic_ostream<charT, traits>::sentry ok(os);
+    if (ok)
+    {
+        bool failed;
+        try
+        {
+            const std::time_put<charT>& tp = std::use_facet<std::time_put<charT> >
+                                                           (os.getloc());
+            std::tm t;
+            t.tm_mday = item.day();
+            t.tm_mon = item.month() - 1;
+            t.tm_year = item.year() - 1900;
+            t.tm_wday = item.weekday();
+            charT pattern[] = {'%', 'F'};
+            const charT* pb = pattern;
+            const charT* pe = pb + 2;
+            typedef datepunct<charT> F;
+            std::locale loc = os.getloc();
+            if (std::has_facet<F>(loc))
+            {
+                const F& f = std::use_facet<F>(loc);
+                pb = f.fmt().data();
+                pe = pb + f.fmt().size();
+            }
+            failed = tp.put(os, os, os.fill(), &t, pb, pe).failed();
+        }
+        catch (...)
+        {
+            failed = true;
+        }
+        if (failed)
+            os.setstate(std::ios_base::failbit | std::ios_base::badbit);
+    }
+    return os;
+}
+
+template<class charT, class traits>
+std::basic_ostream<charT, traits>&
+operator <<(std::basic_ostream<charT, traits>& os, const year_month& item)
+{
+    typename std::basic_ostream<charT, traits>::sentry ok(os);
+    if (ok)
+    {
+        bool failed;
+        try
+        {
+            const std::time_put<charT>& tp = std::use_facet<std::time_put<charT> >
+                                                           (os.getloc());
+            std::tm t = {0};
+            t.tm_mon = item.month() - 1;
+            t.tm_year = item.year() - 1900;
+            charT pattern[] = {'%', 'Y', '-', '%', 'm'};
+            const charT* pb = std::begin(pattern);
+            const charT* pe = std::end(pattern);
+            typedef datepunct<charT> F;
+            std::locale loc = os.getloc();
+            if (std::has_facet<F>(loc))
+            {
+                const F& f = std::use_facet<F>(loc);
+                pb = f.fmt().data();
+                pe = pb + f.fmt().size();
+            }
+            failed = tp.put(os, os, os.fill(), &t, pb, pe).failed();
+        }
+        catch (...)
+        {
+            failed = true;
+        }
+        if (failed)
+            os.setstate(std::ios_base::failbit | std::ios_base::badbit);
+    }
+    return os;
+}
+
+}  // chrono
+
+#ifdef _LIBCPP_END_NAMESPACE_STD
+_LIBCPP_END_NAMESPACE_STD
+#else
+}  // std
+#endif
+
+#endif  // DATE

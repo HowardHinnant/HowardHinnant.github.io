@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+        "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>chrono_util</title>
+</head>
+<body>
+
+<address align=right>
+<a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
+2010-10-30
+</address>
+<hr>
+
+<h1 align="center"><code>&lt;chrono&gt;</code> Utilities</h1>
+
+<p>
+A few simple utility functions for working with <code>duration</code>s.
+</p>
+
+<h2>Rounding functions</h2>
+
+<blockquote><pre>
+<font color="#C80000">// round down</font>
+template &lt;class To, class Rep, class Period&gt;
+To
+floor(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
+{
+    To t = std::chrono::duration_cast&lt;To&gt;(d);
+    if (t &gt; d)
+        --t;
+    return t;
+}
+
+<font color="#C80000">// round to nearest, to even on tie</font>
+template &lt;class To, class Rep, class Period&gt;
+To
+round(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
+{
+    To t0 = std::chrono::duration_cast&lt;To&gt;(d);
+    To t1 = t0;
+    ++t1;
+    auto diff0 = d - t0;
+    auto diff1 = t1 - d;
+    if (diff0 == diff1)
+    {
+        if (t0.count() &amp; 1)
+            return t1;
+        return t0;
+    }
+    else if (diff0 &lt; diff1)
+        return t0;
+    return t1;
+}
+
+<font color="#C80000">// round up</font>
+template &lt;class To, class Rep, class Period&gt;
+To
+ceil(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
+{
+    To t = std::chrono::duration_cast&lt;To&gt;(d);
+    if (t &lt; d)
+        ++t;
+    return t;
+}
+</pre></blockquote>
+
+<p>
+The beauty of the chrono library is the ease and accuracy with which such
+conversions can be made.  For example to convert from milliseconds (1/1000 of
+a second), to 1/30 of a second, one must multiply the milliseconds by 0.03.
+It is common knowledge that you can't exactly represent 0.03 in a computer.
+Nevertheless <tt>round</tt> will exactly (with no round off error) detect a tie
+and round to even when this happens.  The differences <tt>diff0</tt> and
+<tt>diff1</tt> are not approximate, but exact differences, even when <tt>d</tt>
+has the units of millisecond and <tt>To</tt> is 1/30 of a second.  The unit of
+<tt>diff0</tt> and <tt>diff1</tt> is 1/3000 of a second which both millisecond
+and 1/30 of a second exactly convert to (with no truncation error).
+</p>
+
+<p>
+Similarly, the comparison <tt>t &lt; d</tt> in <tt>ceil</tt> is exact, even when
+there is no exact conversion between <tt>t</tt> and <tt>d</tt>.
+</p>
+
+<h3>Example use of rounding functions</h3>
+
+<blockquote><pre>
+#include &lt;iostream&gt;
+#include &lt;<a href="chrono_io.html">chrono_io</a>&gt;
+
+int main()
+{
+    using namespace std::chrono;
+    milliseconds ms(2500);
+    std::cout &lt;&lt; floor&lt;seconds&gt;(ms) &lt;&lt; '\n';
+    std::cout &lt;&lt; round&lt;seconds&gt;(ms) &lt;&lt; '\n';
+    std::cout &lt;&lt; ceil&lt;seconds&gt;(ms) &lt;&lt; '\n';
+    ms = milliseconds(2516);
+    typedef duration&lt;long, std::ratio&lt;1, 30&gt;&gt; frame_rate;
+    std::cout &lt;&lt; floor&lt;frame_rate&gt;(ms) &lt;&lt; '\n';
+    std::cout &lt;&lt; round&lt;frame_rate&gt;(ms) &lt;&lt; '\n';
+    std::cout &lt;&lt; ceil&lt;frame_rate&gt;(ms) &lt;&lt; '\n';
+}
+
+2 seconds
+2 seconds
+3 seconds
+75 [1/30]seconds
+75 [1/30]seconds
+76 [1/30]seconds
+</pre></blockquote>
+
+<p>
+An interesting exercise is to find out how many frames go by (at 1/30 second
+frame rate) in 2516 milliseconds using <tt>xtime</tt> from C1x (without using
+the chrono library! :-)).
+</p>
+
+<h2><code>abs</code></h2>
+
+<blockquote><pre>
+template &lt;class Rep, class Period,
+          class = typename std::enable_if
+          &lt;
+              std::chrono::duration&lt;Rep, Period&gt;::min() &lt;
+              std::chrono::duration&lt;Rep, Period&gt;::zero()
+          &gt;::type
+         &gt;
+constexpr
+inline
+std::chrono::duration&lt;Rep, Period&gt;
+abs(std::chrono::duration&lt;Rep, Period&gt; d)
+{
+    return d &gt;= d.zero() ? d : -d;
+}
+</pre></blockquote>
+
+<p>
+Note that <code>abs</code> is disabled for unsigned durations.  My reasoning is
+that if you try to call <code>abs</code> with an unsigned duration, the chances
+are high that there is a logical mistake in your code, and so a compile-time
+diagnostic is better, than a silent identity function.
+</p>
+
+</body>
+</html>

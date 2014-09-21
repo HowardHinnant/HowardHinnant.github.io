@@ -1,0 +1,198 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+        "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>Incomplete Types</title>
+</head>
+<body>
+
+<address align=right>
+<a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
+
+2011-05-27
+</address>
+<hr>
+<h1 align="center">Incomplete types and <tt>shared_ptr</tt> / <tt>unique_ptr</tt></h1>
+
+<p>
+Most templates in the C++ standard library require that they be instantiated
+with complete types.  However <tt>shared_ptr</tt> and <tt>unique_ptr</tt> are
+<em>partial</em> exceptions.  Some, but not all of their members can be
+instantiated with incomplete types.  The motivation for this is to support idioms
+such as
+<a href="http://en.wikipedia.org/wiki/Opaque_pointer#C.2B.2B"><i>pimpl</i></a>
+using smart pointers, and without risking undefined behavior.
+</p>
+
+<p>
+Undefined behavior can occur when you have an incomplete type and you call
+<tt>delete</tt> on it:
+</p>
+
+<blockquote><pre>
+class A;
+A* a = ...;
+delete a;
+</pre></blockquote>
+
+<p>
+The above is legal code.  It will compile.  Your compiler may or may not emit
+a warning for above code like the above.  When it executes, bad things will
+probably happen.  If you're very lucky your program will crash.  However a more
+probable outcome is that your program will silently leak memory as <tt>~A()</tt>
+won't be called.
+</p>
+
+<p>
+Using <tt>auto_ptr&lt;A&gt;</tt> in the above example doesn't help.  You still
+get the same undefined behavior as if you had used a raw pointer.
+</p>
+
+<p>
+Nevertheless, using incomplete classes in certain places is <em>very</em>
+useful!  This is where <tt>shared_ptr</tt> and <tt>unique_ptr</tt> help.  Use
+of one of these smart pointers will let you get away with an incomplete type,
+except where it is neccessary to have a complete type.  And most importantly,
+when it <em>is</em> necessary to have a complete type, you get a compile-time
+error if you try to use the smart pointer with an incomplete type at that point.
+</p>
+
+<blockquote>
+<p><b>
+No more undefined behavior:
+</b></p>
+</blockquote>
+
+<p>
+If your code compiles, then you've used a complete type everywhere you need to.
+</p>
+
+<blockquote><pre>
+class A
+{
+    class impl;
+    std::unique_ptr&lt;impl&gt; ptr_;  <font color="#C80000">// ok!</font>
+
+public:
+    A();
+    ~A();
+    // ...
+};
+</pre></blockquote>
+
+<p>
+<tt>shared_ptr</tt> and <tt>unique_ptr</tt> require a complete type in different
+places.  The reasons are obscure, having to do with a dynamic deleter vs a
+static deleter.  The precise reasons aren't important.  In fact, in most code
+it isn't really important for you to know exactly where a complete type is
+required.  Just code, and if you get it wrong, the compiler will tell you.
+</p>
+<p>
+However, in case it is helpful to you, here is a table which documents several
+members of <tt>shared_ptr</tt> and <tt>unique_ptr</tt> with respect to
+completeness requirements.  If the member requires a complete type, then entry
+has a "C", otherwise the table entry is filled with "I".  I've also added a
+column for <tt>noexcept</tt> (True or False) for each operation.
+</p>
+
+<blockquote>
+<table border="1" cellpadding=5>
+<caption>Complete type rquirements for <tt>unique_ptr</tt> and <tt>shared_ptr</tt></caption>
+
+<tr>
+<th></th>
+<th colspan=2><tt>unique_ptr</tt></th>
+<th colspan=2><tt>shared_ptr</tt></th>
+</tr>
+
+<tr>
+<th></th>
+<th>I/C</th>
+<th><tt>noexcept</tt></th>
+<th>I/C</th>
+<th><tt>noexcept</tt></th>
+</tr>
+
+<tr>
+<th><tt>P()</tt><br/>default constructor</th>
+<td align="center">I</td>
+<td align="center">T</td>
+<td align="center">I</td>
+<td align="center">T</td>
+</tr>
+
+<tr>
+<th><tt>P(const P&amp;)</tt><br/>copy constructor</th>
+<td align="center">N/A</td>
+<td align="center">N/A</td>
+<td align="center">I</td>
+<td align="center">T</td>
+</tr>
+
+<tr>
+<th><tt>P(P&amp;&amp;)</tt><br/>move constructor</th>
+<td align="center">I</td>
+<td align="center">T</td>
+<td align="center">I</td>
+<td align="center">T</td>
+</tr>
+
+<tr>
+<th><tt>~P()</tt><br/>destructor</th>
+<td align="center">C</td>
+<td align="center">T</td>
+<td align="center">I</td>
+<td align="center">T</td>
+</tr>
+
+<tr>
+<th><tt>P(A*)</tt><br/></th>
+<td align="center">I</td>
+<td align="center">T</td>
+<td align="center">C</td>
+<td align="center">F</td>
+</tr>
+
+<tr>
+<th><tt>operator=(const P&amp;)</tt><br/>copy assignment</th>
+<td align="center">N/A</td>
+<td align="center">N/A</td>
+<td align="center">I</td>
+<td align="center">T</td>
+</tr>
+
+<tr>
+<th><tt>operator=(P&amp;&amp;)</tt><br/>move assignment</th>
+<td align="center">C</td>
+<td align="center">T</td>
+<td align="center">I</td>
+<td align="center">T</td>
+</tr>
+
+<tr>
+<th><tt>reset()</tt><br/></th>
+<td align="center">C</td>
+<td align="center">T</td>
+<td align="center">I</td>
+<td align="center">T</td>
+</tr>
+
+<tr>
+<th><tt>reset(A*)</tt><br/></th>
+<td align="center">C</td>
+<td align="center">T</td>
+<td align="center">C</td>
+<td align="center">F</td>
+</tr>
+
+</table>
+
+</blockquote>
+
+<p>
+Any operations requiring pointer conversions require complete types for both
+<tt>unique_ptr</tt> and <tt>shared_ptr</tt>.
+</p>
+
+</body>
+</html>

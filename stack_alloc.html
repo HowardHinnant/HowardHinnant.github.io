@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+        "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <title>Stack Allocators</title>
+</head>
+<body>
+
+<h1 align="center">stack_alloc</h1>
+
+<p align = "center">Howard Hinnant</p>
+
+<h2>Introduction</h2>
+
+<hr/>
+<p>
+<b>Update:</b>
+</p>
+
+<p>
+I've updated this article with a new allocator that is fully C++11 conforming.
+The allocator it replaces was not fully C++03 nor C++11 conforming because
+copies were not equal.
+</p>
+<hr/>
+
+<p>
+Sometimes you need a container that is <i>almost</i> always going to hold just a
+few elements, but it must be prepared for the "large" use case as well.  It is
+often advantageous to have the container allocate off of the local stack up to
+a given size, in order to avoid a dynamic allocation for the common case.
+</p>
+
+<p>
+Programmers often believe they need to write custom containers to get this
+optimization instead of using the standard containers such as
+<tt>std::vector&lt;T&gt;</tt> and <tt>std::list&lt;T&gt;</tt>.  This is certainly
+doable.  However I do not believe this is the best way to go.
+</p>
+
+<p>
+Instead I prefer to write a custom allocator which can be used with any of the
+standard containers.  This custom allocator can be written in several different
+variants and this brief paper outlines only one.  But in general, such an
+allocator refers to a buffer either on the stack, or with static or thread
+storage duration.  So the end result is the same as writing your own
+container, but you get to reuse the standard container code.
+</p>
+
+<p>
+Allocator requirements for C++11 are backwards compatible in that C++98/03
+allocators will work in C++11 containers.  However C++11 allocators will not
+work in C++98/03 containers.  The allocator demonstrated here is purposefully a
+C++11 allocator and thus will not work with C++98/03 containers.  I chose this
+presentation because C++11 allocators need not have a lot of distracting
+boiler-plate (it can be defaulted). However it is a relatively trivial task to
+add the boiler-plate C++98/03 allocator requirements to this allocator if
+desired.
+</p>
+
+<h2>A small <tt>vector</tt></h2>
+
+<blockquote><pre>
+#include "<a href="short_alloc.h">short_alloc.h</a>"
+#include &lt;vector&gt;
+#include &lt;new&gt;
+#include &lt;iostream&gt;
+
+std::size_t memory = 0;
+std::size_t alloc = 0;
+
+void* operator new(std::size_t s) throw(std::bad_alloc)
+{
+    memory += s;
+    ++alloc;
+    return malloc(s);
+}
+
+void  operator delete(void* p) throw()
+{
+    --alloc;
+    free(p);
+}
+
+void memuse()
+{
+    std::cout &lt;&lt; "memory = " &lt;&lt; memory &lt;&lt; '\n';
+    std::cout &lt;&lt; "alloc = " &lt;&lt; alloc &lt;&lt; '\n';
+}
+
+int main()
+{
+    const unsigned N = 200;
+    typedef short_alloc&lt;int, N&gt; Alloc;
+    typedef std::vector&lt;int, Alloc&gt; SmallVector;
+    arena&lt;N&gt; a;
+    SmallVector v{Alloc(a)};
+    v.push_back(1);
+    memuse();
+    v.push_back(2);
+    memuse();
+    v.push_back(3);
+    memuse();
+    v.push_back(4);
+    memuse();
+    for (auto i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+
+memory = 0
+alloc = 0
+memory = 0
+alloc = 0
+memory = 0
+alloc = 0
+memory = 0
+alloc = 0
+1 2 3 4 
+</pre></blockquote>
+
+<p>
+In the above example I've created a custom <tt>new/delete</tt> just for the purpose
+of monitoring heap allocations.  A <tt>vector&lt;int&gt;</tt> is created that
+will allocate up to 100 <tt>bytes</tt>'s before going to the heap.
+</p>
+
+<h2>A small <tt>list</tt></h2>
+
+<p>
+This works with <tt>list</tt> too:
+</p>
+
+<blockquote><pre>
+int main()
+{
+    const unsigned N = 200;
+    typedef short_alloc&lt;int, N&gt; Alloc;
+    typedef std::list&lt;int, Alloc&gt; SmallList;
+    arena&lt;N&gt; a;
+    SmallList v{Alloc(a)};
+    v.push_back(1);
+    memuse();
+    v.push_back(2);
+    memuse();
+    v.push_back(3);
+    memuse();
+    v.push_back(4);
+    memuse();
+    for (auto i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+
+memory = 0
+alloc = 0
+memory = 0
+alloc = 0
+memory = 0
+alloc = 0
+memory = 0
+alloc = 0
+1 2 3 4 
+</pre></blockquote>
+
+<h2>A small <tt>set</tt></h2>
+
+<p>
+Yes, you can make a small <tt>set</tt> too:
+</p>
+
+<blockquote><pre>
+typedef std::set&lt;int, std::less&lt;int&gt;, short_alloc&lt;int, 200&gt;&gt; SmallSet;
+</pre></blockquote>
+
+<p>
+Next time you're tempted to write your own container, take a moment to explore
+the possibility of reusing the standard containers.  That's what they are there
+for.  You may be surprised at how they can be customized to meet your needs.
+</p>
+
+</body>
+</html>

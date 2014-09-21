@@ -1,0 +1,592 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>unique_ptr C++03 emulation</title>
+</head>
+<body>
+<address align=right>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br>
+2011-04-15
+</address>
+<hr>
+
+<h1 align=center><tt>unique_ptr</tt></h1>
+
+<p>
+<tt>unique_ptr</tt> is the C++11 replacement for <tt>auto_ptr</tt> which is now
+deprecated.  This document serves as a brief tutorial on <tt>unique_ptr</tt>.
+</p>
+
+<h2>Basic Examples</h2>
+
+<p>
+Almost anything you can do with <tt>auto_ptr</tt>, you can do with <tt>unique_ptr</tt>
+using the same syntax:
+</p>
+
+<blockquote><pre>
+unique_ptr&lt;int&gt; factory(int i)
+{
+    return unique_ptr&lt;int&gt;(new int(i));
+}
+
+void client(unique_ptr&lt;int&gt; p)
+{
+    <font color="#C80000">// Ownership transferred into client</font>
+}   <font color="#C80000">// int* deleted here</font>
+
+void test()
+{
+    unique_ptr&lt;int&gt; p = factory(2);
+    <font color="#C80000">// *p == 2</font>
+    p.reset(new int(3));
+    <font color="#C80000">// *p == 3</font>
+    client(factory(4));
+}
+</pre></blockquote>
+
+<p>
+You can return <tt>unique_ptr</tt> from factory functions, and transfer ownership
+into <i>sinks</i> by passing by value.  The familiar member functions from
+<tt>auto_ptr</tt> are available: <tt>operator*(), operator-&gt;(), get(), release(),
+reset()</tt>.
+</p>
+
+<h3>So what is the difference between <tt>unique_ptr</tt> and <tt>auto_ptr</tt>?</h3>
+
+<p>
+Note in the example above that every time <tt>unique_ptr</tt> is copied, the source
+of the copy is an <i>rvalue</i> or temporary.
+</p>
+
+<p>
+One can make a copy of an rvalue <tt>unique_ptr</tt>, but one can not make a
+copy of an lvalue <tt>unique_ptr</tt>.  If you try, the compiler will issue a
+diagnostic:
+</p>
+
+<blockquote><pre>
+unique_ptr&lt;int&gt; factory(int i)
+{
+    return unique_ptr&lt;int&gt;(new int(i));
+}
+
+void client(unique_ptr&lt;int&gt; p)
+{
+    <font color="#C80000">// Ownership transferred into client</font>
+}   <font color="#C80000">// int* deleted here</font>
+
+void test()
+{
+    unique_ptr&lt;int&gt; p = factory(2);
+    <font color="#C80000">// *p == 2</font>
+    p.reset(new int(3));
+    <font color="#C80000">// *p == 3</font>
+    client(p);  <font color="#C80000">// error: call to deleted constructor of unique_ptr&lt;int&gt;</font>
+}
+</pre></blockquote>
+
+<p>
+Above, when one tries to pass the <tt>unique_ptr p</tt> to <tt>client</tt> (which
+makes a copy), the compiler objects.  Previously we passed the result of
+<tt>factory(4)</tt> to <tt>client</tt>.  The compiler did not object because the
+result of <tt>factory(4)</tt> is an rvalue.
+</p>
+
+<p>
+If you have an lvalue <tt>unique_ptr</tt> and you really want to "copy" it, then
+special syntax is required to indicate that you know that you're not really copying
+the <tt>unique_ptr</tt>:
+</p>
+
+<blockquote><pre>
+unique_ptr&lt;int&gt; factory(int i)
+{
+    return unique_ptr&lt;int&gt;(new int(i));
+}
+
+void client(unique_ptr&lt;int&gt; p)
+{
+    <font color="#C80000">// Ownership transferred into client</font>
+}   <font color="#C80000">// int* deleted here</font>
+
+void test()
+{
+    unique_ptr&lt;int&gt; p = factory(2);
+    <font color="#C80000">// *p == 2</font>
+    p.reset(new int(3));
+    <font color="#C80000">// *p == 3</font>
+    client(<b>move(p)</b>);  <font color="#C80000">// ok now</font>
+    <font color="#C80000">// p is "null" here</font>
+}
+</pre></blockquote>
+
+<h3>Why?</h3>
+
+<p>
+Ok, so the big difference between <tt>unique_ptr</tt> and <tt>auto_ptr</tt>
+is that you <b>can</b> say:
+</p>
+
+<blockquote><pre>
+auto_ptr&lt;int&gt; p(new int(1));
+auto_ptr&lt;int&gt; p2 = p;
+</pre></blockquote>
+
+<p>
+But you <b>can not</b> say:
+</p>
+
+<blockquote><pre>
+unique_ptr&lt;int&gt; p(new int(1));
+unique_ptr&lt;int&gt; p2 = p;
+</pre></blockquote>
+
+<p>
+The reason:  Safety in generic code.  One can not really make copies of
+either <tt>auto_ptr</tt> or <tt>unique_ptr</tt>.  Consider:
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+void foo(T t)
+{
+    T copy_of_t = t;  <font color="#C80000">// line 4</font>
+    assert(copy_of_t == t);
+}
+</pre></blockquote>
+
+<p>
+It is not unusual at all for generic code to look like <tt>foo</tt> above.  The
+<tt>assert</tt> is probably not actually there, but the assumption that the
+<tt>assert</tt> would hold often is there ... <em>implicitly</em>.  Indeed, a
+popular implementation of <tt>std::sort</tt> had exactly this logic in 1996, which
+is exactly what prompted the second <tt>auto_ptr</tt> redesign (which helped, but
+didn't completely fix the problem).
+</p>
+
+<p>
+To fix the problem, <tt>unique_ptr</tt> disables copying from lvalues (named objects).
+Thus, in generic code, if something <em>looks</em> like a copy, then it <em>is</em> a copy!
+If the generic code is instantiated with <tt>unique_ptr</tt> (and tries to copy), then
+unlike <tt>auto_ptr</tt>, it will not compile.  You get your errors at compile time,
+instead of at run time.
+</p>
+
+<blockquote><pre>
+foo(auto_ptr&lt;int&gt;(new int(1)));   <font color="#C80000">// compiles, asserts at run time</font>
+foo(unique_ptr&lt;int&gt;(new int(1))); <font color="#C80000">// does not even compile (error at line 4)</font>
+</pre></blockquote>
+
+<p>
+If desired, generic code can <i>generically move</i> objects if the algorithm
+designer knows that he no longer requires the source to have the same value:
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+void foo(T t)
+{
+    T copy_of_t = move(t);
+    <font color="#C80000">// value of t is not defined here</font>
+}
+</pre></blockquote>
+
+<p>
+Furthermore, even generic code can safely move from rvalues because once the
+operation is completed, one no longer has a reference to the rvalue to detect a
+difference:
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+void foo(int i)
+{
+    T t = factory(i);  <font color="#C80000">// implicit move from result of factory</font>
+    <font color="#C80000">// move is undetectable by foo because it no longer references that</font>
+    <font color="#C80000">// result directly.  foo now has a "copy" of that result named t.</font>
+}
+
+foo&lt;auto_ptr&lt;int&gt; &gt;(1);    <font color="#C80000">// ok</font>
+foo&lt;unique_ptr&lt;int&gt; &gt;(2);  <font color="#C80000">// also ok</font>
+</pre></blockquote>
+
+<p>
+Why is <tt>unique_ptr</tt> this way?  Because <tt>unique_ptr</tt> turns common run time errors associated with
+<tt>auto_ptr</tt> into compile time errors, especially when instantiating
+generic code (compile time errors are always better than run time errors).
+</p>
+
+<h3>Anything Else?</h3>
+
+<p>
+The most important difference between <tt>unique_ptr</tt> and <tt>auto_ptr</tt>
+is the refusal to copy from lvalues as described in the previous section.
+However <tt>unique_ptr</tt> has several more features which make it much more
+powerful and flexible than <tt>auto_ptr</tt>:
+</p>
+
+<h4>Custom Deleter</h4>
+
+<p>
+Much like you can supply an <tt>allocator</tt> to <tt>std::vector</tt>, you
+can supply a <tt>deleter</tt> to <tt>unique_ptr</tt> to customize how the
+resource is disposed of:
+</p>
+
+<blockquote><pre>
+struct close_stream
+{
+    void operator()(std::ofstream* os) const
+    {
+        os-&gt;close();
+    }
+};
+
+std::ofstream log_file;
+
+typedef unique_ptr&lt;std::ofstream, close_stream&gt; FilePtr;
+
+FilePtr get_log()
+{
+    log_file.open("log file");
+    return FilePtr(&amp;log_file);
+}
+
+void test()
+{
+    FilePtr fp = get_log();
+    *fp &lt;&lt; "some text\n";
+}   <font color="#C80000">// fp-&gt;close()</font>
+</pre></blockquote>
+
+<p>
+In the above example the resource isn't a heap object.  The resource is the open state
+of a logging file.  <tt>unique_ptr</tt> is modified by the client-supplied
+<tt>close_stream</tt> to cause <tt>~unique_ptr()</tt> to close the stream.
+</p>
+
+<p>
+Below is a <tt>unique_ptr</tt> that works with <tt>malloc</tt> and <tt>free</tt>
+instead of <tt>new</tt> and <tt>delete</tt>:
+</p>
+
+<blockquote><pre>
+void test()
+{
+    unique_ptr&lt;int, void (*)(void*)&gt; p((int*)std::malloc(sizeof(int)), std::free);
+    *p = 1;
+}   <font color="#C80000">// free(p.get())</font>
+</pre></blockquote>
+
+<p>
+As the above examples show, the deleter can be a functor or function pointer which
+takes a pointer to the owned resource.  An instance of the deleter can be passed
+into the <tt>unique_ptr</tt> constructor.  Indeed this is required if the deleter
+is a function pointer, else the deleter would be a null function pointer.  To prevent
+this accident, the following will not compile.  If the deleter is a function pointer,
+then one <em>must</em> supply a function pointer in the <tt>unique_ptr</tt>
+constructor:
+</p>
+
+<blockquote><pre>
+void test()
+{
+    unique_ptr&lt;int, void (*)(void*)&gt; p((int*)std::malloc(sizeof(int)));
+    *p = 1;
+}   <font color="#C80000">// free(p.get())</font>
+
+error: static_assert failed "unique_ptr constructed with null function pointer deleter"
+</pre></blockquote>
+
+<p>
+The deleter can also be a <em>reference</em> to a deleter.  In this case, again
+an lvalue deleter must be supplied in the <tt>unique_ptr</tt> constructor.  This
+feature can be handy when dealing with a stateful deleter which you do not want
+to make a copy of:
+</p>
+
+<blockquote><pre>
+class MyDeleter
+{
+    std::ofstream file_;
+public:
+    MyDeleter() : file_("filename") {}
+
+    template &lt;class T&gt;
+    void operator()(T* t)
+    {
+        file_ &lt;&lt; "deleting " &lt;&lt; t &lt;&lt; '\n';
+        delete t;
+    }
+};
+
+MyDeleter my_deleter;
+
+void test()
+{
+    unique_ptr&lt;int, MyDeleter<b>&amp;</b>&gt; p1(new int(1), my_deleter);
+    unique_ptr&lt;int, MyDeleter<b>&amp;</b>&gt; p2(new int(2), my_deleter);
+    <font color="#C80000">// ...</font>
+}   <font color="#C80000">// p2 freed and logged, p1 freed and logged</font>
+</pre></blockquote>
+
+<h4>Custom Storage Type</h4>
+
+<p>
+To support placing <tt>unique_ptr</tt> into shared memory, the custom deleter
+can contain a custom pointer type (typically not a real pointer in shared memory
+applications).  One simply places a nested type called <tt>pointer</tt> which
+emulates pointer behavior within your deleter, publicly accessible:
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+class MyDeleter
+{
+public:
+    class pointer
+    {
+     public:
+        friend bool operator==(pointer x, pointer y);
+        friend bool operator!=(pointer x, pointer y);
+       <font color="#C80000">// ...</font>
+    };
+
+    void operator()(pointer p);
+};
+
+void test()
+{
+    unique_ptr&lt;int, MyDeleter&lt;int&gt; &gt; p;
+    MyDeleter&lt;int&gt;::pointer p2 = p.get();  <font color="#C80000">// A custom pointer type used for storage</font>
+}
+</pre></blockquote>
+
+<h4>Support For <tt>void</tt></h4>
+
+<p>
+Yes, you can say <tt>unique_ptr&lt;void, CustomDeleter&gt;</tt>.  Just don't try to use the
+dereference operator!  And you must use your own deleter.  <tt>default_delete</tt>
+(the default deleter) requires a complete type to <tt>delete</tt>.
+</p>
+
+<h4>Safe Support For incomplete types</h4>
+
+<p>
+You can safely use <tt>unique_ptr&lt;A&gt;</tt> to implement the pimpl pattern as long
+as <tt>A</tt> is a complete type wherever <tt>~unique_ptr&lt;A&gt;</tt> is instantiated
+(such as in the .cpp file).  If you make a mistake, and try to delete <tt>A</tt>
+where it is an incomplete type, the default deleter (named <tt>default_delete&lt;A&gt;</tt>)
+will cause a compile time diagnostic:
+</p>
+
+<blockquoute><pre>
+struct A;
+
+class B
+{
+    unique_ptr&lt;A&gt; ptr_;
+public:
+    B();
+    ~B();
+    // ...
+    
+    A&amp; get() {return *ptr_;}
+};
+
+void test()
+{
+    B b;
+    A&amp; a = b.get();
+}  <font color="#C80000">// ok as long as B's special members are defined with a complete A</font>
+</pre></blockquote>
+
+<p>
+If (for example) <tt>~B()</tt> is defaulted, then a <tt>static_assert</tt> can be
+expected because <tt>unique_ptr</tt> will attempt to delete an incomplete <tt>A</tt>.
+</p>
+
+<h4>Safe Support For Arrays</h4>
+
+<blockquote><pre>
+void test()
+{
+    unique_ptr&lt;int<b>[]</b>&gt; p(new int[3]);
+    p[0] = 0;
+    p[1] = 1;
+    p[2] = 2;
+}   <font color="#C80000">// delete [] p.get() called</font>
+</pre></blockquote>
+
+<p>
+By including the <tt>[]</tt> after the type in the <tt>unique_ptr</tt> template
+parameter one indicates that one wishes the "array form" of <tt>unique_ptr</tt>.
+This form does not have dereference, member selection, or implicit derived to
+base conversions.  But it does have an indexing operator which the non-array
+form lacks.  And the correct form of delete will be called.  You can also
+supply a custom deleter for this form also, and then the correct action to be
+taken is up to you.
+</p>
+
+<h4><tt>const unique_ptr</tt></h4>
+
+<p>
+A <tt>const unique_ptr</tt> may be considered a better <tt>scoped_ptr</tt> than
+even <tt>boost::scoped_ptr</tt>.  The only way to transfer ownership away from a
+<tt>const unique_ptr</tt> is by using <tt>const_cast</tt>.  Unlike <tt>scoped_ptr</tt>,
+you can't even <tt>swap</tt> <tt>const unique_ptr</tt>'s.  The overhead is the
+same (if using the <tt>default_delete</tt> or an empty custom deleter --
+<tt>sizeof(unique_ptr&lt;T&gt;) == sizeof(scoped_ptr&lt;T&gt;)</tt>).  And custom
+deleters are not even a possibility with <tt>scoped_ptr</tt>.
+</p>
+
+<blockquote><pre>
+void test()
+{
+    <b>const</b> unique_ptr&lt;int[]&gt; p(new int[3]);
+    <font color="#C80000">// ownership is not going to be transferred away from p because it is const</font>
+    p[0] = 0;
+    p[1] = 1;
+    p[2] = 2;
+}   <font color="#C80000">// delete [] p.get() called</font>
+</pre></blockquote>
+
+<h2>Synopsis</h2>
+
+<blockquote><pre>
+template &lt;class T, class D = default_delete&lt;T&gt;&gt;
+class unique_ptr
+{
+public:
+    typedef <i>see below</i> pointer;
+    typedef T element_type;
+    typedef D deleter_type;
+
+    <font color="#C80000">// constructors</font>
+    constexpr unique_ptr() noexcept;
+    constexpr unique_ptr(nullptr_t) noexcept;
+    explicit unique_ptr(pointer p) noexcept;
+    unique_ptr(pointer p, <i>see below</i> d1) noexcept;
+    unique_ptr(pointer p, <i>see below</i> d2) noexcept;
+    unique_ptr(unique_ptr&amp;&amp; u) noexcept;
+    template &lt;class U, class E&gt;
+        unique_ptr(unique_ptr&lt;U, E&gt;&amp;&amp; u) noexcept;
+    template &lt;class U&gt;
+        unique_ptr(auto_ptr&lt;U&gt;&amp;&amp; u) noexcept;
+
+    <font color="#C80000">// destructor</font>
+    ~unique_ptr();
+
+    <font color="#C80000">// assignment</font>
+    unique_ptr&amp; operator=(unique_ptr&amp;&amp; u) noexcept;
+    template &lt;class U, class E&gt;
+        unique_ptr&amp; operator=(unique_ptr&lt;U, E&gt;&amp;&amp; u) noexcept;
+    unique_ptr&amp; operator=(nullptr_t) noexcept;
+
+    <font color="#C80000">// observers</font>
+    typename add_lvalue_reference&lt;T&gt;::type operator*() const;
+    pointer operator-&gt;() const noexcept;
+    pointer get() const noexcept;
+    deleter_type&amp; get_deleter() noexcept;
+    const deleter_type&amp; get_deleter() const noexcept;
+    explicit operator bool() const noexcept;
+
+    <font color="#C80000">// modifiers</font>
+    pointer release() noexcept;
+    void reset(pointer p = pointer()) noexcept;
+    void swap(unique_ptr&amp; u) noexcept;
+
+    <font color="#C80000">// disable copy from lvalue</font>
+    unique_ptr(const unique_ptr&amp;) = delete;
+    unique_ptr&amp; operator=(const unique_ptr&amp;) = delete;
+};
+
+template &lt;class T, class D&gt;
+class unique_ptr&lt;T[], D&gt;
+{
+public:
+    typedef <i>see below</i> pointer;
+    typedef T element_type;
+    typedef D deleter_type;
+
+    <font color="#C80000">// constructors</font>
+    constexpr unique_ptr() noexcept;
+    constexpr unique_ptr(nullptr_t) noexcept;
+    explicit unique_ptr(pointer p) noexcept;
+    unique_ptr(pointer p, <i>see below</i> d1) noexcept;
+    unique_ptr(pointer p, <i>see below</i> d2) noexcept;
+    unique_ptr(unique_ptr&amp;&amp; u) noexcept;
+
+    <font color="#C80000">// destructor</font>
+    ~unique_ptr();
+
+    <font color="#C80000">// assignment</font>
+    unique_ptr&amp; operator=(unique_ptr&amp;&amp; u) noexcept;
+    unique_ptr&amp; operator=(nullptr_t) noexcept;
+
+    <font color="#C80000">// observers</font>
+    T&amp; operator[](size_t i) const;
+    pointer get() const noexcept;
+    deleter_type&amp; get_deleter() noexcept;
+    const deleter_type&amp; get_deleter() const noexcept;
+    explicit operator bool() const noexcept;
+
+    <font color="#C80000">// modifiers</font>
+    pointer release() noexcept;
+    void reset(pointer p = pointer()) noexcept;
+    void reset(nullptr_t) noexcept;
+    template &lt;class U&gt; void reset(U) = delete;
+    void swap(unique_ptr&amp; u) noexcept;
+
+    <font color="#C80000">// disable copy from lvalue</font>
+    unique_ptr(const unique_ptr&amp;) = delete;
+    unique_ptr&amp; operator=(const unique_ptr&amp;) = delete;
+};
+
+template&lt;class T, class D&gt;
+    void swap(unique_ptr&lt;T, D&gt;&amp; x, unique_ptr&lt;T, D&gt;&amp; y) noexcept;
+
+template&lt;class T1, class D1, class T2, class D2&gt;
+    bool operator==(const unique_ptr&lt;T1, D1&gt;&amp; x, const unique_ptr&lt;T2, D2&gt;&amp; y);
+template&lt;class T1, class D1, class T2, class D2&gt;
+    bool operator!=(const unique_ptr&lt;T1, D1&gt;&amp; x, const unique_ptr&lt;T2, D2&gt;&amp; y);
+
+template&lt;class T1, class D1, class T2, class D2&gt;
+    bool operator&lt;(const unique_ptr&lt;T1, D1&gt;&amp; x, const unique_ptr&lt;T2, D2&gt;&amp; y);
+template&lt;class T1, class D1, class T2, class D2&gt;
+    bool operator&lt;=(const unique_ptr&lt;T1, D1&gt;&amp; x, const unique_ptr&lt;T2, D2&gt;&amp; y);
+template&lt;class T1, class D1, class T2, class D2&gt;
+    bool operator&gt;(const unique_ptr&lt;T1, D1&gt;&amp; x, const unique_ptr&lt;T2, D2&gt;&amp; y);
+template&lt;class T1, class D1, class T2, class D2&gt;
+    bool operator&gt;=(const unique_ptr&lt;T1, D1&gt;&amp; x, const unique_ptr&lt;T2, D2&gt;&amp; y);
+
+template &lt;class T, class D&gt;
+    bool operator==(const unique_ptr&lt;T, D&gt;&amp; x, nullptr_t) noexcept;
+template &lt;class T, class D&gt;
+    bool operator==(nullptr_t, const unique_ptr&lt;T, D&gt;&amp; y) noexcept;
+template &lt;class T, class D&gt;
+    bool operator!=(const unique_ptr&lt;T, D&gt;&amp; x, nullptr_t) noexcept;
+template &lt;class T, class D&gt;
+    bool operator!=(nullptr_t, const unique_ptr&lt;T, D&gt;&amp; y) noexcept;
+template &lt;class T, class D&gt;
+    bool operator&lt;(const unique_ptr&lt;T, D&gt;&amp; x, nullptr_t);
+template &lt;class T, class D&gt;
+    bool operator&lt;(nullptr_t, const unique_ptr&lt;T, D&gt;&amp; y);
+template &lt;class T, class D&gt;
+    bool operator&lt;=(const unique_ptr&lt;T, D&gt;&amp; x, nullptr_t);
+template &lt;class T, class D&gt;
+    bool operator&lt;=(nullptr_t, const unique_ptr&lt;T, D&gt;&amp; y);
+template &lt;class T, class D&gt;
+    bool operator&gt;(const unique_ptr&lt;T, D&gt;&amp; x, nullptr_t);
+template &lt;class T, class D&gt;
+    bool operator&gt;(nullptr_t, const unique_ptr&lt;T, D&gt;&amp; y);
+template &lt;class T, class D&gt;
+    bool operator&gt;=(const unique_ptr&lt;T, D&gt;&amp; x, nullptr_t);
+template &lt;class T, class D&gt;
+    bool operator&gt;=(nullptr_t, const unique_ptr&lt;T, D&gt;&amp; y);
+</pre></blockquote>
+
+</body>
+</html>

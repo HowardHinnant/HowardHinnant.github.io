@@ -1,0 +1,3564 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>chrono::date</title>
+    <style type="text/css">
+    p {text-align:justify;}
+    li {text-align:justify;}
+    blockquote.note
+    {
+        background-color:#E0E0E0;
+        padding-left: 15px;
+        padding-right: 15px;
+        padding-top: 1px;
+        padding-bottom: 1px;
+    }
+    ins {background-color:#A0FFA0;}
+    del {background-color:#FFA0A0;}
+    address {text-align:right;}
+    h1 {text-align:center;}
+    span.comment {color:#C80000;}
+    table {border-width:1px; border-color:black; border-style:solid;}
+    td {border-width:1px; border-color:black; border-style:solid; padding:5px;}
+    </style>
+</head>
+<body>
+
+<address>
+Document number: Dxxxx=xx-xxxx<br>
+<br>
+<a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
+
+2011-08-07
+</address>
+<hr>
+<h1><code>chrono::date</code></h1>
+
+<h2>Introduction</h2>
+
+<p>
+The subject of this paper is a date class which has been strongly influenced by
+<code>boost::date</code>, but is not proposing exactly what is currently
+<code>boost::date</code>.  What is proposed herein is a relatively small
+library.  The implementation is currently composed of 3 different performance
+design alternatives, all conforming to a single specification, and the total
+number of semicolons in the union of all three designs is only 523.  Suffice it
+to say that we are talking approximately 400 lines of C++ code to implement any
+one of the 3 implementation design alternativs prototyped in the example code,
+not 5000 lines of C++ code (the approximate size of boost date time).  The API
+proposed herein is correspondingly small, and yet powerful enough to enable the
+client to express everything needed in this area.
+</p>
+
+<p>
+The three example implementations can be found in <a
+href="date"><code>&lt;date&gt;</code></a> and <a
+href="date.cpp"><code>date.cpp</code></a>.
+</p>
+
+<p>
+The <code>boost::date</code> API is considerably larger.  Additionally the
+<code>boost::date</code> API allows for a few situations which can be visually
+ambiguous.  For example, here is an example using boost with the intent of
+forming January 2, 2011:
+</p>
+
+<blockquote><pre>
+#include "boost/date_time/gregorian/gregorian.hpp"
+#include &lt;iostream&gt;
+
+int main()
+{
+    using namespace boost::gregorian;
+    <span class="comment">// I'm from the US and am used to month/day/year</span>
+    std::cout &lt;&lt; date(1, 2, 2011) &lt;&lt; '\n';
+}
+</pre></blockquote>
+
+<p>
+The above results in a run time error because the <code>boost::date</code>
+constructor expects the order of arguments to be year, month, day.  This
+proposal allows the entry of day, month and year to vary.  Additionally the first
+two entries must be a type that unambiguously gives the units (day,
+month or year).  For example:
+</p>
+
+<blockquote><pre>
+std::cout &lt;&lt; month(1)/day(2)/2011 &lt;&lt; '\n';  <span class="comment">// 2011-01-02</span>
+</pre></blockquote>
+
+<p>
+If you prefer the year/month/day order, that is just as easily accomplished:
+</p>
+
+<blockquote><pre>
+std::cout &lt;&lt; year(2011)/month(1)/2 &lt;&lt; '\n';  <span class="comment">// 2011-01-02</span>
+</pre></blockquote>
+
+<p>
+This library is placed in namespace <code>std::chrono</code>.  This is just
+another time-keeping library, but it counts sunrises instead of seconds.  And it
+interoperates with the existing <code>chrono</code> library.
+</p>
+
+<!--
+<h2><code>date</code> Construction</h2>
+-->
+<h2><code>date</code> Construction</h2>
+
+<p>
+Significant effort has been put into designing a library that makes it easy to
+correctly construct a date, unlikely to construct an unexpected date, and
+impossible to construct an invalid date.
+</p>
+
+<p>
+In all a <code>chrono::date</code> can be entered with three variations of the
+order of years, months and days.  The first two units must be specified, and
+disambiguates which order you are using.  Use of explicit units for the third
+unit is optional. These three orders were chosen out of the six possible orders
+because these are the only orders that people actually use worldwide.
+</p>
+
+<blockquote><pre>
+int m, d, y;
+<span class="comment">// give values to m, d and y ...</span>
+date d1 = year(y)  / month(m) / day(d);   <span class="comment">// ymd ok</span>
+date d2 = month(m) / day(d)   / year(y);  <span class="comment">// mdy ok</span>
+date d3 = day(d)   / month(m) / year(y);  <span class="comment">// dmy ok</span>
+</pre></blockquote>
+
+<p>
+The other three orderings of <code>year</code>, <code>month</code>, and
+<code>day</code> are rejected <b>at compile time.</b>
+</p>
+
+<blockquote><pre>
+int m, d, y;
+<span class="comment">// give values to m, d and y ...</span>
+date d1 = year(y)  / day(d)  / month(m);  <span class="comment">// error: use of overloaded operator '/' is ambiguous</span>
+date d2 = month(m) / year(y) / day(d);  <span class="comment">// error: invalid operands to operator '/'</span>
+date d3 = day(d)   / year(y) / month(m);  <span class="comment">// error: invalid operands to operator '/'</span>
+</pre></blockquote>
+
+<p>
+The rationale for this is that there exists <a
+href="http://en.wikipedia.org/wiki/Date_format_by_country">no country on the
+planet</a> which uses any other ordering.  This is in contradiction to
+[locale.time.get] which specifies the above three orderings plus a
+<code>ydm</code> ordering.  There is no inconsistency in not offering a
+<code>year/day/month</code> ordering.  No current code will be invalidated. This
+is simply a lack of support for the <code>ydm</code> ordering.
+</p>
+
+<p>
+Furthermore, there exists <code>const</code> objects of type <code>month</code>
+named <code>jan</code>, <code>feb</code>, ... <code>dec</code>.  These can be
+used exactly as <code>month(m)</code> is used:
+</p>
+
+<blockquote><pre>
+date d1 = jan/day(2)/2011;   <span class="comment">// jan/2/2011</span>
+date d2 = year(2011)/jan/2;  <span class="comment">// jan/2/2011</span>
+date d3 = day(2)/jan/2011;   <span class="comment">// jan/2/2011</span>
+</pre></blockquote>
+
+<p>
+This makes creating date literals very easy, not prone to error due to ordering
+issues, and unambiguous to read.  Also in this proposal it is not possible to
+create an invalid date.  As dates are constructed or modified by date
+arithmetic, range checking is done, and an exception (<code>bad_date</code>) is
+thrown if any field of the <code>date</code> goes out of range.
+</p>
+
+<p>
+Additionally there are const objects with the following names that can be used
+to specify the day of the month:
+</p>
+
+<blockquote><pre>
+_1st
+_2nd
+_3rd
+_4th
+_5th
+last
+</pre></blockquote>
+
+<p>
+Now you can write (for example):
+</p>
+
+<blockquote><pre>
+date d1 =  jan/_2nd/2011;          <span class="comment">// jan/2/2011</span>
+date d2 =  year(2011)/jan/_2nd;    <span class="comment">// jan/2/2011</span>
+date d3 =  _2nd/jan/2011;          <span class="comment">// jan/2/2011</span>
+</pre></blockquote>
+
+<p>
+Note the constant <code>last</code>.  This provides a very easy way to specify
+the last day of the month:
+</p>
+
+<blockquote><pre>
+date d1 = last/jan/2011;  <span class="comment">// jan/31/2011</span>
+</pre></blockquote>
+
+<p>
+Sometimes you don't know exactly which day of the month you want, but instead
+know what weekday of the month you want.  For example Mother's Day is celebrated
+on the second Sunday in May in the US:
+</p>
+
+<blockquote><pre>
+date MothersDay = sun[2]/may/2011;     <span class="comment">// may/8/2011</span>
+date MothersDay = sun[_2nd]/may/2011;  <span class="comment">// may/8/2011</span>
+</pre></blockquote>
+
+<p>
+If you ask for a non-existent date (e.g. the fifth Friday of May in 2011) a
+<code>bad_date</code> exception will be thrown.  If what you really want is the
+fifth Friday in May only if it exists, else the fourth Friday, you can use
+<code>last</code>.
+</p>
+
+<blockquote><pre>
+date d1 = fri[last]/may/2011;  <span class="comment">// may/27/2011</span>
+</pre></blockquote>
+
+<p>
+If you want to find out how many Fridays there are in May 2011, it is easy to
+code with:
+</p>
+
+<blockquote><pre>
+int num_fri_in_may = (fri[last]/may/2011).day() &gt; 28 ? 5 : 4;  <span class="comment">// 4</span>
+</pre></blockquote>
+
+<p>
+If you don't know which day of the week you're looking for until run time, you
+can use <code>weekday</code> in the exact same way you use the const objects
+<code>sun</code> through <code>sat</code>:
+</p>
+
+<blockquote><pre>
+int wd = ...
+date d1 = weekday(wd)[_1st]/may/2011;
+</pre></blockquote>
+
+<p>
+Creating <code>date</code>s is safe, easy, intuitive, and efficient.
+</p>
+
+<!--
+<h2><code>date</code> Arithmetic</h2>
+-->
+<h2><code>date</code> Arithmetic</h2>
+
+<p>
+Date arithmetic is supported for the units of days, months and years.  In the
+chrono calendar, the length of months and years is not a constant number of days.
+This complicates the meaning of arithmetic with months and years.  This library
+takes a pragmatic approach to this problem which gives clients choices on how
+they want to perform the arithmetic.
+</p>
+
+<!--
+<h3>Year-oriented Arithmetic</h3>
+-->
+<h3>Year-oriented Arithmetic</h3>
+
+<p>
+For every day of the year but one, adding a year to the date has a straight
+forward meaning:  it modifies the year of the date, but not the day of the month
+or month of the year.  For example <code>oct/day(15)/2011 + years(1) ==
+oct/day(15)/2012</code>.  But what about Feb. 29?
+</p>
+
+<p>
+The boost library addresses this issue by "snapping to the end of the month."
+That is Feb. 29, 2012 + 1 year is Feb. 28, 2013.  And Feb. 28, 2011 + 1 year is
+Feb. 29, 2012.  But consider this example:  John's birthday is Feb. 28.  And he
+wants to print out his birthday for the decade.  Using boost this looks like:
+</p>
+
+<blockquote><pre>
+<span class="comment">// Print Feb. 28 for each year in the decade</span>
+for (date d(2010, Feb, 28), e(2020, Feb, 28); d &lt;= e; d += years(1))
+    std::cout &lt;&lt; d &lt;&lt; '\n';
+
+2010-Feb-28
+2011-Feb-28
+2012-Feb-29
+2013-Feb-28
+2014-Feb-28
+2015-Feb-28
+2016-Feb-29
+2017-Feb-28
+2018-Feb-28
+2019-Feb-28
+</pre></blockquote>
+
+<p>
+Using the boost design, every leap year the output prints out Feb. 29
+instead of Feb. 28.  But John wasn't born on Feb. 29!  That isn't the behavior
+he wants.  He finds this behavior surprising.
+</p>
+
+<p>
+This library prints out Feb. 28 for each year using the syntax below.
+</p>
+
+<blockquote><pre>
+<span class="comment">// Print Feb. 28 for each year in the decade</span>
+for (date d = feb/day(28)/2010, e = feb/day(28)/2020; d != e; d += years(1))
+    std::cout &lt;&lt; d &lt;&lt; '\n';
+
+2010-02-28
+2011-02-28
+2012-02-28
+2013-02-28
+2014-02-28
+2015-02-28
+2016-02-28
+2017-02-28
+2018-02-28
+2019-02-28
+</pre></blockquote>
+
+<p>
+And if you add 1 year to <code>feb/day(29)/2012</code>, a <code>bad_date</code>
+exception is thrown because there is no <code>feb/day(29)/2013</code>.  You get
+exactly the same result as if you had attempted to construct
+<code>feb/day(29)/2013</code> directly.
+</p>
+
+<p>
+But now Sue comes along, and she happens to have been born on Feb. 29.  And she
+doesn't want to have to wait 4 years to celebrate her birthday.  She decides
+that she wants to celebrate her birthday on the last day of Feb. every year.
+She can print out her birthdays just as easily as John did:
+</p>
+
+<blockquote><pre>
+<span class="comment">// Print the last day in  Feb. for each year in the decade</span>
+for (date d = feb/last/2010, e = feb/last/2020; d != e; d += years(1))
+    std::cout &lt;&lt; d &lt;&lt; '\n';
+
+2010-02-28
+2011-02-28
+2012-02-29
+2013-02-28
+2014-02-28
+2015-02-28
+2016-02-29
+2017-02-28
+2018-02-28
+2019-02-28
+</pre></blockquote>
+
+<p>
+When year-oriented arithmetic is applied to a date that has been constructed
+with <code>last</code>, the library knows that although <code>feb/last/2011 ==
+feb/day(28)/2011</code>, <code>feb/last/2011 + years(1) ==
+feb/day(29)/2012</code>. And the result of this computation behaves as if it had
+been constructed with <code>feb/last/2012</code>, not
+<code>feb/day(29)/2012</code>. Thus throughout the for-loop above, the variable
+<code>d</code> always represents the last day of Feb., no matter what the year
+is.
+</p>
+
+<p>
+So this library enables both desired behaviors (do not "snap-to" and "snap-to"),
+and also delivers results that are not surprising to the casual reader of the
+code.  And the arithmetic is reversible.  If you add a year to a date (and this
+results in a valid date), and then subtract a year from that result, then you
+<i>always</i> get back your original date.  This is <b>not</b> true of the boost
+date library.  For example with boost, if you add a year to Feb. 28, 2012, you
+get Feb. 28, 2013.  If you then subtract a year, you get Feb. 29, 2012, not the
+original date Feb. 28, 2012.
+</p>
+
+<p>
+To complete the birthday example, Sam, like Sue, was born on Feb. 29.  But unlike
+Sue, he wants to always celebrate his birthday on the day after Feb. 28.  This
+is also easy to accomplish:
+</p>
+
+<blockquote><pre>
+<span class="comment">// Print the day after Feb. 28 for each year in the decade</span>
+for (date d = feb/day(28)/2010, e = feb/day(28)/2020; d != e; d += years(1))
+    std::cout &lt;&lt; d + days(1) &lt;&lt; '\n';
+
+2010-03-01
+2011-03-01
+2012-02-29
+2013-03-01
+2014-03-01
+2015-03-01
+2016-02-29
+2017-03-01
+2018-03-01
+2019-03-01
+</pre></blockquote>
+
+<!--
+<h3>How expensive is all this?!</h3>
+-->
+<h3>How expensive is all this?!</h3>
+
+<p>
+The implementation cost of this behavior is very inexpensive.  It need not
+impact the <code>sizeof(date)</code> at all, no matter what strategy the
+vendor is using to store the <code>date</code>.  The run time cost is minimal,
+involving simply checking a few bits of the representation to choose the exact
+arithmetic algorithm.  These assertions are backed by an example implementation
+for each of the three obvious storage strategies:
+</p>
+
+<ol>
+<li>Store year, month, day, and a count of days since the epoch. (Storage space is 64 bits)</li>
+<li>Store a count of days since the epoch.  (Storage space is 32 bits)</li>
+<li>Store year, month, and day.  (Storage space is 32 bits)</li>
+</ol>
+
+<p>
+In each example implementation above, 6 bits of storage are used to store
+information such as:  this date represents the last day of February. These
+6 bits do not participate in the date comparison operations.  The remaining bits
+(58 or 26) are more than sufficient to store the indicated data.
+</p>
+
+<p>
+In an attempt to quantify the cost of this library, I compared it with boost
+for the case that they both produce the same results: computing the last day
+of Feb. for years 2010 thru 2020.:
+</p>
+
+<blockquote><pre>
+for (date d(2010, Feb, 28), e(2020, Feb, 28); d &lt;= e; d += years(1))
+</pre></blockquote>
+
+<p>
+vs.
+</p>
+
+<blockquote><pre>
+for (date d = feb/last/2010, e = feb/last/2020; d != e; d += years(1))
+</pre></blockquote>
+
+<p>
+Because I/O is rather expensive I set the body of the for loop to just:
+</p>
+
+<blockquote><pre>
+;
+</pre></blockquote>
+
+<p>
+I wrapped the for loop with calls to
+<tt>std::chrono::high_resolution_clock::now()</tt> and printed out the
+results in units of microseconds (represented as a double).  I also printed
+out the <tt>sizeof date</tt>.  I ran each case 3 times and am reporting here
+the average of those 3 runs. I also ran this test for each of the 3
+<code>std::chrono</code> implementations described above.  All tests were run
+with clang -O3.  The variance of the 3 runs for each implementation is
+considerably less than the difference between the averages reported here.
+</p>
+
+<blockquote>
+
+<p><b>boost:</b></p>
+<blockquote><pre>
+5.08 microseconds
+sizeof(date) = 4
+</pre></blockquote>
+
+<p><b>chrono, implementation 1:</b></p>
+<blockquote><pre>
+1.80 microseconds
+sizeof(date) = 8
+</pre></blockquote>
+
+<p><b>chrono, implementation 2:</b></p>
+<blockquote><pre>
+2.64 microseconds
+sizeof(date) = 4
+</pre></blockquote>
+
+<p><b>chrono, implementation 3:</b></p>
+<blockquote><pre>
+1.75 microseconds
+sizeof(date) = 4
+</pre></blockquote>
+
+</blockquote>
+
+<p>
+While this is clearly not a comprehensive performance test, it does at least
+establish that this proposal is in the same ballpark, performance wise, as
+the boost date library.  The boost storage design is most analogous to what
+this paper calls "implementation 2".  This storage strategy will excel at
+adding days to a date as this operation has no need to convert between the
+count of days since the epoch, and the year, month, day triple.
+</p>
+
+<p>
+Again, this proposal is neutral on the storage strategy used (1, 2 or 3).  Each
+has advantages and disadvantages.
+</p>
+
+<p>
+Each of the above example implementations support a range of
+<code>year(numeric_limits&lt;short&gt;::min())/jan/1</code> through
+<code>year(numeric_limits&lt;short&gt;::max())/dec/31</code> inclusive (range
+governed by representing the year by a <code>short</code>).  Thus this is a
+<a href="http://en.wikipedia.org/wiki/Proleptic_Gregorian_calendar">proleptic
+Gregorian calendar</a>.  The year preceding year 1 is year 0, and year 0 is a
+leap year.  This is consistent with the definition of an <i>expanded
+calendar</i> given in ISO 8601:2004: <i>Data elements and interchange formats
+&mdash; Information interchange &mdash; Representation of dates and times</i>.
+</p>
+
+<!-- 
+<h3>Month-oriented Arithmetic</h3>
+ -->
+<h3>Month-oriented Arithmetic</h3>
+
+<p>
+One can add and subtract <code>months</code> to a <code>date</code> with the
+same ease and semantics as is done with <code>years</code>.  For example you can
+add a month to <code>jul/day(31)/2011</code> which results in
+<code>aug/day(31)/2011</code>.  But if you add a month to
+<code>aug/day(31)/2011</code> a <code>bad_date</code> is thrown since
+<code>sep/day(31)/2011</code> does not exist. However you can <i>always</i> add
+a month to the <code>_1st</code> day of the month, or to <i>any</i> day of the
+month &lt;= 28, or to the <code>last</code> day of the month.  For example:
+</p>
+
+<blockquote><pre>
+<span class="comment">// Print last day of every month in 2011</span>
+for (date d = jan/last/2011, e = dec/last/2011; d &lt;= e; d += months(1))
+    std::cout &lt;&lt; d &lt;&lt; '\n';
+
+2011-01-31
+2011-02-28
+2011-03-31
+2011-04-30
+2011-05-31
+2011-06-30
+2011-07-31
+2011-08-31
+2011-09-30
+2011-10-31
+2011-11-30
+2011-12-31
+
+<span class="comment">// Print the 28th of every month in 2011</span>
+for (date d = jan/day(28)/2011, e = dec/day(28)/2011; d &lt;= e; d += months(1))
+    std::cout &lt;&lt; d &lt;&lt; '\n';
+
+2011-01-28
+2011-02-28
+2011-03-28
+2011-04-28
+2011-05-28
+2011-06-28
+2011-07-28
+2011-08-28
+2011-09-28
+2011-10-28
+2011-11-28
+2011-12-28
+</pre></blockquote>
+
+<p>
+It is also easy to print out the 29th of every month.  However one needs to
+explicitly decide what you want to do for months with less than 29 days.  One
+obvious choice is to simply skip such months:
+</p>
+
+<blockquote><pre>
+<span class="comment">// Print the 29th of every month in 2011</span>
+for (date d = last/jan/2011, e = last/dec/2011; d &lt;= e; d += months(1))
+    if (d.day() &gt;= 29)
+        std::cout &lt;&lt; d.year()/d.month()/29 &lt;&lt; '\n';
+
+2011-01-29
+2011-03-29
+2011-04-29
+2011-05-29
+2011-06-29
+2011-07-29
+2011-08-29
+2011-09-29
+2011-10-29
+2011-11-29
+2011-12-29
+</pre></blockquote>
+
+<p>
+Year and month-oriented arithmetic also respects nth-day-of-the-week dates.
+For example if you want to print out the 2nd Tuesday of every odd month that
+is easily done with:
+</p>
+
+<blockquote><pre>
+<span class="comment">// Print the 2nd Tuesday of every odd month in 2011</span>
+for (date d = tue[2]/jan/2011, e = dec/day(31)/2011; d &lt;= e; d += months(2))
+    std::cout &lt;&lt; d &lt;&lt; '\n';
+
+2011-01-11
+2011-03-08
+2011-05-10
+2011-07-12
+2011-09-13
+2011-11-08
+</pre></blockquote>
+
+<p>
+This final example should be emphasized.  Imagine you've just met an extended
+family at a restaurant, one whom you have not met before.  They're celebrating.
+There's children, parents and grandparents present.  They enjoy your company so
+much they invite you back for the same celebration, same place, "next year." You
+check the current date and it is May 8, 2011.
+</p>
+
+<p>
+On what date should you plan to attend?  If they were celebrating a birthday,
+then you should come back on May 8, 2012.  But if they were celebrating Mother's
+Day then you should come back on May 13, 2012 (the second Sunday of May in 2012)
+&mdash; five whole days later!
+</p>
+
+<blockquote><i>
+Adding a year (or a month) to a date is intrinsically context sensitive.
+</i></blockquote>
+
+<p>
+The expressions <code>d + years(1)</code> and <code>d + months(1)</code> are
+only unambiguous when you know the context within which <code>d</code> was
+constructed.  This library stores that context as part of <code>d</code>'s
+state.
+</p>
+
+<h3>Day-oriented Arithmetic</h3>
+
+<p>
+Day-oriented arithmetic is intrinsically less complicated than month and
+year-oriented arithmetic.  The chrono calendar is nothing but a count of
+sunrises, and a distinct name for each sunrise.  You can add any number of
+<code>days</code> to any <code>date</code> and the result is <i>always</i> a
+valid date (unless one exceeds the valid range for years).  For example:
+</p>
+
+<blockquote><pre>
+<span class="comment">// Print out every monday between jan/1/2011 and mar/1/2011;</span>
+for (date d = mon[_1st]/jan/2011, e = mar/_1st/2011; d &lt;= e; d += days(7))
+    std::cout &lt;&lt; d &lt;&lt; '\n';
+
+2011-01-03
+2011-01-10
+2011-01-17
+2011-01-24
+2011-01-31
+2011-02-07
+2011-02-14
+2011-02-21
+2011-02-28
+</pre></blockquote>
+
+<p>
+In the above example, the first Monday of the year is found, and then to get
+each Monday after that, one simply adds 7 days.  There is <i>always</i> another
+Monday coming up!
+</p>
+
+<p>
+Additionally, if you subtract two dates, the result is a
+<code>chrono::duration</code> with the name <code>days</code>.
+</p>
+
+<blockquote><pre>
+<span class="comment">// How many days between may/1/2011 and jan/1/2011?</span>
+int x = (may/_1st/2011 - jan/_1st/2011).count();  <span class="comment">// x == 120</span>
+</pre></blockquote>
+
+<p>
+<i>Question:</i> So what happens when you subtract a day from
+<code>aug/last/2011</code> and then add a day back?  The resultant day will be
+equal to <code>aug/day(31)/2011</code>. But will it still represent the last day
+of the month as far as month and year arithmetic is concerned?
+</p>
+
+<p>
+<i>Answer:</i>  No.  <code>date</code>s tagged with "last" information become
+untagged with that information as soon as they have <code>days</code> added to
+or subtracted from them.  So while <code>aug/last/2011 + months(1)</code> is
+equal to <code>sep/day(30)/2011</code>,  <code>aug/last/2011 - days(1) + days(1)
++ months(1)</code> results in a <code>bad_date</code> exception because
+<code>sep/day(31)/2011</code> does not exist.  This is the same behavior you
+would get if you added <code>months(1)</code> to <code>aug/day(31)/2011</code>.
+</p>
+
+<h2><code>date</code> Observers</h2>
+
+<p>
+Given a date <code>d</code> you can ask for its <code>day()</code>, <code>month()</code>
+and <code>year()</code>.  These each return a <code>day</code>, <code>month</code> and
+<code>year</code> respectively.  Note that these returned types are not the
+<i>durations</i> <code>days</code>, <code>months</code> and <code>years</code>.  Rather they
+are the <i>unit-specifiers</i> used to specify a day, month and year which you
+used to construct the <code>date</code>.  Each unit-specifier is implicitly
+convertible to an <code>int</code>.  Example uses:
+</p>
+
+<blockquote><pre>
+date dt = aug/day(16)/2011;
+int d = dt.day();   <span class="comment">// d == 16</span>
+int m = dt.month(); <span class="comment">// m == 8</span>
+int y = dt.year();  <span class="comment">// y == 2011</span>
+</pre></blockquote>
+
+<p>
+And:
+</p>
+
+<blockquote><pre>
+date dt = aug/day(16)/2011;
+<span class="comment">// ...</span>
+<span class="comment">// Create date with the same month and year but on the 5th</span>
+date dt2 = dt.year()/dt.month()/5;  <span class="comment">// aug/5/2011</span>
+</pre></blockquote>
+
+<p>
+Note that in the latter example if <code>year()</code> returned a simple
+<code>int</code> instead of a <code>year</code> then the construction of
+<code>dt2</code> would start with an <code>int</code> instead of a
+<code>year</code> and thus not be a well-formed <code>date</code>.
+</p>
+
+<p>
+To get the <code>weekday</code> (day of the week) of a date use the
+<code>weekday()</code> member function.  This returns a <code>weekday</code> type
+which is implicitly convertible to <code>int</code>.  One can use this to
+print out an <code>int</code> which represents the day of the week:
+</p>
+
+<blockquote><pre>
+date dt = aug/day(16)/2011;
+<span class="comment">// What day of the week is this?</span>
+int wd = dt.weekday();  <span class="comment">// 2 (Tuesday)</span>
+</pre></blockquote>
+
+<p>
+Or one can find the first same weekday of the month of the following year:
+</p>
+
+<blockquote><pre>
+date dt = aug/day(16)/2011;
+<span class="comment">// ...</span>
+<span class="comment">// Get the date that is the first occurrence of the same day of the week</span>
+<span class="comment">//   in the same month of the next year</span>
+date dt2 = dt.weekday()[_1st]/dt.month()/(dt.year() + 1);  <span class="comment">// aug/7/2012, first Tuesday of Aug 2012</span>
+</pre></blockquote>
+
+<p>
+<i>This syntax <b>has</b> power.</i>  There are nearly infinitely many
+applications for a date class which we can not imagine.  This library creates a
+small, simple, efficient and consistent language of dates and date arithmetic
+which is widely applicable to all of the date applications which we have yet to
+imagine.  And because the API for this library is small, it is easy to teach,
+and easy to learn.
+</p>
+
+<h2>Finding the next or previous <code>weekday</code></h2>
+
+<p>
+Sometimes, given a date, one needs to find the previous Monday, or the following
+Sunday.  For example the ISO week-based year starts on the Monday that falls on
+or before Jan 4 of each year.  With this library you can code that date for
+year <code>y</code> as:
+</p>
+
+<blockquote><pre>
+date ISO_week_start = mon &lt;= jan/day(4)/y;
+</pre></blockquote>
+
+<p>
+That is, the expression <code>wd &lt;= x</code> returns the <code>date y</code>
+such that <code>y</code> is the first <code>date</code> equal to or prior to
+<code>x</code> such that <code>y.weekday() == wd</code>.  There are four such
+operations summarized here.  Let <code>wd</code> be a <code>weekday</code>
+expression and <code>d</code> be a <code>date</code> expression:
+</p>
+
+<blockquote>
+<table>
+<tr>
+<td><code>wd &lt;  d</code></td>
+<td>Returns the first <code>date</code> prior to <code>d</code> that has
+<code>wd</code> as its <code>weekday</code>.</td>
+</tr>
+<tr>
+<td><code>wd &lt;= d</code></td>
+<td>Returns the first <code>date</code> on or prior to <code>d</code> that has
+<code>wd</code> as its <code>weekday</code>.</td>
+</tr>
+<tr>
+<td><code>wd &gt;  d</code></td>
+<td>Returns the first <code>date</code> after <code>d</code> that has
+<code>wd</code> as its <code>weekday</code>.</td>
+</tr>
+<tr>
+<td><code>wd &gt;= d</code></td>
+<td>Returns the first <code>date</code> on or after <code>d</code> that has
+<code>wd</code> as its <code>weekday</code>.</td>
+</tr>
+</table>
+</blockquote>
+
+<h2><code>date</code> I/O</h2>
+
+<p>
+<code>date</code>s are obviously streamable.  The default formatting is
+consistent with ISO 8601: yyyy-mm-dd, as has been alluded to in previous
+examples.  Additionally there is a <code>datepunct facet</code> and a
+<code>date_fmt</code> manipulator.  These are basically C++ wrappers around C's
+<code>strftime</code>.  And they also serve as wrappers around the
+non-standard-but-popular <code>strptime</code> for parsing <code>date</code>s
+from an <code>istream</code>.
+</p>
+
+<p>
+To demonstrate the ease with which <code>date</code>s can be formatted, I'm
+taking a real-world example from my wife:  She once set up a recurring meeting
+for the odd Fridays of every month.  That is, they met on the first, third, and
+if it existed, the fifth Friday of every month.  When I asked her why, she said:
+"Every week was too often, and every other week wasn't often enough."
+&lt;shrug&gt;
+</p>
+
+<p>
+Here is how you print out the odd Fridays of every month in 2011, using
+<code>date_fmt</code> to format the <code>date</code> however you want:
+</p>
+
+<blockquote><pre>
+std::cout &lt;&lt; date_fmt("%a %b %e, %Y");
+<span class="comment">// Print the odd fridays of every month in 2011</span>
+for (date d = fri[_1st]/jan/2011, e = dec/last/2011; d &lt;= e; d += months(1))
+{
+    std::cout &lt;&lt; d &lt;&lt; '\n';             <span class="comment">// first Friday of the month</span>
+    std::cout &lt;&lt; d + days(14) &lt;&lt; '\n';  <span class="comment">// third Friday of the month</span>
+    date last_fri = fri[last]/d.month()/d.year();
+    if (last_fri.day() &gt;= 29)
+        std::cout &lt;&lt; last_fri &lt;&lt; '\n';  <span class="comment">// fifth Friday of the month if it exists</span>
+}
+
+Fri Jan  7, 2011
+Fri Jan 21, 2011
+Fri Feb  4, 2011
+Fri Feb 18, 2011
+Fri Mar  4, 2011
+Fri Mar 18, 2011
+Fri Apr  1, 2011
+Fri Apr 15, 2011
+Fri Apr 29, 2011
+Fri May  6, 2011
+Fri May 20, 2011
+Fri Jun  3, 2011
+Fri Jun 17, 2011
+Fri Jul  1, 2011
+Fri Jul 15, 2011
+Fri Jul 29, 2011
+Fri Aug  5, 2011
+Fri Aug 19, 2011
+Fri Sep  2, 2011
+Fri Sep 16, 2011
+Fri Sep 30, 2011
+Fri Oct  7, 2011
+Fri Oct 21, 2011
+Fri Nov  4, 2011
+Fri Nov 18, 2011
+Fri Dec  2, 2011
+Fri Dec 16, 2011
+Fri Dec 30, 2011
+</pre></blockquote>
+
+<h2>Interoperability with other calendar systems</h2>
+
+<p>
+There are other calendar systems besides the <code>chrono</code> (Gregorian)
+calendar.  For example just to name a few:
+</p>
+
+<ul>
+<li><a href="http://en.wikipedia.org/wiki/Islamic_calendar">Islamic calendar</a></li>
+<li><a href="http://en.wikipedia.org/wiki/Hebrew_calendar">Hebrew calendar</a></li>
+<li><a href="http://en.wikipedia.org/wiki/Hindu_calendar">Hindu calendar</a></li>
+<li><a href="http://en.wikipedia.org/wiki/Chinese_calendar">Chinese calendar</a></li>
+<li><a href="http://en.wikipedia.org/wiki/Buddhist_calendar">Buddhist calendar</a></li>
+<li><a href="http://en.wikipedia.org/wiki/Julian_Calendar">Julian calendar</a></li>
+</ul>
+
+<p>
+This paper proposes only the
+<a href="http://en.wikipedia.org/wiki/Gregorian_calendar">Gregorian calendar</a>
+because this represents existing practice for C, C++, POSIX, and ISO 8601. 
+However one has to wonder:  shouldn't we design a framework which can support
+any of the world's calendars?
+</p>
+
+<p>
+I claim that such a general framework is unnecessary, and we would likely get it
+wrong.  The reason it is unnecessary is that clients can easily write their own
+calendars which convert to and from the <code>chrono</code> calendar using only
+the public API proposed herein.  Their calendar may or may not use an API
+similar to the <code>chrono</code> API.  Aside from the Julian calendar, the
+I/O facets <code>time_get</code>, <code>time_put</code>, and
+<code>datepunct</code> are not reusable by these other calendars.  Indeed,
+there is very little opportunity for code reuse by making a "calendar
+framework".
+</p>
+
+<p>
+To demonstrate, I coded a Julian calendar which converts to and from the
+<code>chrono</code> calendar (using no knowledge whatsoever of the implementation
+of <code>chrono</code>).  This calendar is <em>not</em> proposed but shown here
+only for demonstration purposes.
+</p>
+
+<ul>
+<li><a href="julian.h">julian.h</a></li>
+<li><a href="julian.cpp">julian.cpp</a></li>
+</ul>
+
+<p>
+And here is example use showing how the two calendars can be converted to one
+another:
+</p>
+
+<blockquote><pre>
+#include &lt;iostream&gt;
+#include "date"
+#include "julian.h"
+
+int main()
+{
+    std::cout &lt;&lt; std::chrono::date_fmt("%a %b %e, %Y");
+    std::chrono::date cd = std::chrono::date::today();
+    <b>julian::date jd(cd);</b>
+    std::cout &lt;&lt; "Today is:\n"
+              &lt;&lt; cd &lt;&lt; " in the std::chrono calendar and\n"
+              &lt;&lt; jd &lt;&lt; " in the Julian calendar\n";
+    jd -= julian::years(1800);
+    <b>cd = std::chrono::date(jd);</b>
+    std::cout &lt;&lt; "1800 years ago the two calendars were aligned:\n"
+              &lt;&lt; cd &lt;&lt; " in the std::chrono calendar and\n"
+              &lt;&lt; jd &lt;&lt; " in the Julian calendar\n";
+}
+
+Today is:
+Fri May  6, 2011 in the std::chrono calendar and
+Fri Apr 23, 2011 in the Julian calendar
+1800 years ago the two calendars were aligned:
+Tue Apr 23, 0211 in the std::chrono calendar and
+Tue Apr 23, 0211 in the Julian calendar
+</pre></blockquote>
+
+<p>
+I firmly believe that any other calendar can be converted to and from the
+<code>chrono</code> calendar using the techniques shown here for the Julian
+calendar, and that we need to do nothing to enable clients to do so. Furthermore
+actually providing these other calendars is far outside of our scope.
+</p>
+
+<h2>A non-trivial example</h2>
+
+<p>
+There's nothing like real-world use to test an interface.  This is when you
+find out if using a given API is like flying with the wind, or wading through
+waist-deep water.  In this spirit we would like to present two <i>user-written</i>
+functions drawn from real-world usage.  These two functions are not proposed,
+though they certainly could be.
+</p>
+
+<blockquote><pre>
+std::tuple&lt;int, std::chrono::weekday, std::chrono::year&gt;
+    date_to_week(std::chrono::date d)
+std::chrono::date
+    week_to_date(int weeknum, std::chrono::weekday wd, std::chrono::year y);
+</pre></blockquote>
+
+<p>
+These functions convert a <code>std::chrono::date</code> to and from the ISO
+8601 week-based year format.  The rules for this format are:
+</p>
+
+<ol>
+<li>The week starts with Monday, and ends with Sunday.</li>
+<li>The first day of the year is the Monday that occurs on or before Jan. 4.</li>
+<li>A date is specified by the week number [1 - 53], day of the week [Mon - Sun]
+and year number.</li>
+<li>The year number is the same as the Gregorian year number for the Thursday
+that follows the start of the week-based year.
+<ul>
+<li>This makes it possible for a day in the week-based year to have a different
+year number than in the Gregorian calendar for that day.</li>
+</ul>
+</li>
+</ol>
+
+<p>
+ISO 8601 gives two examples:
+</p>
+
+<ol>
+<li>Sunday Jan. 1, 1995 is the Sunday of week 52 of the year 1994.
+(Week 1 of 1995 starts on Monday Jan. 2, 1995)</li>
+<li>Tuesday Dec. 31, 1996 is the Tuesday of week 1 of the year 1997. (The
+first day of the week-based year 1997 begins on Monday Dec. 30, which is the
+first Monday on or before Jan. 4, 1997, a Saturday)</li>
+</ol>
+
+<p>
+These rules seem complex.  And yet the code using <code>std::chrono::date</code>
+to convert to and from the week-based year is remarkably compact and
+self-explanatory.  First we present <code>date_to_week</code>, which returns a
+triple: week number, day of the week, and week-based year number:
+</p>
+
+<blockquote><pre>
+std::tuple&lt;int, std::chrono::weekday, std::chrono::year&gt;
+date_to_week(std::chrono::date d)
+{
+    using namespace std::chrono;
+    month_day jan4 = jan/_4th;
+    date start = mon &lt;= jan4/d.year();
+    if (d &lt; start)
+        start = mon &lt;= jan4/(d.year()-1);
+    else
+    {
+        date next_start = mon &lt;= jan4/(start.year()+1);
+        if (d &gt;= next_start)
+            start = next_start;
+    }
+    return std::tuple&lt;int, weekday, year&gt;((d - start).count()/7 + 1,
+                                          d.weekday(),
+                                          (thu &gt; start).year());
+}
+</pre></blockquote>
+
+<p>
+The first line of code creates a "shortcut" for Jan. 4.  This isn't necessary.
+It is used here to demonstrate the use of the <code>month_day</code> object. We
+could just have easily written <code>jan/_4th/d.year()</code> instead of
+<code>jan4/d.year()</code> (for example).  Use of <code>jan4</code> is purely a
+stylistic issue and has negligible performance impact.
+</p>
+
+<p>
+The start of the ISO year is stored in <code>start</code> and is found by
+identifying the Monday on or before Jan. 4.  If <code>d</code> falls before the
+start of the year we just computed, then <code>d</code> must be in the previous
+ISO year, and so <code>start</code> is recomputed.  Else we need to make sure
+that <code>d</code> does not lie beyond the current ISO year.  We compute the
+start of the next ISO year to check for that, and if necessary, set
+<code>start</code> to the next ISO year.
+</p>
+
+<p>
+Now we have the start of the ISO year which contains <code>d</code>.  It is now
+a simple process to compute the week number and year number for <code>d</code>
+which are returned in a <code>tuple</code>.  Care is taken for the fact that
+weeks are numbered starting from 1, not 0.  And the year number is that of the
+Thursday following the start of the ISO year.  The day of the week remains
+unchanged from <code>d</code>'s.
+</p>
+
+<p>
+The reverse conversion, <code>week_to_date</code> is even simpler:
+</p>
+
+<blockquote><pre>
+std::chrono::date
+week_to_date(int weeknum, std::chrono::weekday wd, std::chrono::year y)
+{
+    using namespace std::chrono;
+    return (mon &lt;= jan/_4th/y) + days((weeknum - 1)*7 + (wd == 0 ? 6 : wd - 1));
+}
+</pre></blockquote>
+
+<ol>
+<li>
+Compute the start of the week-based year <code>y</code>.
+</li>
+<li>
+Add to the start <code>date</code> 7 <code>days</code> for each full week,
+taking into account that the week numbers start at 1, not 0.
+</li>
+<li>
+Add to that the number of days <code>wd</code> is past Monday.  Note that
+Sunday is 6 days past Monday, not one day before it.
+</li>
+</ol>
+
+<p>
+These functions can now be used as:
+</p>
+
+<blockquote><pre>
+date d = /* ... */
+int weeknum;
+weekday wd(0);
+year y(0);
+std::tie(weeknum, wd, y) = date_to_week(d);
+</pre></blockquote>
+
+<p>
+and
+</p>
+
+<blockquote><pre>
+d = week_to_date(weeknum, wd, y);
+</pre></blockquote>
+
+<p>Notes:</p>
+
+<ul>
+<li>
+This code is <em>readable</em>.
+</li>
+<li>
+The syntax for finding the Monday on or before a previous date is succinct.
+</li>
+<li>
+The syntax for finding the Thursday after a date is succinct.  In this example
+<code>start + days(3)</code> could have been used in place of <code>thu &gt;
+start</code>.  But the ISO rules are worded in terms of Thursday, and this
+library provides a natural translation from English to C++.
+</li>
+<li>
+The implicit conversion from the unit specifiers <code>year</code> and
+<code>weekday</code> to <code>int</code> is helpful, intuitive and safe in
+this example code.  These conversions are so natural that they are not even noticed
+unless you're looking for them.
+</li>
+<li>
+The arguments to the functions are type-safe.  If the client gets the order
+of the arguments wrong, a compile-time error will result.  This is easily
+achievable by the author of these functions because the same type-safety
+exists in the <code>&lt;date&gt;</code> library.
+</li>
+<li>
+The reasons for not proposing these functions include:
+<ul>
+<li>They are easy to write using the public API of this proposal.</li>
+<li>The best precise syntax for these functions is unclear:  Should
+<code>date_to_week</code> return a <code>tuple</code>?  Should
+<code>week_to_date</code> take a <code>tuple</code>?  Are these the best names
+for these functions? etc.</li>
+<li>Should this functionality exist instead as a separate calendar system (like
+the <code>julian</code> example?)</li>
+</ul>
+</li>
+</ul>
+
+<h2>Proposed Wording</h2>
+
+<blockquote class="note">
+Text formatted like this is intended to be rationale for some of the proposed
+wording.  It is not part of the proposed wording.
+</blockquote>
+
+<h3>Date utilities</h3>
+
+<h4>In general</h4>
+
+<p>
+This subclause describes the chrono calendar library which provides date
+generation and date arithmetic facilities.
+</p>
+
+<h4> Header <code>&lt;date&gt;</code> synopsis</h4>
+
+<blockquote class="note">
+There is an obvious lack of use of <code>constexpr</code> below.  This is simply
+because I currently lack a compiler to test on which implements
+<code>constexpr</code>, and I don't propose what I can not test.
+Daniel Kr&uuml;gler has done extensive design and testing on this proposal to
+bring it into a form that uses <code>constexpr</code>.  I fully support and embrace
+the use of <code>constexpr</code> in this proposal despite it being absent in this
+revision.
+</blockquote>
+
+<blockquote><pre>
+namespace std {
+namespace chrono {
+
+// error handling
+
+class bad_date;
+
+// Unit specifiers
+
+class day;
+class month;
+class year;
+class weekday;
+class year_month;
+class month_day;
+
+// Specifier constants
+
+extern const <i>see below</i> _1st;
+extern decltype(_1st)  _2nd;
+extern decltype(_1st)  _3rd;
+extern decltype(_1st)  _4th;
+extern decltype(_1st)  _5th;
+extern decltype(_1st)  last;
+
+extern const month jan;
+extern const month feb;
+extern const month mar;
+extern const month apr;
+extern const month may;
+extern const month jun;
+extern const month jul;
+extern const month aug;
+extern const month sep;
+extern const month oct;
+extern const month nov;
+extern const month dec;
+
+extern const weekday sun;
+extern const weekday mon;
+extern const weekday tue;
+extern const weekday wed;
+extern const weekday thu;
+extern const weekday fri;
+extern const weekday sat;
+
+// Date generation functions
+
+month_day operator/(day, month) noexcept;
+month_day operator/(month, day) noexcept;
+
+year_month operator/(year, month) noexcept;
+
+date operator/(year_month, day);
+date operator/(month_day, year);
+date operator/(year_month, int);
+date operator/(month_day, int);
+
+// Durations
+
+typedef duration&lt;int_least32_t, ratio&lt;86400&gt;&gt; days;
+
+class months;
+
+// months arithmetic
+
+months operator+(months x, months y) noexcept;
+months operator-(months x, months y) noexcept;
+months operator*(months x, months::rep y) noexcept;
+months operator*(months::rep x, months y) noexcept;
+months operator/(months x, months::rep y) noexcept;
+months::rep operator/(months x, months y) noexcept;
+months operator%(months x, months::rep y) noexcept;
+months operator%(months x, months y) noexcept;
+
+// months comparisons
+
+bool operator==(months x, months y) noexcept;
+bool operator!=(months x, months y) noexcept;
+bool operator&lt; (months x, months y) noexcept;
+bool operator&gt; (months x, months y) noexcept;
+bool operator&lt;=(months x, months y) noexcept;
+bool operator&gt;=(months x, months y) noexcept;
+
+class years;
+
+// years arithmetic
+
+years operator+(years x, years y) noexcept;
+years operator-(years x, years y) noexcept;
+years operator*(years x, years::rep y) noexcept;
+years operator*(years::rep x, years y) noexcept;
+years operator/(years x, years::rep y) noexcept;
+years::rep operator/(years x, years y) noexcept;
+years operator%(years x, years::rep y) noexcept;
+years operator%(years x, years y) noexcept;
+
+// years comparisons
+
+bool operator==(years x, years y) noexcept;
+bool operator!=(years x, years y) noexcept;
+bool operator&lt; (years x, years y) noexcept;
+bool operator&gt; (years x, years y) noexcept;
+bool operator&lt;=(years x, years y) noexcept;
+bool operator&gt;=(years x, years y) noexcept;
+
+// date
+
+class date;
+
+// date comparisons
+
+bool operator==(const date&amp; x, const date&amp; y) noexcept;
+bool operator!=(const date&amp; x, const date&amp; y) noexcept;
+bool operator&lt; (const date&amp; x, const date&amp; y) noexcept;
+bool operator&gt; (const date&amp; x, const date&amp; y) noexcept;
+bool operator&lt;=(const date&amp; x, const date&amp; y) noexcept;
+bool operator&gt;=(const date&amp; x, const date&amp; y) noexcept;
+
+// date day arithmetic
+date operator+(date dt, days d);
+date operator+(days d, date dt);
+date operator-(date dt, days d);
+days operator-(date x, date y) noexcept;
+
+// date month arithmetic
+date operator+(date dt, months m);
+date operator+(months m, date dt);
+date operator-(date dt, months m);
+
+// date year arithmetic
+date operator+(date dt, years y);
+date operator+(years y, date dt);
+date operator-(date dt, years y);
+
+// find prior / next weekday
+date operator&lt; (weekday wd, date x);
+date operator&lt;=(weekday wd, date x);
+date operator&gt; (weekday wd, date x);
+date operator&gt;=(weekday wd, date x);
+
+// date I/O
+
+template &lt;class charT&gt; class datepunct;
+
+template&lt;class charT&gt;
+<i>unspecified</i>
+date_fmt(basic_string&lt;charT&gt; fmt);
+
+template&lt;class charT&gt;
+<i>unspecified</i>
+date_fmt(const charT* fmt);
+
+template&lt;class charT, class Traits&gt;
+basic_istream&lt;charT,Traits&gt;&amp;
+operator&gt;&gt;(basic_istream&lt;charT,Traits&gt;&amp; is, date&amp; d);
+
+template&lt;class charT, class Traits&gt;
+basic_ostream&lt;charT, Traits&gt;&amp;
+operator&lt;&lt;(basic_ostream&lt;charT, Traits&gt;&amp; os, const date&amp; d);
+
+}  // namespace chrono
+}  // namespace std
+
+</pre></blockquote>
+
+<h4>Class <code>bad_date</code></h4>
+
+<pre>
+namespace std {
+namespace chrono {
+  class bad_date
+    : public runtime_error  
+{
+  public:
+    explicit bad_date(const string&amp; s);
+    explicit bad_date(const char* s);
+  };
+}
+}
+</pre>
+
+<p>
+The class <code>bad_date</code> is thrown when an exceptional condition is
+created within the <code>chrono</code> library.
+</p>
+
+<pre>
+bad_date(const string&amp; s);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of class <code>bad_date</code>.
+</p>
+<p>
+<i>Postcondition:</i> <code>what() == s</code>.
+</p>
+</blockquote>
+
+<pre>
+bad_date(const char* s);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of class <code>bad_date</code>.
+</p>
+<p>
+<i>Postcondition:</i> <code>strcmp(what(), s) == 0</code>.
+</p>
+</blockquote>
+
+<h4>Unit specifiers</h4>
+
+<p>
+The classes defined in this section represent the different components of a
+date and when properly combined represent a date.
+</p>
+
+<blockquote class="note">
+<p>
+Each unit specifier is implicitly convertible to <code>int</code>.  This
+conversion is implicit because an explicit conversion would require an
+excessively clumsy synax for some common use cases.  For example:
+</p>
+
+<blockquote><pre>
+date d1 = ...;
+date d2 = d1.weekday()[_1st] / d1.month() / (d1.year() + 1);
+</pre></blockquote>
+
+<p>vs</p>
+
+<blockquote><pre>
+date d2 = d1.weekday()[_1st] / d1.month() / (static_cast&lt;int&gt;(d1.year()) + 1);
+</pre></blockquote>
+
+<p>
+It would also not be appropriate to create arithmetic for the unit specifiers.
+This would blur the distinction between date unit specifiers and date durations.
+</p>
+
+<p>
+The simple fact is that people specify days, months and years using integers
+just as often (if not more so) than using words.  This library strives to make
+the syntax as natural as possible without sacrificing type safety.  The implicit
+conversion from unit specifier to int (but not vice-versa) does not compromise
+this type safety.
+</p>
+
+</blockquote>
+
+<h5>Class <code>day</code></h5>
+
+<pre>
+namespace std {
+namespace chrono {
+  class day
+  {
+  public:
+    explicit day(int d);
+    day(decltype(_1st) d) noexcept;
+    operator int() const noexcept;
+
+    day() = delete;
+    day(const day&amp;) = default;
+    day&amp; operator=(const day&amp;) = default;
+    ~day() = default;
+  };
+
+  extern const <i>see below</i> _1st;
+  extern decltype(_1st)  _2nd;
+  extern decltype(_1st)  _3rd;
+  extern decltype(_1st)  _4th;
+  extern decltype(_1st)  _5th;
+  extern decltype(_1st)  last;
+}
+}
+</pre>
+
+<p>
+The class <code>day</code> is used to specify the day of the month when
+constructing a <code>date</code>.  It is capable of storing the day number of
+any month, a day of the week (Sunday thru Saturday), and a small integral value
+that indicates which weekday of a month the day represents (example: 2nd
+Sunday).
+</p>
+
+<pre>
+explicit day(int d);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of class <code>day</code> by storing
+<code>d</code>.
+</p>
+
+<p>
+<i>Postconditions:</i> <code>static_cast&lt;int&gt;(*this) == d</code>
+</p>
+
+<p>
+<i>Throws:</i> if <code>d</code> is outside of the range [1, 31], throws an
+exception of type <code>bad_date</code>.
+</p>
+</blockquote>
+
+<pre>
+day(decltype(_1st) d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of class <code>day</code> by storing
+<code>d</code>.
+</p>
+
+<p>
+<i>Postconditions:</i> The value returned by casting <code>*this</code> to
+<code>int</code> depends on the value of <code>d</code> as follows:
+</p>
+
+<blockquote>
+<ul>
+<li><code>_1st</code>: returns <code>1</code>.</li>
+<li><code>_2nd</code>: returns <code>2</code>.</li>
+<li><code>_3rd</code>: returns <code>3</code>.</li>
+<li><code>_4th</code>: returns <code>4</code>.</li>
+<li><code>_5th</code>: returns <code>5</code>.</li>
+<li><code>last</code>: The value returned is unspecified.  Other parts of the
+<code>chrono</code> library will need to recognize a <code>day</code> constructed
+with this value.</li>
+</ul>
+</blockquote>
+</blockquote>
+
+<pre>
+operator int() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> If <code>*this</code> has a value that resulted from
+constructing a <code>day</code> from an <code>int</code>, returns the value of
+that <code>int</code>. Otherwise the value returned is specified as above.
+</p>
+
+</blockquote>
+
+<p>
+The type of <code>_1st</code> is an unspecified class type except that it is in
+the same namespace as <code>day</code>, it is <code>CopyConstructible</code>,
+<code>CopyAssignable</code> and <code>Destructible</code>.  It is not
+<code>DefaultConstructible</code>.
+</p>
+
+<h5>Class <code>month</code></h5>
+
+<pre>
+namespace std {
+namespace chrono {
+  class month
+  {
+  public:
+    explicit month(int m);
+    operator int() const noexcept;
+
+    month() = delete;
+    month(const month&amp;) = default;
+    month&amp; operator=(const month&amp;) = default;
+    ~month() = default;
+  };
+
+  extern const month jan;
+  extern const month feb;
+  extern const month mar;
+  extern const month apr;
+  extern const month may;
+  extern const month jun;
+  extern const month jul;
+  extern const month aug;
+  extern const month sep;
+  extern const month oct;
+  extern const month nov;
+  extern const month dec;
+}
+}
+</pre>
+
+<p>
+The class <code>month</code> is used to specify the month of the year when
+constructing a <code>date</code>.
+</p>
+
+<pre>
+explicit month(int m);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of class <code>month</code> by storing
+<code>m</code>.
+</p>
+
+<p>
+<i>Postconditions:</i> <code>static_cast&lt;int&gt;(*this) == m</code>
+</p>
+
+<p>
+<i>Throws:</i> if <code>m</code> is outside of the range [1, 12], throws an
+exception of type <code>bad_date</code>.
+</p>
+</blockquote>
+
+<pre>
+operator int() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> the value of the stored <code>int</code>.
+</p>
+
+</blockquote>
+
+<p>
+These <code>const month</code> objects are constructed prior to first use with
+the following values:
+</p>
+
+<blockquote><pre>
+const month jan(1);
+const month feb(2);
+const month mar(3);
+const month apr(4);
+const month may(5);
+const month jun(6);
+const month jul(7);
+const month aug(8);
+const month sep(9);
+const month oct(10);
+const month nov(11);
+const month dec(12);
+</pre></blockquote>
+
+<h5>Class <code>year</code></h5>
+
+<pre>
+namespace std {
+namespace chrono {
+  class year
+  {
+  public:
+    explicit year(<i>signed-integral-with-range-greater-than-the-range-of-year</i> y);
+    operator int() const noexcept;
+
+    year() = delete;
+    year(const year&amp;) = default;
+    year&amp; operator=(const year&amp;) = default;
+    ~year() = default;
+  };
+}
+}
+</pre>
+
+<p>
+The class <code>year</code> is used to specify the year when constructing a
+<code>date</code>.  It also defines the range of the <code>date</code> class by
+restricting the value of the <code>year</code> to a range.  That range shall be
+at least <code>[year(-32767)/jan/1</code> thru <code>year(32767)/dec/31]</code>.
+</p>
+
+<pre>
+explicit year(<i>signed-integral-with-range-greater-than-the-range-of-year</i> y);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of class <code>year</code> by storing
+<code>y</code>.
+</p>
+
+<p>
+<i>Postconditions:</i> <code>static_cast&lt;int&gt;(*this) == y</code>
+</p>
+
+<p>
+<i>Throws:</i> if <code>y</code> is outside of the supported range, throws an
+exception of type <code>bad_date</code>.
+</p>
+</blockquote>
+
+<blockquote class="note">
+<p>
+In order for <code>year</code> to detect overflow, the integral type used to
+construct the <code>year</code> must have a range greater than that of
+<code>year</code>.
+</p>
+</blockquote>
+
+<pre>
+operator int() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> the value of the stored <code>int</code>.
+</p>
+
+</blockquote>
+
+<h5>Class <code>weekday</code></h5>
+
+<pre>
+namespace std {
+namespace chrono {
+  class weekday
+  {
+  public:
+    explicit weekday(int wd);
+    operator int() const noexcept;
+
+    day operator[](decltype(_1st) d) const noexcept;
+    day operator[](int n) const;
+
+    weekday() = delete;
+    weekday(const weekday&amp;) = default;
+    weekday&amp; operator=(const weekday&amp;) = default;
+    ~weekday() = default;
+  };
+
+  extern const weekday sun;
+  extern const weekday mon;
+  extern const weekday tue;
+  extern const weekday wed;
+  extern const weekday thu;
+  extern const weekday fri;
+  extern const weekday sat;
+}
+}
+</pre>
+
+<p>
+The class <code>weekday</code> is used to specify a day of the week.
+</p>
+
+<pre>
+explicit weekday(int wd);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of class <code>week_day</code> by storing
+<code>wd</code>.
+</p>
+
+<p>
+<i>Postconditions:</i> <code>static_cast&lt;int&gt;(*this) == wd</code>
+</p>
+
+<p>
+<i>Throws:</i> if <code>wd</code> is outside of the range [0, 6], throws an
+exception of type <code>bad_date</code>.
+</p>
+</blockquote>
+
+<pre>
+operator int() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> the value of the stored <code>int</code>.
+</p>
+
+</blockquote>
+
+<pre>
+day operator[](decltype(_1st) d) const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>day</code> with copies of <code>d</code> and
+<code>*this</code> stored within. If this <code>day</code> is converted to an
+<code>int</code> the value of that <code>int</code> is unspecified.
+</p>
+
+</blockquote>
+
+<pre>
+day operator[](int n) const;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>day</code> with copies of <code>n</code> and
+<code>*this</code> stored within.  If this <code>day</code> is converted to an
+<code>int</code> the value of that <code>int</code> is unspecified.
+</p>
+
+<p>
+<i>Throws:</i> if <code>n</code> is outside of the range [1, 5], throws an
+exception of type <code>bad_date</code>.
+</p>
+</blockquote>
+
+<p>
+These <code>const weekday</code> objects are constructed prior to first use with
+the following values:
+</p>
+
+<blockquote><pre>
+const weekday sun(0);
+const weekday mon(1);
+const weekday tue(2);
+const weekday wed(3);
+const weekday thu(4);
+const weekday fri(5);
+const weekday sat(6);
+</pre></blockquote>
+
+<h5>Class <code>year_month</code></h5>
+
+<pre>
+namespace std {
+namespace chrono {
+  class year_month
+  {
+  public:
+    year_month() = delete;
+    year_month(const year_month&amp;) = default;
+    year_month&amp; operator=(const year_month&amp;) = default;
+    ~year_month() = default;
+  };
+}
+}
+</pre>
+
+<p>
+Class <code>year_month</code> has no public member API except for being
+<code>CopyConstructible</code>, <code>CopyAssignable</code>, and
+<code>Destructible</code>.  It is capable of storing both a <code>year</code>
+and a <code>month</code>.
+</p>
+
+<h5>Class <code>month_day</code></h5>
+
+<pre>
+namespace std {
+namespace chrono {
+  class month_day
+  {
+  public:
+    month_day() = delete;
+    month_day(const month_day&amp;) = default;
+    month_day&amp; operator=(const month_day&amp;) = default;
+    ~month_day() = default;
+  };
+}
+}
+</pre>
+
+<p>
+Class <code>month_day</code> has no public member API except for being
+<code>CopyConstructible</code>, <code>CopyAssignable</code>, and
+<code>Destructible</code>.  It is capable of storing both a <code>month</code>
+and a <code>day</code>.
+</p>
+
+<h4>Date generation functions</h4>
+
+<pre>
+namespace std {
+namespace chrono {
+  month_day operator/(day, month) noexcept;
+  month_day operator/(month, day) noexcept;
+  
+  year_month operator/(year, month) noexcept;
+  
+  date operator/(year_month, day);
+  date operator/(month_day, year);
+  date operator/(year_month, int);
+  date operator/(month_day, int);
+}
+}
+</pre>
+
+<p>
+These operators are used to construct objects of type <code>day</code>, 
+<code>month_day</code>, <code>year_month</code>, and <code>date</code>.
+[<i>Note:</i> In each case, these operators are the only public way to construct
+the returned objects with the supplied arguments.  Implementations will access
+unspecified constructors to return the specified value. &mdash; <i>end note</i>]
+</p>
+
+<pre>
+month_day operator/(day d, month m) noexcept;
+month_day operator/(month m, day d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>month_day</code> with copies of <code>d</code> and
+<code>m</code> stored within.
+</p>
+</blockquote>
+
+<pre>
+year_month operator/(year y, month m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>year_month</code> with copies of <code>y</code> and
+<code>m</code> stored within.
+</p>
+</blockquote>
+
+<pre>
+date operator/(year_month ym, day d);
+date operator/(month_day md, year y);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>date</code> constructed using the <code>year</code>,
+<code>month</code>, <code>day</code> stored in the arguments as follows.
+[<i>Note:</i> A <code>date</code> is not constructible by these arguments except
+via these operators.  Implementations will construct the <code>date</code> via
+an unspecified interface.  &mdash; <i>end note</i>]
+</p>
+<blockquote>
+
+<p>
+Let <code>d</code> represent both the <code>day</code> argument, and the
+<code>day</code> stored within <code>md</code>. Let <code>m</code> represent
+both the <code>month</code> stored within <code>ym</code>, and the
+<code>month</code> stored within <code>md</code>. Let <code>y</code> represent
+both the <code>year</code> argument, and the <code>year</code> stored within
+<code>ym</code>.  The symbols <code>y_</code>, <code>m_</code>, <code>d_</code>,
+and <code>meta_</code> refer to the exposition-only private data members of
+<code>date</code> in [class.date].
+</p>
+
+<ul>
+<li>
+If <code>d</code> was constructed with <code>_1st</code>, <code>_2nd</code>,
+<code>_3rd</code>, <code>_4th</code>, or <code>_5th</code>, the construction
+has the same behavior as if the <code>day</code> was constructed with the
+integers 1 through 5 respectively.
+</li>
+<li>
+If <code>d</code> was constructed with <code>last</code>, then constructs a
+<code>date</code> with <code>y_ = y</code>, <code>m_ = m</code>, and <code>d_ =
+</code>to the last day of the month <code>m</code> for the indicated year
+<code>y</code>, and stores within <code>meta_</code> the fact that this
+<code>date</code> represents the last day of the month for purposes of month and
+year-oriented arithmetic.
+</li>
+<li>
+If <code>d</code> was constructed by indexing a <code>weekday</code> with
+<code>_1st</code> through <code>_5th</code>, or equivalently by 1 through 5,
+then constructs a <code>date</code> corresponding to the nth day of the week for
+the indicated month <code>m</code> and year <code>y</code>.  If the index is 5
+or <code>_5th</code>, and the computed day exceeds the end of the month, an
+exception of type <code>bad_date</code> is thrown. Stores within
+<code>meta_</code> the fact that this <code>date</code> represents the nth
+weekday of the month for purposes of month and year-oriented arithmetic.
+</li>
+<li>
+If <code>d</code> was constructed by indexing a <code>weekday</code> with
+<code>last</code>, then constructs a <code>date</code> corresponding to the last
+day of the week for the indicated month <code>m</code> and year <code>y</code>. 
+Stores within the <code>meta_</code> the fact that this <code>date</code>
+represents the last weekday of the month for purposes of month and year-oriented
+arithmetic.
+</li>
+<li>
+Else <code>d</code> was constructed with an integral value in the range [1, 31].
+If the value stored in <code>d</code> is outside the range of valid dates for
+this month <code>m</code> and year <code>y</code>, throws an exception of type
+<code>bad_date</code>.  Else constructs a <code>date</code> for which
+<code>y_ = y</code>, <code>m_ = m</code>, <code>d_ = d</code>, and
+<code>meta_</code> indicates that this <code>date</code> is of the simple
+form yyyy-mm-dd.
+</li>
+</ul>
+
+<blockquote class="note">
+<p>
+The meta-data stored in the <code>date</code> is that the <code>date</code> is
+one of 3 forms:
+</p>
+
+<ol>
+<li>nth day of the month [1-31]</li>
+<li>last day of the month</li>
+<li>nth weekday of the month, where n may be [1-5] or last</li>
+</ol>
+
+<p>
+The third form must store n, which can take on 6 values (counting
+<code>last</code>), and the weekday which can take on 7 values.  That combines
+to 42 possible values which can be stored in 6 bits.  Six bits can store up to
+64 values, and some of those values not used for storing the 42 states
+associated with form 3 can go towards indicating which form the date is.  The
+example implementation uses two 3-bit fields to store this data.
+</p>
+
+</blockquote>
+
+</blockquote>
+</blockquote>
+
+<pre>
+date operator/(year_month ym, int d);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ym / day(d)</code>.
+</p>
+</blockquote>
+
+<pre>
+date operator/(month_day md, int y);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>md / year(y)</code>.
+</p>
+</blockquote>
+
+<h4>Date durations</h4>
+
+<p>
+There are three <code>chrono date</code> duration types: <code>days</code>,
+<code>months</code> and <code>years</code>.  <code>days</code> is a
+<code>chrono::duration</code>  The latter two types are modeled after
+<code>chrono::duration</code> except that there are no conversions to and from
+the the different durations, not even amongst themselves.  These durations
+represent time durations, as opposed to representing a date component (e.g. 7
+months) and are used in <code>date</code> arithmetic.  These durations are based
+on a signed integral type that must be at least 32 bits.
+</p>
+
+<blockquote class="note">
+<p>
+In the example implementation <code>months</code> and <code>years</code> are
+implemented as a <code>typdef</code> to an "unnamed" template specialization. 
+I.e. they differ in type only, not in functionality.
+</p>
+</blockquote>
+
+<h5>Class <code>months</code></h5>
+
+<pre>
+namespace std {
+namespace chrono {
+  class months
+  {
+  public:
+      typedef <i>signed-integral-type-of-at-least-32-bits</i> rep;
+      months() = default;
+      explicit months(rep x) noexcept;
+  
+      rep count() const noexcept;
+  
+      months operator+() const noexcept;
+      months operator-() const noexcept;
+  
+      months&amp; operator++() noexcept;
+      months  operator++(int) noexcept;
+      months&amp; operator--() noexcept;
+      months  operator--(int) noexcept;
+  
+      months&amp; operator+=(const months&amp; x) noexcept;
+      months&amp; operator-=(const months&amp; x) noexcept;
+  
+      months&amp; operator*=(const rep&amp; rhs) noexcept;
+      months&amp; operator/=(const rep&amp; rhs) noexcept;
+      months&amp; operator%=(const rep&amp; rhs) noexcept;
+      months&amp; operator%=(const months&amp; rhs) noexcept;
+  private:
+      rep x_;  // exposition only
+  };
+
+  months operator+(months x, months y) noexcept;
+  months operator-(months x, months y) noexcept;
+  months operator*(months x, months::rep y) noexcept;
+  months operator*(months::rep x, months y) noexcept;
+  months operator/(months x, months::rep y) noexcept;
+  months::rep operator/(months x, months y) noexcept;
+  months operator%(months x, months::rep y) noexcept;
+  months operator%(months x, months y) noexcept;
+  
+  bool operator==(months x, months y) noexcept;
+  bool operator!=(months x, months y) noexcept;
+  bool operator&lt; (months x, months y) noexcept;
+  bool operator&gt; (months x, months y) noexcept;
+  bool operator&lt;=(months x, months y) noexcept;
+  bool operator&gt;=(months x, months y) noexcept;
+}
+}
+</pre>
+
+<pre>
+months(rep x) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs a <code>months</code>.
+</p>
+<p>
+<i>Postconditions:</i> <code>count() == x</code>.
+</p>
+</blockquote>
+
+<pre>
+rep count() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x_</code>.
+</p>
+</blockquote>
+
+<pre>
+months operator+() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x_)</code>.
+</p>
+</blockquote>
+
+<pre>
+months operator-() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(-x_)</code>.
+</p>
+</blockquote>
+
+<pre>
+months&amp; operator++() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++x_</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+months  operator++(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x_++)</code>.
+</p>
+</blockquote>
+
+<pre>
+months&amp; operator--() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--x_</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+months  operator--(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x_--)</code>.
+</p>
+</blockquote>
+
+<pre>
+months&amp; operator+=(const months&amp; x) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ += x.count()</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+months&amp; operator-=(const months&amp; x) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ -= x.count()</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+months&amp; operator*=(const rep&amp; rhs) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ *= rhs</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+months&amp; operator/=(const rep&amp; rhs) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ /= rhs</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+months&amp; operator%=(const rep&amp; rhs) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ %= rhs</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+months&amp; operator%=(const months&amp; rhs) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ %= rhs.count()</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+months operator+(months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x.count() + y.count())</code>.
+</p>
+</blockquote>
+
+<pre>
+months operator-(months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x.count() - y.count())</code>.
+</p>
+</blockquote>
+
+<pre>
+months operator*(months x, months::rep y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x.count() * y)</code>.
+</p>
+</blockquote>
+
+<pre>
+months operator*(months::rep x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x * y.count())</code>.
+</p>
+</blockquote>
+
+<pre>
+months operator/(months x, months::rep y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x.count() / y)</code>.
+</p>
+</blockquote>
+
+<pre>
+months::rep operator/(months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.count() / y.count()</code>.
+</p>
+</blockquote>
+
+<pre>
+months operator%(months x, months::rep y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x.count() % y)</code>.
+</p>
+</blockquote>
+
+<pre>
+months operator%(months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>months(x.count() % y.count())</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator==(months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.count() == y.count()</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator!=(months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&lt; (months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.count() &lt; y.count()</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&gt; (months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&lt;=(months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&gt;=(months x, months y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<h5>Class <code>years</code></h5>
+
+<pre>
+namespace std {
+namespace chrono {
+  class years
+  {
+  public:
+      typedef <i>signed-integral-type-of-at-least-32-bits</i> rep;
+      years() = default;
+      explicit years(rep x) noexcept;
+  
+      rep count() const noexcept;
+  
+      years operator+() const noexcept;
+      years operator-() const noexcept;
+  
+      years&amp; operator++() noexcept;
+      years  operator++(int) noexcept;
+      years&amp; operator--() noexcept;
+      years  operator--(int) noexcept;
+  
+      years&amp; operator+=(const years&amp; x) noexcept;
+      years&amp; operator-=(const years&amp; x) noexcept;
+  
+      years&amp; operator*=(const rep&amp; rhs) noexcept;
+      years&amp; operator/=(const rep&amp; rhs) noexcept;
+      years&amp; operator%=(const rep&amp; rhs) noexcept;
+      years&amp; operator%=(const years&amp; rhs) noexcept;
+  private:
+      rep x_;  // exposition only
+  };
+
+  years operator+(years x, years y) noexcept;
+  years operator-(years x, years y) noexcept;
+  years operator*(years x, years::rep y) noexcept;
+  years operator*(years::rep x, years y) noexcept;
+  years operator/(years x, years::rep y) noexcept;
+  years::rep operator/(years x, years y) noexcept;
+  years operator%(years x, years::rep y) noexcept;
+  years operator%(years x, years y) noexcept;
+  
+  bool operator==(years x, years y) noexcept;
+  bool operator!=(years x, years y) noexcept;
+  bool operator&lt; (years x, years y) noexcept;
+  bool operator&gt; (years x, years y) noexcept;
+  bool operator&lt;=(years x, years y) noexcept;
+  bool operator&gt;=(years x, years y) noexcept;
+}
+}
+</pre>
+
+<pre>
+years(rep x) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs a <code>years</code>.
+</p>
+<p>
+<i>Postconditions:</i> <code>count() == x</code>.
+</p>
+</blockquote>
+
+<pre>
+rep count() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x_</code>.
+</p>
+</blockquote>
+
+<pre>
+years operator+() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x_)</code>.
+</p>
+</blockquote>
+
+<pre>
+years operator-() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(-x_)</code>.
+</p>
+</blockquote>
+
+<pre>
+years&amp; operator++() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++x_</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+years  operator++(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x_++)</code>.
+</p>
+</blockquote>
+
+<pre>
+years&amp; operator--() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--x_</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+years  operator--(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x_--)</code>.
+</p>
+</blockquote>
+
+<pre>
+years&amp; operator+=(const years&amp; x) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ += x.count()</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+years&amp; operator-=(const years&amp; x) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ -= x.count()</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+years&amp; operator*=(const rep&amp; rhs) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ *= rhs</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+years&amp; operator/=(const rep&amp; rhs) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ /= rhs</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+years&amp; operator%=(const rep&amp; rhs) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ %= rhs</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+years&amp; operator%=(const years&amp; rhs) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>x_ %= rhs.count()</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+years operator+(years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x.count() + y.count())</code>.
+</p>
+</blockquote>
+
+<pre>
+years operator-(years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x.count() - y.count())</code>.
+</p>
+</blockquote>
+
+<pre>
+years operator*(years x, years::rep y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x.count() * y)</code>.
+</p>
+</blockquote>
+
+<pre>
+years operator*(years::rep x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x * y.count())</code>.
+</p>
+</blockquote>
+
+<pre>
+years operator/(years x, years::rep y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x.count() / y)</code>.
+</p>
+</blockquote>
+
+<pre>
+years::rep operator/(years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.count() / y.count()</code>.
+</p>
+</blockquote>
+
+<pre>
+years operator%(years x, years::rep y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x.count() % y)</code>.
+</p>
+</blockquote>
+
+<pre>
+years operator%(years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years(x.count() % y.count())</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator==(years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.count() == y.count()</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator!=(years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&lt; (years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.count() &lt; y.count()</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&gt; (years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&lt;=(years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>truncated
+bool operator&gt;=(years x, years y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<h4>Class <code>date</code></h4>
+
+<pre>
+namespace std {
+namespace chrono {
+  class date
+  {
+  public:
+      // construction
+      date() noexcept;
+      static date today() noexcept;
+  
+      // system_clock::time_point conversions
+      explicit date(chrono::system_clock::time_point tp);
+      explicit operator chrono::system_clock::time_point () const;
+  
+      // observers
+      chrono::day day() const noexcept;
+      chrono::month month() const noexcept;
+      chrono::year year() const noexcept;
+      chrono::weekday weekday() const noexcept;
+      bool is_leap_year() const noexcept;
+  
+      // day arithmetic
+      date&amp; operator+=(days d);
+      date&amp; operator++();
+      date  operator++(int);
+      date&amp; operator-=(days d);
+      date&amp; operator--();
+      date  operator--(int);
+  
+      // month arithmetic
+      date&amp; operator+=(months m);
+      date&amp; operator-=(months m);
+  
+      // year arithmetic
+      date&amp; operator+=(years y);
+      date&amp; operator-=(years y);
+  private:
+      short         y_;    // exposition only, stores year number
+      unsigned char m_;    // exposition only, stores month number [1-12]
+      unsigned char d_;    // exposition only, stores day number [1-31]
+      unsigned char meta_; // exposition only, stores what date represents
+  };
+  
+  // date comparisons
+  
+  bool operator==(const date&amp; x, const date&amp; y) noexcept;
+  bool operator!=(const date&amp; x, const date&amp; y) noexcept;
+  bool operator&lt; (const date&amp; x, const date&amp; y) noexcept;
+  bool operator&gt; (const date&amp; x, const date&amp; y) noexcept;
+  bool operator&lt;=(const date&amp; x, const date&amp; y) noexcept;
+  bool operator&gt;=(const date&amp; x, const date&amp; y) noexcept;
+  
+  // date day arithmetic
+  date operator+(date dt, days d);
+  date operator+(days d, date dt);
+  date operator-(date dt, days d);
+  days operator-(date x, date y) noexcept;
+  
+  // date month arithmetic
+  date operator+(date dt, months m);
+  date operator+(months m, date dt);
+  date operator-(date dt, months m);
+  
+  // date year arithmetic
+  date operator+(date dt, years y);
+  date operator+(years y, date dt);
+  date operator-(date dt, years y);
+
+  // find prior / next weekday
+  date operator&lt; (weekday wd, date x);
+  date operator&lt;=(weekday wd, date x);
+  date operator&gt; (weekday wd, date x);
+  date operator&gt;=(weekday wd, date x);
+}
+}
+</pre>
+
+<p>
+Class <code>date</code> represents a day in the proleptic Gregorian calendar.
+The year preceding year 1 is year 0, and year 0 is a leap year.  The range of
+years representable by this class is the same as the range of <code>year</code>.
+</p>
+
+<h5>Construction and conversion</h5>
+
+<pre>
+date() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i>  Constructs a <code>date</code> as if by
+<code>year(0)/jan/1</code>.  [<i>Note:</i> the purpose of this constructor is to
+have a very efficient means of <code>date</code> construction when the specific
+value for that <code>date</code> is unimportant. &mdash; <i>end note</i>]
+</p>
+</blockquote>
+
+<pre>
+static date today() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i>  Constructs a <code>date</code> which represents the current
+day taking the local time zone into account.
+</p>
+</blockquote>
+
+<pre>
+explicit date(chrono::system_clock::time_point tp);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>tp</code> is converted to UTC, and then truncated to
+00:00:00 hours.  A <code>date </code>is created which reflects this point in
+time.
+</p>
+
+<p>
+<i>Throws:</i> If the conversion from <code>tp</code> overflows the range of
+<code>date</code>, throws an exception of type <code>bad_date</code>.
+</p>
+</blockquote>
+
+<pre>
+explicit operator chrono::system_clock::time_point () const;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i>  A <code>chrono::system_clock::time_point</code> which
+represents the date referred to by <code>*this</code> at 00:00:00 UTC.
+</p>
+
+<p>
+<i>Throws:</i> If the conversion to <code>tp</code> overflows the range of
+<code>chrono::system_clock::time_point</code>, throws an exception of type
+<code>bad_date</code>.
+</p>
+</blockquote>
+
+<h5><code>date</code> Observers</h5>
+
+<pre>
+chrono::day day() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i>  <code>chrono::day(d_)</code>.
+</p>
+</blockquote>
+
+<pre>
+chrono::month month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i>  <code>chrono::month(m_)</code>.
+</p>
+</blockquote>
+
+<pre>
+chrono::year year() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i>  <code>chrono::year(y_)</code>.
+</p>
+</blockquote>
+
+<pre>
+chrono::weekday weekday() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i>  A <code>weekday</code> constructed with an <code>int</code>
+corresponding to <code>*this date</code>'s day of the week (a value in the
+range of [0 - 6], 0 is Sunday).
+</p>
+</blockquote>
+
+<pre>
+bool is_leap_year() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i>  <code>true</code> if <code>year()</code> is a leap year, and
+otherwise returns <code>false</code>.
+</p>
+</blockquote>
+
+<h5><code>date</code> comparisons</h5>
+
+<pre>
+bool operator==(const date&amp; x, const date&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.year() == y.year() &amp;&amp; x.month() == y.month()
+&amp;&amp; x.day() == y.day()</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator!=(const date&amp; x, const date&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&lt; (const date&amp; x, const date&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.year() &lt; y.year() || 
+               (!(y.year() &lt; x.year()) &amp;&amp; (x.month() &lt; y.month() ||
+                              (!(y.month() &lt; x.month()) &amp;&amp; x.day() &lt; y.day())))</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&gt; (const date&amp; x, const date&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&lt;=(const date&amp; x, const date&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&gt;=(const date&amp; x, const date&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<h5><code>date</code> arithmetic</h5>
+
+<pre>
+date&amp; operator+=(days d);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Adds <code>d.count()</code> days to the current
+<code>date</code>.  Sets <code>meta_</code> to indicate that this
+<code>date</code> was not constructed with a <code>day</code> constructed from
+<code>last</code> or from an indexed <code>weekday</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+
+<p>
+<i>Throws:</i> If the addition would create a date with a <code>y_</code>
+outside of the range of <code>year</code>, throws an exception of type
+<code>bad_date</code>.  If an exception is thrown, the state of <tt>*this</tt>
+is not changed.
+</p>
+</blockquote>
+
+<pre>
+date&amp; operator++();
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this += days(1)</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+date  operator++(int);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this += days(1)</code>.
+</p>
+
+<p>
+<i>Returns:</i> A copy of <code>*this</code> prior to the increment.
+</p>
+</blockquote>
+
+<pre>
+date&amp; operator-=(days d);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this += -d</code>
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+
+</blockquote>
+
+<pre>
+date&amp; operator--();
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this -= days(1)</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+date  operator--(int);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this -= days(1)</code>.
+</p>
+
+<p>
+<i>Returns:</i> A copy of <code>*this</code> prior to the decrement.
+</p>
+</blockquote>
+
+<pre>
+date operator+(date dt, days d);
+date operator+(days d, date dt);
+</pre>
+
+<blockquote>
+
+<p>
+<i>Returns:</i> <code>dt += d</code>.
+</p>
+</blockquote>
+
+<pre>
+date operator-(date dt, days d);
+</pre>
+
+<blockquote>
+
+<p>
+<i>Returns:</i> <code>dt -= d</code>.
+</p>
+</blockquote>
+
+<pre>
+days operator-(date x, date y) noexcept;
+</pre>
+
+<blockquote>
+
+<p>
+<i>Returns:</i> Computes the number of days <code>x</code> is ahead of
+<code>y</code> in the calendar, and returns that signed integral number
+<code>n</code> as <code>days(n)</code>.
+</p>
+</blockquote>
+
+<pre>
+date&amp; operator+=(months m);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Adds <code>m.count()</code> months to the current
+<code>date</code>.  This is accomplished as if by storing temporary values of
+the <code>date</code>'s <code>y_</code>, <code>m_</code>, <code>d_</code>, and
+<code>meta_</code>.  Computing new values for <code>y_</code> and
+<code>m_</code> based on <code>m</code>.  And then assigning to
+<code>*this</code> a new <code>date</code> constructed from the newly computed
+<code>y_</code> and <code>m_</code>, and the original <code>d_</code> and
+<code>meta_</code>.  [<i>Note:</i> Thus for example if a <code>date</code> is
+constructed as the second Sunday in May, adding two <code>months</code> to this
+<code>date</code> results in the second Sunday in July. &mdash; <i>end note</i>]
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+
+<p>
+<i>Throws:</i> If the addition would create a date with a <code>y_</code>
+outside of the range of <code>year</code>, or a <code>d_</code> outside the
+range for the newly computed <code>y_/m_</code>, throws an exception of type
+<code>bad_date</code>.  If an exception is thrown, the state of <tt>*this</tt>
+is not changed.
+</p>
+</blockquote>
+
+<pre>
+date&amp; operator-=(months m);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>*this += -m</code>.
+</p>
+
+</blockquote>
+
+<pre>
+date operator+(date dt, months m);
+date operator+(months m, date dt);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>dt += m</code>.
+</p>
+
+</blockquote>
+
+<pre>
+date operator-(date dt, months m);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>dt += -m</code>.
+</p>
+
+</blockquote>
+
+<pre>
+date& operator+=(years y);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Adds <code>y.count()</code> years to the current
+<code>date</code>.  This is accomplished as if by storing temporary values of
+the <code>date</code>'s <code>y_</code>, <code>m_</code>, <code>d_</code>, and
+<code>meta_</code>.  Computing a new value for <code>y_</code>.  And then
+assigning to <code>*this</code> a new <code>date</code> constructed from the
+newly computed <code>y_</code>, and the original <code>m_</code>,
+<code>d_</code> and <code>meta_</code>.  [<i>Note:</i> Thus for example if a
+<code>date</code> is constructed as the second Sunday in May 2011, adding two
+<code>years</code> to this <code>date</code> results in the second Sunday in May
+2013. &mdash; <i>end note</i>]
+</p>
+
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+
+<p>
+<i>Throws:</i> If the addition would create a date with a <code>y_</code>
+outside of the range of <code>year</code>, or a <code>d_</code> outside the
+range for the newly computed <code>y_/m_</code>, throws an exception of type
+<code>bad_date</code>.  If an exception is thrown, the state of <tt>*this</tt>
+is not changed.
+</p>
+</blockquote>
+
+<pre>
+date&amp; operator-=(years y);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>*this += -y</code>.
+</p>
+
+</blockquote>
+
+<pre>
+date operator+(date dt, years y);
+date operator+(years y, date dt);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>dt += y</code>.
+</p>
+
+</blockquote>
+
+<pre>
+date operator-(date dt, years y);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>dt += -y</code>.
+</p>
+
+</blockquote>
+
+<pre>
+date operator&lt; (weekday wd, date x);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> Let <code>a</code> be <code>wd</code> converted to an
+<code>int</code>, and <code>b</code> be <code>x.weekday()</code> converted to an
+<code>int</code>.  If <code>a &lt; b</code>, returns <code>x - days(b-a)</code>,
+else returns <code>x - days(7 - (a-b))</code>.
+</p>
+</blockquote>
+
+<pre>
+date operator&lt;=(weekday wd, date x);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> Let <code>a</code> be <code>wd</code> converted to an
+<code>int</code>, and <code>b</code> be <code>x.weekday()</code> converted to an
+<code>int</code>.  If <code>a &lt;= b</code>, returns <code>x - days(b-a)</code>,
+else returns <code>x - days(7 - (a-b))</code>.
+</p>
+</blockquote>
+
+<pre>
+date operator&gt; (weekday wd, date x);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> Let <code>a</code> be <code>wd</code> converted to an
+<code>int</code>, and <code>b</code> be <code>x.weekday()</code> converted to an
+<code>int</code>.  If <code>a &lt; b</code>, returns <code>x + days(b-a)</code>,
+else returns <code>x + days(7 - (a-b))</code>.
+</p>
+</blockquote>
+
+<pre>
+date operator&gt;=(weekday wd, date x);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> Let <code>a</code> be <code>wd</code> converted to an
+<code>int</code>, and <code>b</code> be <code>x.weekday()</code> converted to an
+<code>int</code>.  If <code>a &lt;= b</code>, returns <code>x + days(b-a)</code>,
+else returns <code>x + days(7 - (a-b))</code>.
+</p>
+</blockquote>
+
+<h4><code>date</code> I/O</h4>
+
+<h5>Class template <code>datepunct</code></h5>
+
+<pre>
+namespace std {
+namespace chrono {
+  template &lt;class charT&gt;
+  class datepunct
+      : public locale::facet
+  {
+  public:
+      typedef basic_string&lt;charT&gt; string_type;
+  
+      static locale::id id;
+  
+      explicit datepunct(size_t refs = 0);
+      explicit datepunct(string_type frmt, size_t refs = 0);
+  
+      const string_type&amp; fmt() const noexcept;
+  private:
+      string_type fmt_;  // exposition only
+  };
+}
+}
+</pre>
+
+<p>
+<code>datepunct</code> is a <code>facet</code> which holds a string of
+formatting characters to be used with <code>time_get</code> ([locale.time.get])
+and <code>time_put</code> ([locale.time.put]).
+</p>
+
+<pre>
+explicit datepunct(size_t refs = 0);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs a <code>datepunct</code> by constructing the base
+class with <code>refs</code>.
+</p>
+
+<p>
+<i>Postconditions:</i> <code>fmt() == "%F"</code>.
+</p>
+</blockquote>
+
+<pre>
+explicit datepunct(string_type frmt, size_t refs = 0);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs a <code>datepunct</code> by constructing the base
+class with <code>refs</code>.
+</p>
+
+<p>
+<i>Postconditions:</i> <code>fmt() == frmt</code>.
+</p>
+</blockquote>
+
+<pre>
+const string_type&amp; fmt() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>fmt_</code>.
+</p>
+
+</blockquote>
+
+<h5><code>date_fmt</code> Manipulator</h5>
+
+<pre>
+template&lt;class charT&gt;
+<i>unspecified</i>
+date_fmt(basic_string&lt;charT&gt; fmt);
+
+template&lt;class charT&gt;
+<i>unspecified</i>
+date_fmt(const charT* fmt);
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> An object of unspecified type such that if <code>out</code> is an
+object of type <code>basic_ostream&lt;charT, traits&gt;</code> then the
+expression <code>out &lt;&lt; date_fmt(fmt)</code> behaves as if it called
+<code>f(out, fmt)</code>, or if <code>in</code> is an object of type
+<code>basic_istream&lt;charT, traits&gt;</code> then the expression <code>in
+&gt;&gt; date_fmt(fmt)</code> behaves as if it called <code>f(in, fmt)</code>,
+where the function <code>f</code> is defined as:
+</p>
+<blockquote><pre>
+template&lt;class charT, class traits&gt;
+void f(basic_ios&lt;charT, traits&gt;&amp; str, basic_string&lt;charT&gt; fmt)
+{
+    str.imbue(locale(str.getloc(), new datepunct&lt;charT&gt;(move(fmt))));
+}
+</pre></blockquote>
+</blockquote>
+
+<h5><code>date</code> inserter and extractor</h5>
+
+<pre>
+template&lt;class charT, class Traits&gt;
+basic_istream&lt;charT,Traits&gt;&amp;
+operator&gt;&gt;(basic_istream&lt;charT,Traits&gt;&amp; is, date&amp; d);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Behaves as a formatted input function
+([istream.formatted.reqmts]).  After constructing a <code>sentry</code> object,
+if the sentry converts to true, acquires the <code>time_get</code> facet from
+the stream's <code>locale</code>.  If the <code>locale</code> has a
+<code>datepunct</code> facet, obtains the conversion specifier string from that
+facet, otherwise sets the conversion specifier string to "%F".  Then extracts a
+<code>tm</code> from <code>is</code> as if:
+</p>
+<blockquote><pre>
+tg.get(is, 0, is, err, &amp;t, fmt, fmtend);
+</pre></blockquote>
+
+<p>
+Where <code>tg</code> is the <code>time_get</code> facet, <code>err</code> is a
+local variable of type <code>ios_base::iostate</code>, <code>t</code> is a local
+variable of type <code>tm</code>, and <code>[fmt, fmtend)</code> are local
+variables of type <code>charT*</code> which delimit the conversion specifier
+string.
+</p>
+
+<p>
+If <code>(err &amp; ios_base::failbit)</code> is false, assigns a
+<code>date</code> to <code>d</code> which is constructed from the year, month
+and day information stored within <code>t</code>.  In any case, then calls
+<code>is.setstate(err)</code>.
+</p>
+
+<p>
+<i>Returns:</i> <code>is</code>.
+</p>
+</blockquote>
+
+<pre>
+template&lt;class charT, class Traits&gt;
+basic_ostream&lt;charT, Traits&gt;&amp;
+operator&lt;&lt;(basic_ostream&lt;charT, Traits&gt;&amp; os, const date&amp; d);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i>  Behaves as a formatted output function
+([ostream.formatted.reqmts]).  After constructing a <code>sentry</code> object,
+if the sentry converts to true, acquires the <code>time_put</code> facet from
+the stream's <code>locale</code>.  If the <code>locale</code> has a
+<code>datepunct</code> facet, obtains the formatting string from that
+facet, otherwise sets the formatting string to "%F".  Then creates a local variable
+<code>t</code> of type <code>tm</code>.  The variable <code>t</code> is filled
+with the year, month, day and weekday information contained in <code>d</code>.
+<code>t</code> is then inserted into <code>os</code> as if:
+</p>
+<blockquote><pre>
+bool failed = tp.put(os, os, os.fill(), &amp;t, pattern, pat_end).failed();
+</pre></blockquote>
+
+<p>
+Where <code>tp</code> is the <code>time_put</code> facet, and <code>[pattern,
+pat_end)</code> are local variables of type <code>charT*</code> which delimit
+the formatting string.
+</p>
+
+<p>
+If <code>failed</code> is true, calls <code>os.setstate(ios_base::failbit |
+ios_base::badbit)</code>.
+</p>
+
+
+
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+<h2>Acknowledgements</h2>
+
+<p>
+I'm very grateful for the thorough review given by Daniel Kr&uuml;gler.
+</p>
+
+</body>
+</html>

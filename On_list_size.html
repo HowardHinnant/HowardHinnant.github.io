@@ -1,0 +1,327 @@
+<!--This file created 5/22/01 2:05 PM by Claris Home Page version 2.0-->
+<HTML>
+<HEAD>
+   <TITLE>On list size</TITLE>
+   <META NAME=GENERATOR CONTENT="Claris Home Page 2.0">
+   <X-SAS-WINDOW TOP=47 BOTTOM=674 LEFT=184 RIGHT=721>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+
+<H1><CENTER>On std::list::size</CENTER></H1>
+
+<P>There is considerable debate on whether std::list&lt;T&gt;::size()
+should be O(1) or O(N). The usual argument notes that it is a
+tradeoff with:</P>
+
+<BLOCKQUOTE><PRE>splice(iterator position, list&amp; x, iterator first, iterator last);</PRE>
+</BLOCKQUOTE>
+
+<P>If size() is O(1) and this != &amp;x, then this method must
+perform a linear operation so that it can adjust the size member in
+each list:</P>
+
+<BLOCKQUOTE><PRE>std::distance(first, last);</PRE></BLOCKQUOTE>
+
+<P>Note that often this argument is stated as:  "O(1) size leads to
+O(N) splice."  This is an exaggeration.  There are 5 possible valid
+splice situations:  splicing from self or splicing from another list,
+crossed with splicing 1 element, some elements, or all elements.  The
+O(1) size leads to an O(some) splice in one of these five situations.
+</P>
+
+<P><CENTER><TABLE BORDER=1>
+   <TR>
+      <TD WIDTH="76">
+         <P>
+      </TD><TD WIDTH="107">
+         <P>splice from self
+      </TD><TD WIDTH="168">
+         <P>splice from other
+      </TD></TR>
+   <TR>
+      <TD WIDTH="76">
+         <P>one
+      </TD><TD WIDTH="107">
+         <P>O(1)
+      </TD><TD WIDTH="168">
+         <P>O(1)
+      </TD></TR>
+   <TR>
+      <TD WIDTH="76">
+         <P>some
+      </TD><TD WIDTH="107">
+         <P>O(1)
+      </TD><TD WIDTH="168">
+         <P>O(some) - distance(first, last)
+      </TD></TR>
+   <TR>
+      <TD WIDTH="76">
+         <P>all
+      </TD><TD WIDTH="107">
+         <P>Not valid
+      </TD><TD WIDTH="168">
+         <P>O(1)
+      </TD></TR>
+</TABLE></CENTER></P>
+
+<P>With on O(1) size, the splice method that splices "some" from
+"other" must count the number of elements specified by "some".</P>
+
+<P>However, having a O(1) size() allows for optimizations in the
+following list methods:</P>
+
+<BLOCKQUOTE><PRE>list&amp; operator=(const list&amp;);
+iterator assign(iterator, iterator);  // forward or better
+void assign(size_type, const T&amp;);</PRE></BLOCKQUOTE>
+
+<P>For the case where itertor is forward or better, and using a O(1)
+size, one can increase the exception safety gaurantee from basic to
+strong for the case that T's assignment has a nothrow gaurantee.</P>
+
+<BLOCKQUOTE><PRE>void resize(size_type, T);</PRE></BLOCKQUOTE>
+
+<P>For the case where size is shrinking, using O(1) size one can
+choose whether it is better to iterate from begin to the start of the
+erase range, or from end to the start of the erase range.</P>
+
+<BLOCKQUOTE><PRE>bool operator==(list, list);
+bool operator!=(list, list);</PRE></BLOCKQUOTE>
+
+<P>Using an O(1) size one can check the size first, befor proceeding
+with an element by element check.</P>
+
+<P>Summary:</P>
+
+<P><CENTER>O(1) size()</CENTER></P>
+
+<P><TABLE BORDER=1>
+   <TR>
+      <TD>
+         <P>Pro
+      </TD><TD>
+         <P>Con
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>Faster size()
+      </TD><TD>
+         <P>Slower splice some from other
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>Faster resize()
+      </TD><TD>
+         <P>One more word of overhead
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>Faster == and !=
+      </TD><TD>
+         <P>
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>Increased exception safety on op= and assign for some
+         special but common cases.
+      </TD><TD>
+         <P>
+      </TD></TR>
+</TABLE></P>
+
+<h2><a name="splice Proposal"></a>splice Proposal</h2>
+
+<blockquote><pre>
+void splice(iterator position, list& x, iterator first, iterator last, size_type n);
+</pre></blockquote>
+
+<p>
+<b>Effects:</b> Inserts elements in the range [first, last) before position and removes the elements from x.
+</p>
+
+<p>
+<b>Requires:</b> [first, last) is a valid range in x. The result is undefined if position is an iterator in the range [first, last). Invalidates only the iterators and references to the spliced elements.  n == distance(first, last).
+</p>
+
+<p>
+<b>Throws:</b> Nothing.
+</p>
+
+<p>
+<b>Complexity:</b> Constant time.
+</p>
+
+<p>
+This new splice signature allows the client to pass the distance of the input
+range in.  This information is often available at the call site.  If it is passed
+in, then the operation is constant time, even with an O(1) size.  Debugging builds
+can easily double check this precondition.
+</p>
+
+<h2><a name="boost survey"></a>boost survey</h2>
+
+<p>
+I conducted a survey of a snap shot of boost, just after the release of version
+1.33, on Nov. 23, 2005.  I looked for places <tt>list::size()</tt> was used,
+and for places <tt>list::splice</tt> (some from other) was used.  This is not
+meant to be a criticism of boost.  It is meant to show the dangers of having
+an O(N) size, and contrast that with the ease with which splice can usually be
+made O(1).  The survey of list::size was found by compiling the boost libs
+with list::size commented out to trigger errors.  So this survey misses uses
+which are not instantiated as the boost libs are compiled.  Finding those
+uninstanted uses of list::size is a much more difficult task.  The search for
+list::splice was done with a simple "find" in my editor (compiling with splice
+commented out turned up 0 use cases).
+Below is what I found:
+</p>
+
+<blockquote><pre>
+--------------------------------------------
+<b>boost/graph/detail/adjacency_list.hpp</b>
+
+    // O(1)
+    template &lt;class Config&gt;
+    inline typename Config::edges_size_type
+    num_edges(const bidirectional_graph_helper_with_property&lt;Config&gt;&amp; g_) 
+    {
+      typedef typename Config::graph_type graph_type;
+      const graph_type&amp; g = static_cast&lt;const graph_type&amp;&gt;(g_);
+      return g.m_edges.size();  <font color="red">// list::size()</font>
+    }
+
+<b>Used from:</b>
+
+<b>boost/libs/python/build/../src/object/inheritance.cpp</b>
+
+    for (cast_graph*const* p = g + (is_downcast ? 1 : 0); p < g + 2; ++p)
+    {
+        edge_t e;
+        bool added;
+
+        tie(e, added) = add_edge(src, dst, **p);
+        assert(added);
+
+        put(get(edge_cast, **p), e, cast);
+        put(get(edge_index, **p), e, <b>num_edges(full_graph().topology()) - 1)</b>;
+    }
+
+<em>Loop appears to be O(N<sup>2</sup>).</em>
+--------------------------------------------
+<b>boost/regex/pending/object_cache.hpp</b>
+
+template &lt;class Key, class Object&gt;
+boost::shared_ptr&lt;Object&gt; object_cache&lt;Key, Object&gt;::do_get(const Key&amp; k, size_type max_cache_size)
+{
+   ...
+   list_size_type s = s_data.cont.size();  <font color="red">// list::size()</font>
+   ...
+}
+
+<b>Used from:</b>
+
+<b>boost/regex/pending/object_cache.hpp</b>
+
+   boost::static_mutex::scoped_lock l(mut);
+   if(l)
+   {
+      return do_get(k, max_cache_size);
+   }
+
+<em>O(N) operation under lock.</em>
+--------------------------------------------
+<b>boost/libs/serialization/build/../src/basic_iarchive.cpp</b>
+
+    while(created_pointers.size() &gt; 0){  <font color="red">// list::size()</font>
+
+<em>Loop appears to be O(N<sup>2</sup>).  This one could easily be fixed with empty().</em>
+--------------------------------------------
+<b>/Volumes/Data/Development/boost-dev/boost/libs/thread/build/../src/thread.cpp</b>
+
+int thread_group::size()
+{
+        return m_threads.size();  <font color="red">// list::size()</font>
+}
+
+<em>There is no thread_group::empty.  Clients have no choices.</em>
+
+<b>--------------------------------------------
+splice-some-from-other is much easier to search for:
+--------------------------------------------</b>
+
+<b>boost/multi_index/detail/seq_index_ops.hpp</b>
+
+template &lt;typename SequencedIndex,typename Compare&gt;
+void sequenced_index_merge(SequencedIndex&amp; x,SequencedIndex&amp; y,Compare comp)
+{
+  typedef typename SequencedIndex::iterator iterator;
+  if(x!=y){
+    iterator first0=x.begin(),last0=x.end();
+    iterator first1=y.begin(),last1=y.end();
+    while(first0!=last0&amp;&amp;first1!=last1){
+      if(comp(*first1,*first0))x.splice(first0,y,first1++);
+      else ++first0;
+    }
+    <b>x.splice(last0,y,first1,last1);</b>  <font color="red">// distance(first1,last1) can easily be 
+                                     // computed by client if list::size is O(1).</font>
+  }
+}
+
+<em>The function could be rewritten like:</em>
+
+template &lt;typename SequencedIndex,typename Compare&gt;
+void sequenced_index_merge(SequencedIndex&amp; x,SequencedIndex&amp; y,Compare comp)
+{
+  typedef typename SequencedIndex::iterator iterator;
+  <b>typedef typename SequencedIndex::size_type size_type;</b>
+  if(x!=y){
+    iterator first0=x.begin(),last0=x.end();
+    iterator first1=y.begin(),last1=y.end();
+    <b>size_type n = y.size();</b>           <font color="red">// assume O(1) size</font>
+    while(first0!=last0&amp;&amp;first1!=last1){
+      if(comp(*first1,*first0))
+      {
+        x.splice(first0,y,first1++);
+        <b>--n;</b>
+      }
+      else ++first0;
+    }
+    <b>x.splice(last0,y,first1,last1,n);</b>  <font color="red">// using proposed O(1) splice</font>
+  }
+}
+--------------------------------------------
+<b>boost/wave/util/cpp_macromap.hpp</b>
+
+	// splice the last token back into the input queue
+	typename ContainerT::reverse_iterator rit = pending.rbegin();
+
+		first.get_unput_queue().splice(
+			first.get_unput_queue().begin(), pending,
+			(++rit).base(), pending.end());
+
+<em>The splice range is known to be of length 1.</em>
+--------------------------------------------
+</pre></blockquote>
+
+<p>
+If you use <tt>std::list</tt> at all in your code, I encourage you to edit your
+standard headers, commenting out <tt>list::size</tt>, and recompile your code.
+Closely inspect each use of <tt>list::size</tt> that the compiler highlights.
+Would you still use it if <tt>list::size</tt> is implemented with
+<tt>distance(begin(), end())</tt>?
+</p>
+
+<p>
+As the standard is written today, none of the containers are required to have
+an O(1) <tt>size()</tt>.  I believe that this should be corrected in C++0X.  If
+a container has a <tt>size()</tt> member, it should be required to have O(1)
+complexity.  If a container can not manage this, it should not have a <tt>size()</tt>
+member at all.  Clients can always compute <tt>distance(begin(),end())</tt>.
+</p>
+
+<p>
+For backwards compatibility reasons, all existing standard containers should have
+an O(1) <tt>size()</tt>.  New containers which are introduced (<tt>slist</tt>?)
+may not have a <tt>size()</tt> member.
+</p>
+
+</BODY>
+</HTML>
