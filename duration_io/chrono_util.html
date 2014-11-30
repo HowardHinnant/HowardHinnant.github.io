@@ -8,7 +8,7 @@
 
 <address align=right>
 <a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
-2010-10-30
+2014-11-29
 </address>
 <hr>
 
@@ -21,25 +21,38 @@ A few simple utility functions for working with <code>duration</code>s.
 <h2>Rounding functions</h2>
 
 <blockquote><pre>
+<font color="#C80000">// truncate towards zero</font>
+template &lt;class To, class Rep, class Period&gt;
+constexpr
+inline
+To
+truncate(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
+{
+    return std::chrono::duration_cast&lt;To&gt;(d);
+}
+
 <font color="#C80000">// round down</font>
 template &lt;class To, class Rep, class Period&gt;
+constexpr
+inline
 To
 floor(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
 {
     To t = std::chrono::duration_cast&lt;To&gt;(d);
     if (t &gt; d)
-        --t;
+        t = t - To{1};
     return t;
 }
 
 <font color="#C80000">// round to nearest, to even on tie</font>
 template &lt;class To, class Rep, class Period&gt;
+constexpr
+inline
 To
 round(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
 {
     To t0 = std::chrono::duration_cast&lt;To&gt;(d);
-    To t1 = t0;
-    ++t1;
+    To t1 = t0 + To{1};
     auto diff0 = d - t0;
     auto diff1 = t1 - d;
     if (diff0 == diff1)
@@ -55,13 +68,58 @@ round(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
 
 <font color="#C80000">// round up</font>
 template &lt;class To, class Rep, class Period&gt;
+constexpr
+inline
 To
 ceil(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
 {
     To t = std::chrono::duration_cast&lt;To&gt;(d);
     if (t &lt; d)
-        ++t;
+        t = t + To{1};
     return t;
+}
+
+<font color="#C80000">// truncate towards zero</font>
+template &lt;class To, class Clock, class FromDuration&gt;
+constexpr
+inline
+std::chrono::time_point&lt;Clock, To&gt;
+truncate(const std::chrono::time_point&lt;Clock, FromDuration&gt;&amp; tp)
+{
+    return std::chrono::time_point_cast&lt;To&gt;(tp);
+}
+
+<font color="#C80000">// round down</font>
+template &lt;class To, class Clock, class FromDuration&gt;
+constexpr
+inline
+std::chrono::time_point&lt;Clock, To&gt;
+floor(const std::chrono::time_point&lt;Clock, FromDuration&gt;&amp; tp)
+{
+    using std::chrono::time_point;
+    return time_point&lt;Clock, To&gt;{floor&lt;To&gt;(tp.time_since_epoch())};
+}
+
+<font color="#C80000">// round to nearest, to even on tie</font>
+template &lt;class To, class Clock, class FromDuration&gt;
+constexpr
+inline
+std::chrono::time_point&lt;Clock, To&gt;
+round(const std::chrono::time_point&lt;Clock, FromDuration&gt;&amp; tp)
+{
+    using std::chrono::time_point;
+    return time_point&lt;Clock, To&gt;{round&lt;To&gt;(tp.time_since_epoch())};
+}
+
+<font color="#C80000">// round up</font>
+template &lt;class To, class Clock, class FromDuration&gt;
+constexpr
+inline
+std::chrono::time_point&lt;Clock, To&gt;
+ceil(const std::chrono::time_point&lt;Clock, FromDuration&gt;&amp; tp)
+{
+    using std::chrono::time_point;
+    return time_point&lt;Clock, To&gt;{ceil&lt;To&gt;(tp.time_since_epoch())};
 }
 </pre></blockquote>
 
