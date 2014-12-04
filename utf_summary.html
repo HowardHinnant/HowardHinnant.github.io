@@ -1,0 +1,196 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>UTF Summary</title>
+<meta name="description" content="Everything you wanted to know about UTF but were afraid to ask." />
+</head>
+<body>
+<table border="1" cellpadding="5">
+<caption>UTF Summary</caption>
+
+<tr>
+<th>UTF-32</th>
+<th colspan="2">UTF-16</th>
+<th colspan="4">UTF-8</th>
+</tr>
+
+<tr align="center">
+<td>&nbsp;</td>
+<td >first</td>
+<td >second</td>
+<td >first</td>
+<td >second</td>
+<td >third</td>
+<td >fourth</td>
+</tr>
+
+<tr align="center">
+<td colspan="7"><b>Definitions</b></td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">00000000000000xxxxxxx</td>
+<td style="font-family:courier">000000000xxxxxxx</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">0xxxxxxx</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0000000000yyyyxxxxxxx</td>
+<td style="font-family:courier">00000yyyyxxxxxxx</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">110yyyyx</td>
+<td style="font-family:courier">10xxxxxx</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">00000zzzzzyyyyxxxxxxx</td>
+<td style="font-family:courier">zzzzzyyyyxxxxxxx</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">1110zzzz</td>
+<td style="font-family:courier">10zyyyyx</td>
+<td style="font-family:courier">10xxxxxx</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">uuuuuzzzzzyyyyxxxxxxx</td>
+<td style="font-family:courier">110110wwwwzzzzzy</td>
+<td style="font-family:courier">110111yyyxxxxxxx</td>
+<td style="font-family:courier">11110uuu</td>
+<td style="font-family:courier">10uuzzzz</td>
+<td style="font-family:courier">10zyyyyx</td>
+<td style="font-family:courier">10xxxxxx</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier" colspan="7">wwww = uuuuu-1</td>
+</tr>
+
+<tr align="center">
+<td colspan="7"><b>Valid ranges</b></td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x00000000-0x0000007F</td>
+<td style="font-family:courier">0x0000-0x007F</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">0x00-0x7F</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x00000080-0x000007FF</td>
+<td style="font-family:courier">0x0080-0x07FF</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">0xC2-0xDF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x00000800-0x00000FFF</td>
+<td style="font-family:courier">0x0800-0x0FFF</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">0xE0-0xE0</td>
+<td style="font-family:courier">0xA0-0xBF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x00001000-0x0000CFFF</td>
+<td style="font-family:courier">0x1000-0xCFFF</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">0xE1-0xEC</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x0000D000-0x0000D7FF</td>
+<td style="font-family:courier">0xD000-0xD7FF</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">0xED-0xED</td>
+<td style="font-family:courier">0x80-0x9F</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x0000D800-0x0000DFFF</td>
+<td colspan="6">invalid</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x0000E000-0x0000FFFF</td>
+<td style="font-family:courier">0xE000-0xFFFF</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">0xEE-0xEF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x00010000-0x0003FFFF</td>
+<td style="font-family:courier">0xD800-0xD8BF</td>
+<td style="font-family:courier">0xDC00-0xDFFF</td>
+<td style="font-family:courier">0xF0-0xF0</td>
+<td style="font-family:courier">0x90-0xBF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x00040000-0x000FFFFF</td>
+<td style="font-family:courier">0xD8C0-0xDBBF</td>
+<td style="font-family:courier">0xDC00-0xDFFF</td>
+<td style="font-family:courier">0xF1-0xF3</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x00100000-0x0010FFFF</td>
+<td style="font-family:courier">0xDBC0-0xDBFF</td>
+<td style="font-family:courier">0xDC00-0xDFFF</td>
+<td style="font-family:courier">0xF4-0xF4</td>
+<td style="font-family:courier">0x80-0x8F</td>
+<td style="font-family:courier">0x80-0xBF</td>
+<td style="font-family:courier">0x80-0xBF</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x00110000-0xFFFFFFFF</td>
+<td colspan="6">invalid</td>
+</tr>
+
+<tr align="center">
+<td colspan="7"><b>Byte Order Mark (BOM)</b> - Optional first code in a file</td>
+</tr>
+
+<tr align="center">
+<td style="font-family:courier">0x0000FEFF</td>
+<td style="font-family:courier">0xFEFF</td>
+<td style="font-family:courier">&nbsp;</td>
+<td style="font-family:courier">0xEF</td>
+<td style="font-family:courier">0xBB</td>
+<td style="font-family:courier">0xBF</td>
+<td style="font-family:courier">&nbsp;</td>
+</tr>
+
+</table>
+</body>
+</html>
