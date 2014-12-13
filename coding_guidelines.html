@@ -1,0 +1,312 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>C++ Coding Guidelines</title>
+
+	<style>
+	p {text-align:justify}
+	li {text-align:justify}
+	blockquote.note
+	{
+		background-color:#E0E0E0;
+		padding-left: 15px;
+		padding-right: 15px;
+		padding-top: 1px;
+		padding-bottom: 1px;
+	}
+	ins {color:#00A000}
+	del {color:#A00000}
+	</style>
+</head>
+<body>
+
+<address align=right>
+<br/>
+<br/>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
+2014-12-12<br/>
+<a rel="license" href="http://creativecommons.org/licenses/by/4.0/">
+<img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br />
+This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
+</address>
+<hr/>
+
+<h1 align=center>C++ Coding Guidelines</h1>
+
+<h2>Priorities</h2>
+
+<p>
+At first it seemed really dumb to me to list priorities.  No one disputes the
+following items are important. But it is easy to mistakenly prioritize a less
+important priority over a more important priority.  So below are my
+priorities, listed most important first.  And I endeavor to always value all
+of these priorities, and yet never reorder them.
+</p>
+
+<ol>
+<li>
+<p>
+Correctness.
+</p>
+<p>
+There can be nothing more important than code that robustly works as
+advertised with no surprises.  Faster code that gets the wrong answer is not
+superior to correct code.  The act of writing code that is testable (and
+writing those tests) greatly lends itself to writing correct code.
+</p>
+</li>
+
+<li>
+<p>
+Run time performance.
+</p>
+<p>
+If the code is correct, but runs so slow that nobody can use it, then nobody
+<i>will</i> use it.  "Slow" is defined by the client though.  What may be too
+slow for some clients may be fine for others.  Code should be as fast as
+possible, but no faster.  Code size, memory usage and disk usage is also
+included in this category.  Any resource that your code uses at run time, be
+it processor cycles, ram, network I/O bandwidth, disk space or disk I/O
+bandwidth, is a limited resource and if your code squanders any resource,
+this will cause problems for your clients.
+</p>
+</li>
+
+<li>
+<p>
+Compile time performance.
+</p>
+<p>
+Code should compile as fast as possible, but without compromising correctness
+nor run time performance.  This is especially true for code that lives in
+headers, as it is compiled more often than code that lives in source files.
+Additionally code should be designed to not require excessive ram to compile.
+Use of excessive ram can also lead to needlessly long compile times due to
+paging.
+</p>
+</li>
+
+<li>
+<p>
+Maintainability / Easy to read.
+</p>
+<p>
+These are really two closely related goals.  Code that is hard to read is not
+maintainable, and generally code that is not maintainable will turn out to be
+difficult to read as well.  What makes code maintainable and easy to read?
+Simplicity goes a long way.  It is easy to get carried away with
+over-generalizing everything on the off chance you may need it one day.  Code
+should be as simple as possible to meet the task at hand, and no simpler.
+Simplicity will positively feed back into our other priorities.  Note however
+that more verbosity does not always translate into easier to read code.
+Identifiers should be long enough to give meaning, but short enough that a line
+of code does not expand into a paragraph of code.
+</p>
+</li>
+
+<li>
+<p>
+Easy to write.
+</p>
+<p>
+Making code easy to write is important.  However it is the least important of
+all of our goals.  Code is read (by humans) far more often than it is
+written. Thus a good programmer will optimize his code for being read, even
+at the expense of making his code harder to write.
+</p>
+</li>
+</ol>
+
+<p>
+Never sacrifice a higher priority for a lower priority.  All of these
+priorities are "mom and apple pie" (no one could disagree they are good
+ideas).  But an engineer knows that there are always tradeoffs, and knows
+which priorities should be sacrificed for other priorities (and when).
+</p>
+
+<h2>Measure</h2>
+
+<p>
+If you think something is correct, prove it with a test.  If you think something
+is fast, time it.  If you think one algorithm is better than another, find some
+way to make a measurement to support your argument.
+</p>
+
+<p>
+Do not depend only upon your "common sense."  Do not depend only on theory.
+It is good to use theory to help guide you to an optimum solution.  But
+without measuring, you have no way of knowing (nor convincing others) of the
+correctness of your theory.  Without measurement, you have a faith-based
+system, not a scientific theory.  
+</p>
+
+<p>
+If what you need to measure is too complicated to measure, break the problem
+down into a collection of smaller problems that can be measured.  Making
+<b>some</b> measurement is infinitely better than making <b>no</b>
+measurements. And whatever you do, do not depend upon yourself or someone
+else just saying: "trust me, I know what I'm talking about."  If we all did
+that, all of the time, the earth would be flat and at the center of the
+universe.
+</p>
+
+<h2>Testing</h2>
+
+<p>
+Not only do you need to test that something works, you also need to test that
+it fails when and how you expect it to.  For example make sure asserts fire
+when they are supposed to.  Make sure that what you assume won't compile
+actually doesn't compile.  Make sure that the exception actually is thrown,
+and that no resource leaks happen during stack unwinding.  Test corner cases
+such as 0, 1, -1, INT_MIN, INT_MIN+1,  INT_MAX-1, and INT_MAX.
+</p>
+
+<!-- 
+<h2>Document function preconditions and class invariants</h2>
+
+<p>
+Not all functions have preconditions.  And not all classes have class
+invariants.  But when they do, document them with comments in the code.
+For example here is
+<a href="http://home.roadrunner.com/~hinnant/date_algorithms.html#days_from_civil"><code>days_from_civil</code></a>
+which turns a <code>{y, m, d}</code> triple into a serial day count:
+</p>
+
+<blockquote><pre>
+<font color="#C80000">// Returns number of days since civil 1970-01-01.  Negative values indicate</font>
+<font color="#C80000">//    days prior to 1970-01-01.</font>
+<font color="#C80000">// Preconditions:  y-m-d represents a date in the civil (Gregorian) calendar</font>
+<font color="#C80000">//                 m is in [1, 12]</font>
+<font color="#C80000">//                 d is in [1, last_day_of_month(y, m)]</font>
+<font color="#C80000">//                 y is "approximately" in</font>
+<font color="#C80000">//                   [numeric_limits&lt;Int&gt;::min()/366, numeric_limits&lt;Int&gt;::max()/366]</font>
+<font color="#C80000">//                 Exact range of validity is:</font>
+<font color="#C80000">//                 [civil_from_days(numeric_limits&lt;Int&gt;::min()),</font>
+<font color="#C80000">//                  civil_from_days(numeric_limits&lt;Int&gt;::max()-719468)]</font>
+template &lt;class Int&gt;
+constexpr
+Int
+days_from_civil(Int y, unsigned m, unsigned d) noexcept;
+</pre></blockquote>
+
+<p>
+This function is purposefully designed to trust that the client will pass in
+valid values for the year, month and day.  This is what a precondition is.  If
+the client passes in invalid values, the behavior of this function is undefined.
+The result is neither documented, predicted, nor tested for.  It is important
+that preconditions be prominently documented like the above. 
+</p>
+
+<p>
+A class invariant is a relationship among a type's data members.  Access to the
+data members is restricted, and the classes constructors, member functions and
+friends operate such that the relationship among the data members is maintained.
+For example, here is a simple <code>vector</code> class:
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+class vector
+{
+private:
+    <font color="#C80000">// Either all three pointers equal nullptr, or none of them do.</font>
+    <font color="#C80000">// If non-null, begin_ &lt;= end_ &amp;&amp; end_ &lt;= capacity_ &amp;&amp; begin_ &lt; capacity_</font>
+    <font color="#C80000">// The range [begin_, end_) will contain constructed T's</font>
+    <font color="#C80000">// The range [end_, capacity_) will uninitialized.</font>
+    <font color="#C80000">// If non-null, begin_ is an owning pointer.</font>
+    T* begin_;
+    T* end_;
+    T* capacity_;
+    // ...
+};
+</pre></blockquote>
+
+<p>
+With these comments in place, the class practically writes itself.  Future
+maintainers of this code can get a very quick idea of what this class does,
+and what the rules are for this class.
+</p>
+
+<p>
+Conversely, consider this simple type:
+</p>
+
+<blockquote><pre>
+template &lt;class T, class U&gt;
+struct pair
+{
+    T first;
+    U second;
+};
+</pre></blockquote>
+
+<p>
+Here, the values of <code>first</code> and <code>second</code> are completely
+independent of one another.  There are no class invariants to document.
+</p>
+
+<h2>Sweat over each special member function</h2>
+
+<p>
+There are six special members.  They are, in order of importance:
+</p>
+
+<ol>
+<li>The destructor</li>
+<li>The default constructor</li>
+<li>The copy constructor</li>
+<li>The copy assignment operator</li>
+<li>The move constructor</li>
+<li>The move assignment operator</li>
+</ol>
+
+<p>
+Not every class has all 6 special members.  But <i>know</i> which special
+members your class has.  It is ok to let the compiler implicitly provide
+a special member for you.  But don't let that happen by accident.
+</p>
+
+<p>
+For example if your class isn't supposed to be copyable, disable the copy
+members.  Even if you aren't sure whether or not you want your class to be
+copyable, disable the copy members.  Indeed, when you are first writing your
+class <code>X</code>, it isn't a bad idea to start with this skeleton:
+</p>
+
+<blockquote><pre>
+class X
+{
+public:
+    X(X const&amp;) = delete;
+    X& operator=(X const&amp;) = delete;
+};
+</pre></blockquote>
+
+<p>
+As it stands <code>X</code> has a compiler provided destructor which is
+<code>noexcept</code>.  It has no default constructor.  It has deleted copy
+members, and it has no move members.  You can't do anything with this class.
+You can't even construct an <code>X</code>.  Now add the functionality you
+need.  If that functionality includes default constructing, copying, or
+moving, add it.  If you add a data member that needs attention in the
+destructor, add that attention at the same time as you add the data member.
+</p>
+
+<p>
+Don't "gloss over" your special members.  They should be among the first
+things designed and implemented as you author a new class.  They should not be
+an afterthought.
+</p>
+
+<h2>Keep data members and special member functions close to each other</h2>
+<h2>Don't over-inline</h2>
+<h2>Keep functions relatively simple</h2>
+<h2>Limit access to code and data</h2>
+<h2>Design for compile-time failure</h2>
+<h2>Squash warnings</h2>
+<h2>Upgrade to the latest C++ standard as soon as practical</h2>
+<h2>Code as if your life depended on your code</h2>
+ -->
+</body>
+</html>
