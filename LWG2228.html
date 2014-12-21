@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>LWG 2228: Missing SFINAE rule in unique_ptr templated assignment</title>
+    <style type="text/css">
+    p {text-align:justify;}
+    li {text-align:justify;}
+    blockquote.note
+    {
+        background-color:#E0E0E0;
+        padding-left: 15px;
+        padding-right: 15px;
+        padding-top: 1px;
+        padding-bottom: 1px;
+    }
+    ins {background-color:#A0FFA0;}
+    del {background-color:#FFA0A0;}
+    address {text-align:right;}
+    h1 {text-align:center;}
+    span.comment {color:#C80000;}
+    table {border-width:1px; border-color:black; border-style:solid;}
+    td {border-width:1px; border-color:black; border-style:solid; padding:5px;}
+    </style>
+</head>
+<body>
+
+<address>
+<br>
+<a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
+
+2014-12-20<br/>
+<a rel="license" href="http://creativecommons.org/licenses/by/4.0/">
+<img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br />
+This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
+</address>
+<hr>
+<h1>LWG 2228: Missing <i>SFINAE</i> rule in <code>unique_ptr</code> templated assignment</h1>
+
+<h2>Introduction</h2>
+
+<p>
+This paper addresses the <a href="http://cplusplus.github.io/LWG/lwg-active.html#2228">Library Working Group Issue 2228</a>.
+The crux of this issue is that the converting move assignment operator of
+<code>unique_ptr</code> will participate in overload resolution, even if the
+actual implementation of <code>unique_ptr</code> move assignment operator will
+not compile.
+</p>
+
+<p>
+For example:
+</p>
+
+<blockquote><pre>
+#include &lt;memory&gt;
+#include &lt;type_traits&gt;
+
+struct do_nothing
+{
+    template &lt;class T&gt;
+    void operator()(T*) {}
+};
+
+int
+main()
+{
+    int i = 0;
+    std::unique_ptr&lt;int, do_nothing&gt; p1(&amp;i);
+    std::unique_ptr&lt;int&gt; p2;
+
+    <font color="#00A000">// This mistakenly compiles:</font>
+    static_assert(std::is_assignable&lt;decltype(p2), decltype(p1)&gt;::value, "");
+
+    <font color="#00A000">// But this correctly does not compile:</font>
+    p2 = std::move(p1);
+}
+</pre></blockquote>
+
+<p>
+The <code>static_assert</code> compiles because of the <i>Remarks:</i> clause
+of the <code>unique_ptr</code> converting move assignment operator in
+[unique.ptr.single.asgn]:
+</p>
+
+<blockquote>
+<pre>
+template &lt;class U, class E&gt; unique_ptr&amp; operator=(unique_ptr&lt;U, E&gt;&amp;&amp; u) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Remarks:</i> This operator shall not participate in overload resolution unless:
+</p>
+<ul>
+<li><code>unique_ptr&lt;U, E&gt;::pointer</code> is implicitly convertible to
+<code>pointer</code> and</li>
+<li><code>U</code> is not an array type.</li>
+</ul>
+</blockquote>
+</blockquote>
+
+<p>
+In our example both <code>unique_ptr&lt;U, E&gt;::pointer</code> and <code>pointer</code>
+have type <code>int*</code>, and so the first bullet is satisfied.  And <code>U</code>
+has type <code>int</code>, which is not an array type, and so the second bullet
+is also satisfied.  Thus this signature shall participate in overload resolution,
+and subsequently, as far as <code>is_assignable</code> is concerned, the move
+assignment in our example above looks well formed.
+</p>
+
+<p>
+However the trouble comes when we look at the <i>Effects:</i> clause of this
+operator:
+</p>
+
+<blockquote>
+<pre>
+template &lt;class U, class E&gt; unique_ptr&amp; operator=(unique_ptr&lt;U, E&gt;&amp;&amp; u) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Effects:</i> Transfers ownership from <code>u</code> to <code>*this</code> as
+if by calling <code>reset(u.release())</code> followed by
+<code>get_deleter() = std::forward&lt;E&gt;(u.get_deleter())</code>.
+</p>
+</blockquote>
+</blockquote>
+
+<p>
+The <i>Effects:</i> clause is correct, but the trouble is with the assignment
+of the two deleter types.  In our example <code>get_deleter()</code> is an
+lvalue expression of type <code>std::default_delete&lt;int&gt;</code>,
+<code>E</code> has type <code>do_nothing</code>, and
+<code>u.get_deleter()</code> is an lvalue expression of type
+<code>do_nothing</code>.
+</p>
+
+<p>
+<code>std::default_delete&lt;int&gt;</code> can not be assigned to by a
+<code>do_nothing</code>.  And thus even though the standard trait
+<code>is_assignable</code> says we can move assign <code>p1</code> to <code>p2</code>,
+when we try to, we get an error from within the implementation of the std::lib.
+With clang/libc++ the error looks like:
+</p>
+
+<blockquote><pre>
+libcxx/include/memory:2563:33: <font color="#C80000">error:</font> no viable overloaded '='
+                __ptr_.second() = _VSTD::forward&lt;_Ep&gt;(__u.get_deleter());
+                <font color="#00A000">~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</font>
+</pre></blockquote>
+
+<p>
+The complaint of <a href="http://cplusplus.github.io/LWG/lwg-active.html#2228">LWG 2228</a>
+is right on the money:  This is an intolerable situation.  This is a defect in
+the <code>unique_ptr</code> specification.
+</p>
+
+<h2>The Current Proposed Fix</h2>
+
+<p>
+<a href="http://cplusplus.github.io/LWG/lwg-active.html#2228">LWG 2228</a>
+currently proposes to fix this bug by adding the following additional constraint
+to the <i>Remarks:</i> clause:
+</p>
+
+<blockquote>
+<pre>
+template &lt;class U, class E&gt; unique_ptr&amp; operator=(unique_ptr&lt;U, E&gt;&amp;&amp; u) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Remarks:</i> This operator shall not participate in overload resolution unless:
+</p>
+<ul>
+<li><code>unique_ptr&lt;U, E&gt;::pointer</code> is implicitly convertible to
+<code>pointer</code> and</li>
+<li><code>U</code> is not an array type<del>.</del><ins>, and</ins></li>
+<li><ins>either <code>D</code> is a reference type and <code>E</code> is the
+same type as <code>D</code>, or <code>D</code> is not a reference type and
+<code>E</code> is implicitly convertible to <code>D</code>.</ins></li>
+</ul>
+</blockquote>
+</blockquote>
+
+<p>
+And indeed, when we apply this extra constraint, this fixes our example
+above!  Neither <code>D</code> nor <code>E</code> are reference types. 
+However <code>E</code> (<code>do_nothing</code>) is not implicitly
+convertible to <code>D</code> (<code>std::default_delete&lt;int&gt;</code>),
+and so our <code>static_assert</code> now correctly refuses to compile.
+</p>
+
+<p>
+However there is a problem with this fix.  The big picture problem is that the
+constraint does not describe what the implementation actually needs to do.  It
+instead describes a constraint that is in fact applicable only to the
+<code>unique_ptr</code> converting move constructor.  It happens to work in
+our first example above.  However in the next section I will show another
+example (admittedly more complicated) where the proposed constraint misses
+the mark.
+</p>
+
+<h2>A More Complicated Example</h2>
+
+<p>
+Consider a stateful deleter which does nothing but count the number of times it
+is used to delete something.  Furthermore we want the deleter to be templated
+on the (static) type it is deleting.
+</p>
+
+<p>
+This example is more complicated than it needs to be to just demonstrate the
+problem.  However I wanted to present an example that was not contrived.  This
+is intended to be a realistic and motivating example.  I did not want to
+present a contrived example and be met with arguments such as:
+</p>
+
+<blockquote>
+<p>
+Nobody would ever do that.  And if they tried, they would be better off if we
+disallowed it.
+</p>
+</blockquote>
+
+<p>
+So if you accept on face value that this is a motivating, non-contrived example,
+you do not need to understand the details of this example to understand why
+the current proposal breaks this example, nor why the alternative wording
+proposed herein fixes it.
+</p>
+
+<p>
+First the code for the deleter, and then a bit of explanation about it.
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+class deleter
+{
+    <font color="#00A000">// count the number of times this deleter is used</font>
+    unsigned count_ = 0;
+public:
+    <font color="#00A000">// special members</font>
+    ~deleter() {count_ = std::numeric_limits&lt;unsigned&gt;::max();}
+    deleter() = default;
+    deleter(const deleter&amp;) {}
+    deleter&amp; operator=(const deleter&amp;) {return *this;}
+    deleter(deleter&amp;&amp; d)
+        : count_(d.count_)
+    {
+        d.count_ = 0;
+    }
+    deleter&amp; operator=(deleter&amp;&amp; d)
+    {
+        count_ = d.count_;
+        d.count_ = 0;
+        return *this;
+    }
+
+    <font color="#00A000">// converting constructors</font>
+    template &lt;class U,
+              class = std::enable_if_t&lt;std::is_convertible&lt;U*, T*&gt;::value&gt;&gt;
+    deleter(const deleter&lt;U&gt;&amp; d)
+    {}
+
+    template &lt;class U,
+              class = std::enable_if_t&lt;std::is_convertible&lt;U*, T*&gt;::value&gt;&gt;
+    deleter(deleter&lt;U&gt;&amp;&amp; d)
+        : count_(d.count_)
+    {
+        d.count_ = 0;
+    }
+
+    <font color="#00A000">// deletion operator</font>
+    void operator()(T* t)
+    {
+        delete t;
+        ++count_;
+    }
+
+    <font color="#00A000">// observers</font>
+    unsigned count() const {return count_;}
+
+    friend
+    std::ostream&amp;
+    operator&lt;&lt;(std::ostream&amp; os, const deleter&amp; d)
+    {
+        return os &lt;&lt; d.count_;
+    }
+
+    template &lt;class&gt; friend class deleter;
+};
+</pre></blockquote>
+
+<p>
+The <code>deleter</code> holds a count of the number of times it is used.
+For debugging purposes, the destructor sets this count to an unrealistic value,
+which is not guaranteed to stick around or be observable after <code>~deleter()</code>,
+but often is in practice.
+</p>
+
+<p>
+An invariant of this class is that even across copies and moves, the total number
+of times a delete actually happens is the same as the sum of the counts from all
+of the deleters.  And that invariant makes the copy members of this class
+counter-intuitive.  Instead of copying the count, the copy members instead do
+not copy anything at all!  They simply 0 the lhs in the case of a construction,
+or in the case of an assignment, they just don't do anything at all.
+</p>
+
+<p>
+After such a copy, the invariant is preserved.  If instead the counts were
+actually copied, then after a copy, the number of deletions as reported by the
+sum of all deleters would have doubled.
+</p>
+
+<p>
+The move members of the <code>deleter</code>, on the other hand, will transfer
+the delete counts from the source to the target, zeroing out the source.  Thus
+the move members also preserve the invariant.
+</p>
+
+<p>
+Because we want to be able to transfer counts from
+<code>deleter&lt;derived&gt;</code> to <code>deleter&lt;base&gt;</code>,
+converting constructors are set up.  We set up both a converting copy constructor
+and a converting move constructor.  These constructors are constrained to allow
+converting from <code>deleter&lt;derived&gt;</code> to
+<code>deleter&lt;base&gt;</code> but not vice-versa.  We also want to allow
+converting assignments.  In the interest of keeping this example as simple as
+possible, the converting assignments are implicitly handled by the converting
+constructors followed by the special member assignment operators.
+</p>
+
+<p>
+For ease of both writing and of presentation, a using declaration is employed:
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+using Ptr = std::unique_ptr&lt;T, deleter&lt;T&gt;&amp;&gt;;
+</pre></blockquote>
+
+<p>
+Note the use of the lvalue-reference type for the <code>unique_ptr</code>
+deleter.  As we are interested in accumulating and observing the state of
+these deleters, we are going to collect the data in a couple of "master"
+deleters and have all <code>Ptr</code>'s <i>refer</i> to these masters.  This
+is precisely why <i>reference-deleters</i> were designed into
+<code>unique_ptr</code> in the first place.
+</p>
+
+<p>
+Now lets exercise this code:
+</p>
+
+<blockquote><pre>
+int
+main()
+{
+    deleter&lt;base&gt; db;
+    deleter&lt;derived&gt; dd;
+    std::cout &lt;&lt; "db = " &lt;&lt; db &lt;&lt; '\n';
+    std::cout &lt;&lt; "dd = " &lt;&lt; dd &lt;&lt; '\n';
+    {
+        Ptr&lt;derived&gt; pd(new derived, dd);
+        pd.reset(new derived);
+        Ptr&lt;base&gt; pb(nullptr, db);
+        pb = std::move(pd);  <font color="#00A000">// The converting move assignment!</font>
+        std::cout &lt;&lt; "pb.get_deleter() = " &lt;&lt; pb.get_deleter() &lt;&lt; '\n';
+        std::cout &lt;&lt; "pd.get_deleter() = " &lt;&lt; pd.get_deleter() &lt;&lt; '\n';
+    }
+    std::cout &lt;&lt; "db = " &lt;&lt; db &lt;&lt; '\n';
+    std::cout &lt;&lt; "dd = " &lt;&lt; dd &lt;&lt; '\n';
+}
+</pre></blockquote>
+
+<p>
+Assuming <code>base</code> and <code>derived</code> class types, this code
+compiles today (C++11 and C++14), and portably outputs:
+</p>
+
+<blockquote><pre>
+db = 0
+dd = 0
+pb.get_deleter() = 0
+pd.get_deleter() = 1
+db = 1
+dd = 1
+</pre></blockquote>
+
+<p>
+<i>Explanation:</i>  The "master" <code>deleter</code>s <code>db</code> and
+<code>dd</code> are first constructed.  There is one to be used with
+<code>unique_ptr&lt;base&gt;</code> and one for
+<code>unique_ptr&lt;derived&gt;</code>.  They are both initialized with zero
+counts as confirmed by the print statements.  Next a scope is opened and a
+<code>Ptr&lt;derived&gt;</code> is constructed with a <code>new
+derived</code> and a reference to <code>dd</code>.  At this point
+<code>pd</code> owns the pointer and refers to <code>dd</code>, which still
+has a count of 0.  Next <code>pd</code> is <code>reset</code> with another
+non-null <code>derived*</code>.  This bumps the count in <code>dd</code> up
+to 1.  Then a <code>Ptr&lt;base&gt;</code> is constructed with
+<code>nullptr</code> and a reference to <code>db</code> (whose count is still
+zero).
+</p>
+
+<p>
+Finally we get up to the operation in question:  the converting move assignment
+operator.  This will of course transfer the pointer from <code>pd</code> to
+<code>pb</code>, but it also executes:
+</p>
+
+<blockquote><pre>
+get_deleter() = std::forward&lt;deleter&lt;derived&gt;&amp;&gt;(u.get_deleter());
+</pre></blockquote>
+
+<p>
+which is a fancy way of saying:
+</p>
+
+<blockquote><pre>
+get_deleter() = u.get_deleter();
+</pre></blockquote>
+
+<p>
+That is, the deleters are converting-copy-assigned, which is a no-op, and so
+the subsequent print statements confirm that the deleter referred to by
+<code>pb</code> still has a count of zero, and the deleter referred to by
+<code>pd</code> still has a count of one.  Next, scope is exited, causing the
+destruction of both <code>Ptr</code>s.  Only <code>pb</code> actually calls
+its <code>deleter</code> and increments the destructor count.  The program
+ends with printing out the counts for both master deleters, each with a count
+of one.
+</p>
+
+<p>
+If desired, we could use this same code with by-value deleters:
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+using Ptr = std::unique_ptr&lt;T, deleter&lt;T&gt;&gt;;
+</pre></blockquote>
+
+<p>
+The result would be a little different, just as valid, but would not demonstrate
+the problem with the current proposed resolution to 
+<a href="http://cplusplus.github.io/LWG/lwg-active.html#2228">LWG 2228</a>,
+and thus the use of the reference-deleters in this example.
+</p>
+
+<h2>The Problem with the Current Proposed Fix</h2>
+
+<p>
+It fails to compile the currently valid, motivating, and non-contrived example
+in the preceding section:
+</p>
+
+<blockquote><pre>
+test.cpp:130:12: <font color="#C80000">error:</font> no viable overloaded '='
+        pb = std::move(pd);
+        <font color="#00A000">~~ ^ ~~~~~~~~~~~~~</font>
+</pre></blockquote>
+
+<p>
+The reason it fails to compile this example is because of the constraint that
+if both deleters are reference types, they must be the same type.  But in this
+example our two deleter types are:
+</p>
+
+<ul>
+<li><code>deleter&lt;base&gt;&amp;</code></li>
+<li><code>deleter&lt;derived&gt;&amp;</code></li>
+</ul>
+
+<p>
+Even though the author of <code>deleter</code> went to the trouble to allow a
+converting copy assignment from <code>deleter&lt;derived&gt;</code> to
+<code>deleter&lt;base&gt;</code> (and not vice-versa), and even though this is
+exactly what the specification of <code>unique_ptr</code> says it will do, the
+current proposed wording breaks this valid, motivating, non-contrived, and
+potentially already-existing-in-the-wild example.
+</p>
+
+<h2>So What Is The Correct Fix?</h2>
+
+<p>
+To introduce the correct fix, it is helpful to go back to the "big picture"
+problem mentioned much earlier in this paper:
+</p>
+
+<blockquote><p>
+The big picture problem is that the constraint does not describe what the
+implementation actually needs to do.
+</p></blockquote>
+
+<p>
+What does the implementation actually need to do?
+</p>
+
+<blockquote><pre>
+get_deleter() = std::forward&lt;E&gt;(u.get_deleter())
+</pre></blockquote>
+
+<p>
+This is the current specification from the <i>Effects:</i> clause and there is
+no dispute that this part of the specification is correct.  And creating a
+constraint for exactly this specification is easy to both implement and specify:
+</p>
+
+<blockquote>
+<pre>
+template &lt;class U, class E&gt; unique_ptr&amp; operator=(unique_ptr&lt;U, E&gt;&amp;&amp; u) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Remarks:</i> This operator shall not participate in overload resolution unless:
+</p>
+<ul>
+<li><code>unique_ptr&lt;U, E&gt;::pointer</code> is implicitly convertible to
+<code>pointer</code> and</li>
+<li><code>U</code> is not an array type<del>.</del><ins>, and</ins></li>
+<li><ins><code>is_assignable&lt;D&amp;, E&amp;&amp;&gt;::value</code> is
+true.</ins></li>
+</ul>
+</blockquote>
+</blockquote>
+
+<p>
+This additional constraint correctly handles both the non-reference deleter case
+and the reference deleter case.  It constrains precisely what the <i>Effects:</i>
+clause specifies &mdash; no more, and no less.  This means that no existing
+compiling code will cease compiling.  The only impact the client will see is
+that <code>is_assignable</code> will correctly model the <code>unique_ptr</code>
+converting move assignment operator.  That is, it will answer true in all
+existing cases that compile, and it will answer false in cases that already do
+not compile.
+</p>
+
+<h2>Acknowledgments</h2>
+
+<p>
+Thanks to Geoffrey Romer for opening
+<a href="http://cplusplus.github.io/LWG/lwg-active.html#2228">LWG 2228</a>, and
+thus bringing attention to this very real defect.
+</p>
+
+</body>
+</html>
