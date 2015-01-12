@@ -29,7 +29,7 @@
 <br>
 <a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
 
-2014-12-20<br/>
+2015-01-11<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">
 <img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br />
 This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
@@ -37,7 +37,23 @@ This work is licensed under a <a rel="license" href="http://creativecommons.org/
 <hr>
 <h1>LWG 2228: Missing <i>SFINAE</i> rule in <code>unique_ptr</code> templated assignment</h1>
 
-<h2>Introduction</h2>
+<h2>Contents</h2>
+
+<ul>
+<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#CurrentFix">The Current Proposed Fix</a></li>
+<li><a href="#ProblemCurrentFix">The Problem with the Current Proposed Fix</a></li>
+<li>
+<a href="#CorrectFix">Wording</a>
+<ul>
+<li><a href="#CorrectFix">So What Is The Correct Fix?</a></li>
+<li><a href="#CorrectFixContinued">And <code>unique_ptr&lt;T[]&gt;</code> Needs The Fix Too</a></li>
+</ul></li>
+<li><a href="#ComplexExample">Appendix 1: A More Complicated Example</a></li>
+<li><a href="#Acknowledgments">Acknowledgments</a></li>
+</ul>
+
+<h2><a name="Introduction"></a>Introduction</h2>
 
 <p>
 This paper addresses the <a href="http://cplusplus.github.io/LWG/lwg-active.html#2228">Library Working Group Issue 2228</a>.
@@ -154,7 +170,7 @@ is right on the money:  This is an intolerable situation.  This is a defect in
 the <code>unique_ptr</code> specification.
 </p>
 
-<h2>The Current Proposed Fix</h2>
+<h2><a name="CurrentFix"></a>The Current Proposed Fix</h2>
 
 <p>
 <a href="http://cplusplus.github.io/LWG/lwg-active.html#2228">LWG 2228</a>
@@ -190,16 +206,161 @@ and so our <code>static_assert</code> now correctly refuses to compile.
 </p>
 
 <p>
-However there is a problem with this fix.  The big picture problem is that the
-constraint does not describe what the implementation actually needs to do.  It
-instead describes a constraint that is in fact applicable only to the
+However there is a problem with this fix.  The big picture problem is that
+the constraint does not describe what the implementation actually needs to
+do.  It instead describes a constraint that is in fact applicable only to the
 <code>unique_ptr</code> converting move constructor.  It happens to work in
-our first example above.  However in the next section I will show another
-example (admittedly more complicated) where the proposed constraint misses
-the mark.
+our first example above.  However in <a href="#ComplexExample">Appendix 1</a>
+a more complicated example is presented which the current proposed wording
+breaks.
 </p>
 
-<h2>A More Complicated Example</h2>
+<h2><a name="ProblemCurrentFix"></a>The Problem with the Current Proposed Fix</h2>
+
+<p>
+The current proposed wording fails to compile the currently valid,
+motivating, and non-contrived example in <a href="#ComplexExample">Appendix
+1</a>.  The error message is:
+</p>
+
+<blockquote><pre>
+test.cpp:130:12: <font color="#C80000">error:</font> no viable overloaded '='
+        pb = std::move(pd);
+        <font color="#00A000">~~ ^ ~~~~~~~~~~~~~</font>
+</pre></blockquote>
+
+<p>
+The reason it fails to compile this example is because of the constraint that
+if both deleters are reference types, they must be the same type.  But in this
+example our two deleter types are:
+</p>
+
+<ul>
+<li><code>deleter&lt;base&gt;&amp;</code></li>
+<li><code>deleter&lt;derived&gt;&amp;</code></li>
+</ul>
+
+<p>
+Even though the author of <code>deleter</code> went to the trouble to allow a
+converting copy assignment from <code>deleter&lt;derived&gt;</code> to
+<code>deleter&lt;base&gt;</code> (and not vice-versa), and even though this is
+exactly what the specification of <code>unique_ptr</code> says it will do, the
+current proposed wording breaks this valid, motivating, non-contrived, and
+potentially already-existing-in-the-wild example.
+</p>
+
+<h2><a name="CorrectFix"></a>So What Is The Correct Fix?</h2>
+
+<p>
+To introduce the correct fix, it is helpful to go back to the "big picture"
+problem mentioned much earlier in this paper:
+</p>
+
+<blockquote><p>
+The big picture problem is that the constraint does not describe what the
+implementation actually needs to do.
+</p></blockquote>
+
+<p>
+What does the implementation actually need to do?
+</p>
+
+<blockquote><pre>
+get_deleter() = std::forward&lt;E&gt;(u.get_deleter())
+</pre></blockquote>
+
+<p>
+This is the current specification from the <i>Effects:</i> clause and there is
+no dispute that this part of the specification is correct.  And creating a
+constraint for exactly this specification is easy to both implement and specify:
+</p>
+
+<p>
+Change [unique.ptr.single.asgn]:
+</p>
+
+<blockquote>
+<pre>
+template &lt;class U, class E&gt; unique_ptr&amp; operator=(unique_ptr&lt;U, E&gt;&amp;&amp; u) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Remarks:</i> This operator shall not participate in overload resolution unless:
+</p>
+<ul>
+<li><code>unique_ptr&lt;U, E&gt;::pointer</code> is implicitly convertible to
+<code>pointer</code> and</li>
+<li><code>U</code> is not an array type<del>.</del><ins>, and</ins></li>
+<li><ins><code>is_assignable&lt;D&amp;, E&amp;&amp;&gt;::value</code> is
+true.</ins></li>
+</ul>
+</blockquote>
+</blockquote>
+
+<p>
+This additional constraint correctly handles both the non-reference deleter case
+and the reference deleter case.  It constrains precisely what the <i>Effects:</i>
+clause specifies &mdash; no more, and no less.  This means that no existing
+compiling code will cease compiling.  The only impact the client will see is
+that <code>is_assignable</code> will correctly model the <code>unique_ptr</code>
+converting move assignment operator.  That is, it will answer true in all
+existing cases that compile, and it will answer false in cases that already do
+not compile.
+</p>
+
+<h2><a name="CorrectFixContinued"></a>And <code>unique_ptr&lt;T[]&gt;</code> Needs The Fix Too</h2>
+
+<p>
+<code>unique_ptr&lt;T[]&gt;</code> has the same defect for the same reasons as
+the primary template.  The only difference is that an incorrect fix has already
+been applied to the current working draft, and is corrected herein:
+</p>
+
+<p>
+Change [unique.ptr.runtime.asgn]:
+</p>
+
+<blockquote>
+<pre>
+template &lt;class U, class E&gt;
+  unique_ptr&amp; operator=(unique_ptr&lt;U,E&gt;&amp;&amp; u)noexcept;
+</pre>
+<blockquote>
+<p>
+This operator behaves the same as in the primary template, except that it
+shall not participate in overload resolution unless all of the following
+conditions hold, where <code>UP</code> is <code>unique_ptr&lt;U, E&gt;</code>:
+</p>
+<ul>
+<li>
+<code>U</code> is an array type, and
+</li>
+<li>
+<code>pointer</code> is the same type as <code>element_type*</code>, and
+</li>
+<li>
+<code>UP::pointer</code> is the same type as <code>UP::element_type*</code>, and
+</li>
+<li>
+<code>UP::element_type(*)[]</code> is convertible to <code>element_type(*)[]</code>, and
+</li>
+<li><del>
+either <code>D</code> is a reference type and <code>E</code> is the same type
+as <code>D</code>, or <code>D</code> is not a reference type and
+<code>E</code> is implicitly convertible to <code>D</code>.
+</del></li>
+<li><ins>
+<code>is_assignable&lt;D&amp;, E&amp;&amp;&gt;::value</code> is true.
+</ins></li>
+</ul>
+<p>
+[ <i>Note:</i> this replaces the overload-resolution specification of the primary
+template &mdash; <i>end note</i> ]
+</p>
+</blockquote>
+</blockquote>
+
+<h2><a name="ComplexExample"></a>Appendix 1: A More Complicated Example</h2>
 
 <p>
 Consider a stateful deleter which does nothing but count the number of times it
@@ -449,95 +610,7 @@ the problem with the current proposed resolution to
 and thus the use of the reference-deleters in this example.
 </p>
 
-<h2>The Problem with the Current Proposed Fix</h2>
-
-<p>
-It fails to compile the currently valid, motivating, and non-contrived example
-in the preceding section:
-</p>
-
-<blockquote><pre>
-test.cpp:130:12: <font color="#C80000">error:</font> no viable overloaded '='
-        pb = std::move(pd);
-        <font color="#00A000">~~ ^ ~~~~~~~~~~~~~</font>
-</pre></blockquote>
-
-<p>
-The reason it fails to compile this example is because of the constraint that
-if both deleters are reference types, they must be the same type.  But in this
-example our two deleter types are:
-</p>
-
-<ul>
-<li><code>deleter&lt;base&gt;&amp;</code></li>
-<li><code>deleter&lt;derived&gt;&amp;</code></li>
-</ul>
-
-<p>
-Even though the author of <code>deleter</code> went to the trouble to allow a
-converting copy assignment from <code>deleter&lt;derived&gt;</code> to
-<code>deleter&lt;base&gt;</code> (and not vice-versa), and even though this is
-exactly what the specification of <code>unique_ptr</code> says it will do, the
-current proposed wording breaks this valid, motivating, non-contrived, and
-potentially already-existing-in-the-wild example.
-</p>
-
-<h2>So What Is The Correct Fix?</h2>
-
-<p>
-To introduce the correct fix, it is helpful to go back to the "big picture"
-problem mentioned much earlier in this paper:
-</p>
-
-<blockquote><p>
-The big picture problem is that the constraint does not describe what the
-implementation actually needs to do.
-</p></blockquote>
-
-<p>
-What does the implementation actually need to do?
-</p>
-
-<blockquote><pre>
-get_deleter() = std::forward&lt;E&gt;(u.get_deleter())
-</pre></blockquote>
-
-<p>
-This is the current specification from the <i>Effects:</i> clause and there is
-no dispute that this part of the specification is correct.  And creating a
-constraint for exactly this specification is easy to both implement and specify:
-</p>
-
-<blockquote>
-<pre>
-template &lt;class U, class E&gt; unique_ptr&amp; operator=(unique_ptr&lt;U, E&gt;&amp;&amp; u) noexcept;
-</pre>
-<blockquote>
-<p>
-<i>Remarks:</i> This operator shall not participate in overload resolution unless:
-</p>
-<ul>
-<li><code>unique_ptr&lt;U, E&gt;::pointer</code> is implicitly convertible to
-<code>pointer</code> and</li>
-<li><code>U</code> is not an array type<del>.</del><ins>, and</ins></li>
-<li><ins><code>is_assignable&lt;D&amp;, E&amp;&amp;&gt;::value</code> is
-true.</ins></li>
-</ul>
-</blockquote>
-</blockquote>
-
-<p>
-This additional constraint correctly handles both the non-reference deleter case
-and the reference deleter case.  It constrains precisely what the <i>Effects:</i>
-clause specifies &mdash; no more, and no less.  This means that no existing
-compiling code will cease compiling.  The only impact the client will see is
-that <code>is_assignable</code> will correctly model the <code>unique_ptr</code>
-converting move assignment operator.  That is, it will answer true in all
-existing cases that compile, and it will answer false in cases that already do
-not compile.
-</p>
-
-<h2>Acknowledgments</h2>
+<h2><a name="Acknowledgments"></a>Acknowledgments</h2>
 
 <p>
 Thanks to Geoffrey Romer for opening
