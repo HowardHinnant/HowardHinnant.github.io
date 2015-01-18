@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Allocator Boilerplate</title>
+    <style type="text/css">
+    p {text-align:justify;}
+    li {text-align:justify;}
+    blockquote.note
+    {
+        background-color:#E0E0E0;
+        padding-left: 15px;
+        padding-right: 15px;
+        padding-top: 1px;
+        padding-bottom: 1px;
+    }
+    ins {background-color:#A0FFA0;}
+    del {background-color:#FFA0A0;}
+    address {text-align:right;}
+    h1 {text-align:center;}
+    span.comment {color:#C80000;}
+    table {border-width:1px; border-color:black; border-style:solid;}
+    td {border-width:1px; border-color:black; border-style:solid; padding:5px;}
+    </style>
+</head>
+<body>
+
+<address>
+<br>
+<a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
+
+2015-01-17<br/>
+<a rel="license" href="http://creativecommons.org/licenses/by/4.0/">
+<img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br />
+This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
+</address>
+<hr>
+<h1>Allocator Boilerplate</h1>
+
+<h2>Contents</h2>
+
+<ul>
+<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#new">C++11 and forward</a></li>
+<li><a href="#old">C++03 and backward</a></li>
+</ul>
+
+<h2><a name="Introduction"></a>Introduction</h2>
+
+<p>
+This paper does not introduce any novel ideas.  Nor is it a complete tutorial
+on allocators.  The only purpose of this paper is to be a quick go-to site
+for copy/pasting the code you need to create your custom allocator.  There is
+nothing at all novel in the code presented here.  Just copy/paste the
+allocator skeleton here and insert <i>your own</i> novel code! Do not worry
+about copyright issues on copy/pasting code out of this document.  There is
+no code here that is worthy of copyright.  It is <i>all</i> just boilerplate.
+The hope is that by lowering the barrier just a little bit, more people can
+more easily create truly useful custom allocators.
+</p>
+
+<p>
+In case it is helpful, two allocator skeletons are presented:
+</p>
+
+<ul>
+<li><a href="#new">C++11 and forward</a></li>
+<li><a href="#old">C++03 and backward</a></li>
+</ul>
+
+<p>
+If you are using a compiler/library that has only a partial implementation
+for C++11 allocator support, you can easily copy/paste what you need from
+both of these skeletons thus creating a custom hybrid C++03/C++11 solution.
+</p>
+
+<h2><a name="new"></a>C++11 and forward</h2>
+
+<p>
+Below much of the skeleton is commented out.  The commented out code represents
+functionality that <code>std::allocator_traits&lt;allocator&lt;T&gt;&gt;</code>
+defaults for you, if you do not provide it.  The implementation in the code shows
+you exactly what the defaults are.  Thus if you simply uncomment the code, you
+will not get any functionality changes.  To get something different from what
+the defaults provide, uncomment and change the implementation.
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+class allocator
+{
+public:
+    using value_type    = T;
+
+<font color="#C80000">//     using pointer       = value_type*;</font>
+<font color="#C80000">//     using const_pointer = typename std::pointer_traits&lt;pointer&gt;::template</font>
+<font color="#C80000">//                                                     rebind&lt;value_type const&gt;;</font>
+<font color="#C80000">//     using void_pointer       = typename std::pointer_traits&lt;pointer&gt;::template</font>
+<font color="#C80000">//                                                           rebind&lt;void&gt;;</font>
+<font color="#C80000">//     using const_void_pointer = typename std::pointer_traits&lt;pointer&gt;::template</font>
+<font color="#C80000">//                                                           rebind&lt;const void&gt;;</font>
+
+<font color="#C80000">//     using difference_type = typename std::pointer_traits&lt;pointer&gt;::difference_type;</font>
+<font color="#C80000">//     using size_type       = std::make_unsigned_t&lt;difference_type&gt;;</font>
+
+<font color="#C80000">//     template &lt;class U&gt; struct rebind {typedef allocator&lt;U&gt; other;};</font>
+
+    allocator() noexcept {}  <font color="#C80000">// not required, unless used</font>
+    template &lt;class U&gt; allocator(allocator&lt;U&gt; const&amp;) noexcept {}
+
+    value_type*
+    allocate(std::size_t n)
+    {
+        return static_cast&lt;value_type*&gt;(::operator new (n*sizeof(value_type)));
+    }
+
+    void
+    deallocate(value_type* p, std::size_t) noexcept
+    {
+        ::operator delete(p);
+    }
+
+<font color="#C80000">//     value_type*</font>
+<font color="#C80000">//     allocate(std::size_t n, const_void_pointer)</font>
+<font color="#C80000">//     {</font>
+<font color="#C80000">//         return allocate(n);</font>
+<font color="#C80000">//     }</font>
+
+<font color="#C80000">//     template &lt;class U, class ...Args&gt;</font>
+<font color="#C80000">//     void</font>
+<font color="#C80000">//     construct(U* p, Args&amp;&amp; ...args)</font>
+<font color="#C80000">//     {</font>
+<font color="#C80000">//         ::new(p) U(std::forward&lt;Args&gt;(args)...);</font>
+<font color="#C80000">//     }</font>
+
+<font color="#C80000">//     template &lt;class U&gt;</font>
+<font color="#C80000">//     void</font>
+<font color="#C80000">//     destroy(U* p) noexcept</font>
+<font color="#C80000">//     {</font>
+<font color="#C80000">//         p-&gt;~U();</font>
+<font color="#C80000">//     }</font>
+
+<font color="#C80000">//     std::size_t</font>
+<font color="#C80000">//     max_size() const noexcept</font>
+<font color="#C80000">//     {</font>
+<font color="#C80000">//         return std::numeric_limits&lt;size_type&gt;::max();</font>
+<font color="#C80000">//     }</font>
+
+<font color="#C80000">//     allocator</font>
+<font color="#C80000">//     select_on_container_copy_construction() const</font>
+<font color="#C80000">//     {</font>
+<font color="#C80000">//         return *this;</font>
+<font color="#C80000">//     }</font>
+
+<font color="#C80000">//     using propagate_on_container_copy_assignment = std::false_type;</font>
+<font color="#C80000">//     using propagate_on_container_move_assignment = std::false_type;</font>
+<font color="#C80000">//     using propagate_on_container_swap            = std::false_type;</font>
+<font color="#C80000">//     using is_always_equal                        = typename std::is_empty&lt;allocator&gt;;</font>
+};
+
+template &lt;class T, class U&gt;
+bool
+operator==(allocator&lt;T&gt; const&amp;, allocator&lt;U&gt; const&amp;) noexcept
+{
+    return true;
+}
+
+template &lt;class T, class U&gt;
+bool
+operator!=(allocator&lt;T&gt; const&amp; x, allocator&lt;U&gt; const&amp; y) noexcept
+{
+    return !(x == y);
+}
+</pre></blockquote>
+
+<p>
+So copy the above into your code.  Change the name from <code>allocator</code>
+to whatever makes sense for you.  Delete all of the comments for which the
+defaults provided by <code>std::allocator_traits</code> meet your needs.  For
+whatever is left, fill in your implementation.
+</p>
+
+<p>
+<i>Notes:</i>
+</p>
+
+<ul>
+<li><p>
+<code>is_always_equal</code> is new for C++1y (hopefully that will be C++17).
+As I write this paper, it is not likely to actually be used, is not standard,
+and is subject to change.
+</p></li>
+<li><p>
+The default implementation for <code>max_size()</code> is not incredibly
+useful.  I have submitted a LWG issue to change the default to:
+</p>
+<blockquote><pre>
+return std::numeric_limits&lt;size_type&gt;::max() / sizeof(value_type);
+</pre></blockquote>
+<p>
+which makes a lot more sense when <code>sizeof(value_type) &gt; 1</code>.
+</p>
+</li>
+<li><p>
+Under discussion is the possibility to remove the requirement that you
+provide <code>operator==</code> and <code>operator!=</code> if
+<code>is_always_equal{}</code> is <code>true</code>.
+</p></li>
+<li><p>
+The nested types <code>reference</code> and <code>const_reference</code> are no
+longer required in C++11 (as they were in C++03).
+</p></li>
+<li><p>
+The member functions <code>address(reference)</code> and
+<code>address(const_reference)</code> are no longer required in C++11 (as
+they were in C++03).
+</p></li>
+<li><p>
+Your allocator must be <code>CopyConstructible</code> and
+<code>MoveConstructible</code>.  If
+<code>propagate_on_container_copy_assignment{}</code> is true, your
+allocator must be <code>CopyAssignable</code>.  If
+<code>propagate_on_container_move_assignment{}</code> is true, your
+allocator must be <code>MoveAssignable</code>.  If
+<code>propagate_on_container_swap{}</code> is true, your allocator must be
+<code>Swappable</code>.  If they exist, these operations should not propagate
+an exception out.  However they do not need to be marked with
+<code>noexcept</code>.  However I recommend marking them with
+<code>noexcept</code> if the compiler does not implicitly do so, so that traits
+such as <code>is_nothrow_copy_constructible&lt;allocator&lt;T&gt;&gt;</code>
+give the right answer.
+</p></li>
+<li><p>
+If two allocators compare equal, that means that they can deallocate each
+other's allocated pointers.  If two instances of your allocators can't do
+this, they must <b>not</b> compare equal to each other, else run time errors
+will result.  However copies, even converting copies, <i>are required</i> to
+compare equal.
+</p></li>
+</ul>
+
+<h2><a name="old"></a>C++03 and backward</h2>
+
+<p>
+Here is the C++98/C++03 allocator skeleton.  In this case, there is no such
+thing as <code>std::allocator_traits</code> and so nothing is defaulted for
+you.  You will know if you need anything from this as you will get
+compile-time errors if your implementation is asking for it, and you don't
+have it.
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt; class allocator;
+
+template &lt;&gt;
+class allocator&lt;void&gt;
+{
+public:
+    typedef void              value_type;
+    typedef value_type*       pointer;
+    typedef value_type const* const_pointer;
+    typedef std::size_t       size_type;
+    typedef std::ptrdiff_t    difference_type;
+
+    template &lt;class U&gt;
+    struct rebind
+    {
+        typedef allocator&lt;U&gt; other;
+    };
+};
+
+template &lt;class T&gt;
+class allocator
+{
+public:
+    typedef T                 value_type;
+    typedef value_type&amp;       reference;
+    typedef value_type const&amp; const_reference;
+    typedef value_type*       pointer;
+    typedef value_type const* const_pointer;
+    typedef std::size_t       size_type;
+    typedef std::ptrdiff_t    difference_type;
+
+    template &lt;class U&gt;
+    struct rebind
+    {
+        typedef allocator&lt;U&gt; other;
+    };
+
+    allocator() throw() {}  <font color="#C80000">// not required, unless used</font>
+    template &lt;class U&gt; allocator(allocator&lt;U&gt; const&amp; u) throw() {}
+
+    pointer
+    allocate(size_type n, allocator&lt;void&gt;::const_pointer = 0)
+    {
+        return static_cast&lt;pointer&gt;(::operator new (n*sizeof(value_type)));
+    }
+
+    void
+    deallocate(pointer p, size_type)
+    {
+        ::operator delete(p);
+    }
+
+    void
+    construct(pointer p, value_type const&amp; val)
+    {
+        ::new(p) value_type(val);
+    }
+
+    void
+    destroy(pointer p)
+    {
+        p-&gt;~value_type();
+    }
+
+    size_type
+    max_size() const throw()
+    {
+        return std::numeric_limits&lt;size_type&gt;::max() / sizeof(value_type);
+    }
+
+    pointer
+    address(reference x) const
+    {
+        return &amp;x;
+    }
+
+    const_pointer
+    address(const_reference x) const
+    {
+        return &amp;x;
+    }
+};
+
+template &lt;class T, class U&gt;
+bool
+operator==(allocator&lt;T&gt; const&amp;, allocator&lt;U&gt; const&amp;)
+{
+    return true;
+}
+
+template &lt;class T, class U&gt;
+bool
+operator!=(allocator&lt;T&gt; const&amp; x, allocator&lt;U&gt; const&amp; y)
+{
+    return !(x == y);
+}
+</pre></blockquote>
+
+<p>
+As is evident, there is a lot more boilerplate required in C++98/03 than in
+C++11.  Also C++98/03 allocators do not portably support pointer types that
+are not <code>value_type*</code>.  And support for allocators that do not
+compare equal is not portable.
+</p>
+
+</body>
+</html>
