@@ -192,7 +192,9 @@ and is subject to change.
 </p></li>
 <li><p>
 The default implementation for <code>max_size()</code> is not incredibly
-useful.  I have submitted a LWG issue to change the default to:
+useful.  I have submitted
+<a href="http://cplusplus.github.io/LWG/lwg-active.html#2466">an LWG issue</a>
+to change the default to:
 </p>
 <blockquote><pre>
 return std::numeric_limits&lt;size_type&gt;::max() / sizeof(value_type);
