@@ -1,0 +1,4937 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>date v2</title>
+
+	<style>
+	p {text-align:justify}
+	li {text-align:justify}
+	blockquote.note
+	{
+		background-color:#E0E0E0;
+		padding-left: 15px;
+		padding-right: 15px;
+		padding-top: 1px;
+		padding-bottom: 1px;
+	}
+	ins {color:#00A000}
+	del {color:#A00000}
+	code {white-space:pre;}
+	</style>
+</head>
+<body>
+
+<address align=right>
+<br/>
+<br/>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
+2015-03-22<br/>
+<a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
+Commons License" style="border-width:0"
+src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
+under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative
+Commons Attribution 4.0 International License</a>.
+</address>
+<hr/>
+<h1 align=center><code>date</code> v2</h1>
+
+<h2>Contents</h2>
+
+<ul>
+<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#Implementation">Implementation</a></li>
+<li><a href="#Overview">Overview</a></li>
+<li><a href="#Reference">Reference</a></li>
+</ul>
+
+<a name="Introduction"></a><h2>Introduction</h2>
+
+<p>
+Whoa, I think I missed version 1...
+</p>
+
+<p>
+Version 1 is documented <a href="http://howardhinnant.github.io/date.html">here</a>.  It
+was never an official standards proposal, though I did take the liberty of presenting it
+to the LWG in <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2011/n3244.pdf">
+Bloomington, IN in Aug. of 2011</a>.  That proposal was met with several strong objections
+including:
+</p>
+
+<ul>
+<li>
+Efficiency concerns
+<ul>
+<li>Excessive checking for date validity</li>
+<li>Use of operator overloading to construct dates -- excessive copying</li>
+</ul>
+</li>
+<li>The use of <code>operator/()</code> is too cute.</li>
+<li>The runtime state of the date is mysterious.</li>
+</ul>
+
+<p>
+Additionally a criticism I have developed of v1 is that there was no recognized need for
+separate data structures representing <code>{year, month, day}</code> and
+<code>{sequential count of days}</code>.  Recognition of this fact is crucial in
+establishing performance expectations.  Just as you would never routinely randomly access
+a <code>std::list</code>, or insert on the front of a <code>std::vector</code>, one should
+also recognize the basic performance differences between <code>{year, month, day}</code>
+and <code>{sequential count of days}</code>.
+</p>
+
+<p>
+For example:
+</p>
+
+<ul>
+<li><p>
+One can very efficiently return <code>year</code>, <code>month</code> and <code>day</code>
+from a <code>{year, month, day}</code> data structure.  However significant computation is
+required to return this information from a <code>{sequential count of days}</code> data
+structure.
+</p></li>
+
+<li><p>
+One can very efficiently return <code>day of week</code>, from a
+<code>{sequential count of days}</code> data structure.  However significant computation
+is required to return this information from a <code>{year, month, day}</code> data
+structure.
+</p></li>
+
+<li><p>
+One can very efficiently return the number of days between two
+<code>{sequential count of days}</code> data structures.  But it requires significant
+computation to return the number of days between two <code>{year, month, day}</code> data
+structures.
+</p></li>
+</ul>
+
+<p>
+Each data structure (<code>{year, month, day}</code> and
+<code>{sequential count of days}</code>) has strengths and weaknesses.  Neither is always
+superior to the other. Just like <code>std::list</code> and <code>std::vector</code>, it
+is beneficial to offer both data structures, and give the client the ability to chose the
+correct data structure for his task.  Obviously this should include the ability to convert
+between <code>{year, month, day}</code> and <code>{sequential count of days}</code>.  Such
+conversions will mark significant computational expenses as demonstrated in
+<a href="http://howardhinnant.github.io/date_algorithms.html#days_from_civil"><code> days_from_civil</code></a>
+and
+<a href="http://howardhinnant.github.io/date_algorithms.html#civil_from_days"><code> civil_from_days</code></a>.
+</p>
+
+<p>
+The design presented herein has been strongly influenced by two language features, which
+were not used in version 1:
+</p>
+
+<ul>
+<li><code>auto</code>:  The design herein has a plethora of types. However with
+<code>auto</code> one often doesn't have to bother to spell a type.  The compiler
+knows what type it is.  And the syntax of the code shows what the type is supposed
+to do.</li>
+<li><code>constexpr</code>:  In C++14 many things can be made <code>constexpr</code>,
+and thus much less attention is paid to clever template meta programming tricks.
+<code>constexpr</code> code is simpler to read and write.</li>
+</ul>
+
+<a name="Implementation"></a><h2>Implementation</h2>
+
+<p>
+This entire library is implemented in a single header: <a href="date.h">date.h</a> and is
+open source (with generous open source terms &mdash; not generous enough? Contact me, I'm
+flexible).
+</p>
+
+<p>
+It uses the algorithms from
+<a href="http://howardhinnant.github.io/date_algorithms.html"><code>chrono</code>-Compatible Low-Level Date Algorithms</a>.
+If you want detailed explanations of the algorithms, go there.
+</p>
+
+<p>
+It requires C++14, but really only for the <code>constexpr</code> bits.  If
+you are willing to sacrifice <code>constexpr</code> (say by <code>#define</code>'ing it
+out) you could get away with C++11.  Porting to C++98/03 is certainly possible but will
+require more work on your part (not mine).  Go for it.
+</p>
+
+<a name="Overview"></a><h2>Overview</h2>
+
+<p>
+The entire library is in namespace <code>date</code>.  It is interoperable with the
+<code>std::chrono</code> library.  Indeed it even builds major components out of
+<code>std::chrono</code> <code>duration</code> and <code>time_point</code>.  The examples
+in this overview assume:
+</p>
+
+<blockquote><pre>
+using namespace date;
+using namespace std::chrono;
+</pre></blockquote>
+
+<p>
+in order to cut down on the verbosity.
+</p>
+
+<h3>Major Types</h3>
+
+<p>
+There are three different ways to store an arbitrary date:
+</p>
+
+<ol>
+<li><code>day_point</code>: A count of days since <code>system_clock</code>'s epoch.</li>
+<li><code>year_month_day</code>: A type that holds a year (e.g. 2015), a month
+(encoded as 1 thru 12), and a day (encoded as 1 thru 31).</li>
+<li><code>year_month_weekday</code>:  A type that holds a year (e.g. 2015), a month
+(encoded as 1 thru 12), a day of the week (encoded as 0 thru 6), and an index in the range
+[1, 5] indicating if this is the first, second, etc. weekday of the indicated month.</li>
+</ol>
+
+<h3>Today</h3>
+
+<p>
+To get today as a <code>day_point</code>, use <code>system_clock::now()</code> and
+<code>time_point_cast</code> to convert the <code>time_point</code> to a
+<code>day_point</code>:
+</p>
+
+<blockquote><pre>
+auto today = time_point_cast&lt;days&gt;(system_clock::now());
+cout &lt;&lt; today.time_since_epoch().count() &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+Currently this outputs for me:
+</p>
+
+<blockquote><pre>
+16516
+</pre></blockquote>
+
+<p>
+To get today as a <code>year_month_day</code>, get a <code>day_point</code> as above and
+convert it to a <code>year_month_day</code>:
+</p>
+
+<blockquote><pre>
+auto today = year_month_day{time_point_cast&lt;days&gt;(system_clock::now())};
+cout &lt;&lt; today &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+Currently this outputs for me:
+</p>
+
+<blockquote><pre>
+2015-03-22
+</pre></blockquote>
+
+<p>
+To get today as a <code>year_month_weekday</code>, get a <code>day_point</code> as above and
+convert it to a <code>year_month_weekday</code>:
+</p>
+
+<blockquote><pre>
+auto today = year_month_weekday{time_point_cast&lt;days&gt;(system_clock::now())};
+cout &lt;&lt; today &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+Currently this outputs for me:
+</p>
+
+<blockquote><pre>
+2015/Mar/Sun[4]
+</pre></blockquote>
+
+<h3>Constructing dates</h3>
+
+<p>
+<code>constexpr</code> dates can be constructed from literals in one of 3 orders:
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/mar/22;
+constexpr auto x2 = mar/22/2015;
+constexpr auto x3 = 22_d/mar/2015;
+</pre></blockquote>
+
+<p>
+<code>x1</code>, <code>x2</code> and <code>x3</code> all have the type
+<code>year_month_day</code> and are all equal to one another.  Any other order, or any
+ambiguity is caught at compile time.
+</p>
+
+<p>
+Integral types can be converted to <code>year</code>, <code>month</code>, or
+<code>day</code> to create run time values:
+</p>
+
+<blockquote><pre>
+int y = 2015;
+int m = 3;
+int d = 22;
+auto x1 = year(y)/m/d;
+auto x2 = month(m)/d/y;
+auto x3 = day(d)/m/y;
+</pre></blockquote>
+
+<p>
+As long as the first date component is known, the following components become unambiguous
+and can be formed either with the proper type, or with an <code>int</code> expression.
+And since there is only one order with <code>day</code> in the middle, that order need
+only properly type the <code>day</code> to remain unambiguous:
+</p>
+
+<blockquote><pre>
+auto x = m/day(d)/y;
+</pre></blockquote>
+
+<p>
+Anywhere you can specify a <code>day</code> you can instead specify <code>last</code>
+to indicate the last day of the month for that year:
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/feb/last;
+constexpr auto x2 = feb/last/2015;
+constexpr auto x3 = last/feb/2015;
+</pre></blockquote>
+
+<p>
+Instead of constructing a <code>year_month_day</code>, these expressions construct a
+<code>year_month_day_last</code>.  This type always represents the last day of a
+<code>year</code> and <code>month</code>.  <code>year</code> and <code>month</code> will
+implicitly convert to <code>year_month_day</code>.
+</p>
+
+<p>
+Anywhere you can specify a <code>day</code> you can instead specify an <i>indexed</i>
+<code>weekday</code> to indicate the nth weekday of the month for that year:
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/mar/sun[4];
+constexpr auto x2 = mar/sun[4]/2015;
+constexpr auto x3 = sun[4]/mar/2015;
+</pre></blockquote>
+
+<p>
+The type constructed is <code>year_month_weekday</code> which will implicitly convert to
+and from a <code>day_point</code>.  If you want to convert to a
+<code>year_month_day</code> you can do so explicitly, which will implicitly convert to
+<code>day_point</code> and back:
+</p>
+
+<blockquote><pre>
+constexpr auto x4 = year_month_day(x3);
+</pre></blockquote>
+
+<p>
+<code>weekday</code>'s can be indexed with <code>last</code> and used as above:
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/mar/sun[last];
+constexpr auto x2 = mar/sun[last]/2015;
+constexpr auto x3 = sun[last]/mar/2015;
+constexpr auto x4 = year_month_day(x3);
+cout &lt;&lt; x3 &lt;&lt; '\n';
+cout &lt;&lt; x4 &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+This creates an object of type <code>year_month_weekday_last</code>.  The above code
+outputs:
+</p>
+
+<blockquote><pre>
+2015/Mar/Sun[last]
+2015-03-29
+</pre></blockquote>
+
+<p>
+If you hate the cute syntax, don't use it.  Every type has a descriptive name, and public
+type-safe constructors to do the same job:
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/mar/sun[last];
+constexpr auto x2 = year_month_weekday_last(year(2015), month(3), weekday_last(weekday(0)));
+static_assert(x1 == x2, "");
+static_assert(is_same&lt;decltype(x1), decltype(x2)&gt;::value, "");
+cout &lt;&lt; x1 &lt;&lt; '\n';
+cout &lt;&lt; x2 &lt;&lt; '\n';
+
+2015/Mar/Sun[last]
+2015/Mar/Sun[last]
+</pre></blockquote>
+
+<h3>Errors</h3>
+
+<p>
+No exceptions are thrown in the entire library.  Most of the types have a
+<code>constexpr const</code> member function named <code>ok()</code> which returns
+<code>true</code> if the object represents a valid date, or date component, and otherwise
+returns <code>false</code>.  However it is perfectly fine (and sometimes actually useful)
+for these objects to contain invalid dates or date components.  For example, here is a
+very simple and remarkably efficient program to output the odd Fridays of every month in
+2015:
+</p>
+
+<blockquote><pre>
+int
+main()
+{
+    using namespace std;
+    using namespace date;
+    for (auto m = 1; m &lt;= 12; ++m)
+    {
+        auto meet = year_month_day(m/fri[1]/2015);
+        cout &lt;&lt; meet &lt;&lt; '\n';
+        meet = meet.year()/meet.month()/(meet.day()+weeks(2));
+        cout &lt;&lt; meet &lt;&lt; '\n';
+        meet = meet.year()/meet.month()/(meet.day()+weeks(2));
+        if (meet.ok())
+            cout &lt;&lt; meet &lt;&lt; '\n';
+    }
+}
+</pre></blockquote>
+
+<p>
+There is a relatively expensive (expense is relative here) conversion from
+<code>year_month_weekday</code> to <code>year_month_day</code> at the top of the loop to
+find the first Friday of the month.  This computation can never fail. And after that it is
+dirt cheap to find the 3rd Friday &mdash; you just have to add 2 weeks to the day field. 
+This computation also can never fail.  And it is similarly cheap to find the 5th Friday of
+each month &mdash; with one exception.  Not every month has a fifth Friday.  But
+nevertheless it is ok to form such a <code>year_month_day</code>. The computation can
+never fail, though it may render an invalid date.  Afterwards one can simply ask: Did I
+create a valid date?  If so, print it out, otherwise just continue on.
+</p>
+
+<p>
+Subsequently, this entire library is liberally sprinkled with <code>noexcept</code>.
+</p>
+
+<p>
+A few of the operations have a precondition that <code>ok() == true</code>.  These are
+generally conversions to <code>day_point</code>, and month-oriented and weekday-oriented
+arithmetic.  Anywhere there is a precondition, and those places are few, the precondition
+is checkable with <code>ok()</code>.
+</p>
+
+<p>
+This library catches many errors (especially ambiguity errors) at compile time.  What's
+left over is left up to <code>ok()</code>.  Sometimes this will represent an error, and
+other times it will simply represent something innocuous that can be ignored.  That
+decision is made by the client of this library.
+</p>
+
+<h3>Efficiency</h3>
+
+<p>
+In <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3344.pdf">N3344</a>
+Pacifico, Meredith and Lakos present a thorough survey of date types and their performance.
+This library has been strongly influenced by this excellent paper.
+<code>year_month_day</code> is equivalent to what <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3344.pdf">N3344</a> terms <code>YMD_4</code>.  And
+<code>day_point</code> is equivalent to what <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3344.pdf">N3344</a> terms <code>HH_SERIAL_RAW_4</code>.
+</p>
+
+<p>
+<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3344.pdf">N3344</a>
+aptly demonstrates that field-based date structures are good at some operations and poor
+at others.  And serial-based implementations are generally good at what the field-based
+data structures are poor at, and poor at what the field-based data structures are good at.
+ Indeed, this is the genesis of the design of this library:  Provide both data structures
+and let the conversions among the data structures be provided by algorithms as shown in
+<a href="http://howardhinnant.github.io/date_algorithms.html"><code>chrono</code>-Compatible Low-Level Date Algorithms</a>.
+And additionally, just provide the API for each data structure that it can do efficiently.
+</p>
+
+<ul>
+<li><p>
+Field types are good at returning the values of the fields.  Serial types aren't (except
+for weekdays).  So <code>year_month_day</code> has accessors for <code>year</code>,
+<code>month</code> and <code>day</code>.  And <code>day_point</code> does not.
+</p></li>
+<li><p>
+Field types are good at month and year-oriented arithmetic.  Serial types aren't.
+So <code>year_month_day</code> has month and year-oriented arithmetic.  And
+<code>day_point</code> does not.
+</p></li>
+<li><p>
+Serial types are good at day-oriented arithmetic.  Field types aren't.
+So <code>day_point</code> has day-oriented arithmetic.  And <code>year_month_day</code>
+does not.  Though one can perform day-oriented arithmetic on the day field of a
+<code>year_month_day</code>, with no impact on the other fields.
+</p></li>
+<li><p>
+To efficiently compute a day of the week, one first needs to compute a serial date.  So
+<code>weekday</code> is constructible from <code>day_point</code>.
+</p></li>
+</ul>
+
+<p>
+To demonstrate the efficiency of constructing a <code>year_month_day</code>, a hypothetical
+factory function has been created in the table below.  And this is compared with a
+simplistic <code>struct YMD_4</code> and an obvious factory function for that.  Each is
+compiled using clang at an optimization of -O2 or higher.
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<caption><code>year_month_day</code> constructor assembly</caption>
+<tr>
+
+<td>
+<pre>
+date::year_month_day
+make_year_month_day(int y, int m, int d)
+{
+    using namespace date;
+    return year(y)/m/d;
+}
+</pre>
+</td>
+
+<td>
+<pre>
+struct YMD_4
+{
+    std::int16_t year;
+    std::uint8_t month;
+    std::uint8_t day;
+};
+
+YMD_4
+make_YMD_4(int y, int m, int d)
+{
+    return {static_cast&lt;std::int16_t&gt;(y),
+            static_cast&lt;std::uint8_t&gt;(m),
+            static_cast&lt;std::uint8_t&gt;(d)};
+}
+</pre>
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+<pre>
+	.globl	__Z19make_year_month_dayiii
+	.align	4, 0x90
+__Z19make_year_month_dayiii:
+	.cfi_startproc
+## BB#0:
+	pushq	%rbp
+Ltmp2:
+	.cfi_def_cfa_offset 16
+Ltmp3:
+	.cfi_offset %rbp, -16
+	movq	%rsp, %rbp
+Ltmp4:
+	.cfi_def_cfa_register %rbp
+	shll	$24, %edx
+	shll	$16, %esi
+	andl	$16711680, %esi
+	movzwl	%di, %eax
+	orl	%edx, %eax
+	orl	%esi, %eax
+	popq	%rbp
+	retq
+	.cfi_endproc
+</pre>
+</td>
+
+<td>
+<pre>
+	.globl	__Z10make_YMD_4iii
+	.align	4, 0x90
+__Z10make_YMD_4iii:
+	.cfi_startproc
+## BB#0:
+	pushq	%rbp
+Ltmp2:
+	.cfi_def_cfa_offset 16
+Ltmp3:
+	.cfi_offset %rbp, -16
+	movq	%rsp, %rbp
+Ltmp4:
+	.cfi_def_cfa_register %rbp
+	shll	$24, %edx
+	shll	$16, %esi
+	andl	$16711680, %esi
+	movzwl	%di, %eax
+	orl	%esi, %eax
+	orl	%edx, %eax
+	popq	%rbp
+	retq
+	.cfi_endproc
+</pre>
+</td>
+
+</tr>
+</table>
+
+</blockquote>
+
+<p>
+One can see that the generated assembler is virtually identical for these two factory
+functions.  I.e. the code size and run time overhead of the "cute syntax" for constructing
+a <code>year_month_day</code> is zero, at least in release builds.
+</p>
+
+<p>
+A similar experiment is made for constructing a <code>day_point</code> from a count of
+days held in an <code>int</code>.  To do this one first create a <code>days</code>
+duration, and then construct the <code>day_point</code> from the <code>days</code>
+duration.  This is contrasted with the very simplistic <code>struct SERIAL_4</code>.
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<caption><code>day_point</code> constructor assembly</caption>
+<tr>
+
+<td>
+<pre>
+date::day_point
+make_day_point(int z)
+{
+    using namespace date;
+    return day_point{days{z}};
+}
+</pre>
+</td>
+
+<td>
+<pre>
+struct SERIAL_4
+{
+    std::int32_t count;
+};
+
+SERIAL_4
+make_SERIAL_4(int z)
+{
+    return {z};
+}
+</pre>
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+<pre>
+	.globl	__Z14make_day_pointi
+	.align	4, 0x90
+__Z14make_day_pointi:
+	.cfi_startproc
+## BB#0:
+	pushq	%rbp
+Ltmp2:
+	.cfi_def_cfa_offset 16
+Ltmp3:
+	.cfi_offset %rbp, -16
+	movq	%rsp, %rbp
+Ltmp4:
+	.cfi_def_cfa_register %rbp
+	movl	%edi, %eax
+	popq	%rbp
+	retq
+	.cfi_endproc
+</pre>
+</td>
+
+<td>
+<pre>
+	.globl	__Z13make_SERIAL_4i
+	.align	4, 0x90
+__Z13make_SERIAL_4i:
+	.cfi_startproc
+## BB#0:
+	pushq	%rbp
+Ltmp2:
+	.cfi_def_cfa_offset 16
+Ltmp3:
+	.cfi_offset %rbp, -16
+	movq	%rsp, %rbp
+Ltmp4:
+	.cfi_def_cfa_register %rbp
+	movl	%edi, %eax
+	popq	%rbp
+	retq
+	.cfi_endproc
+</pre>
+</td>
+
+</tr>
+</table>
+
+</blockquote>
+
+<p>
+It is easy to see that the generated code is identical, and thus there is no overhead
+associated with the <code>day_point</code> type.  It is also noteworthy that the code for
+this construction does not actually come from this <code>date</code> library, but instead
+comes from your std::lib header <code>&lt;chrono&gt;</code>.  <code>days</code> is nothing
+but a <code>typedef</code> for a <code>std::chrono::duration</code>, and
+<code>day_point</code> is nothing but a <code>typedef</code> for a
+<code>std::chrono::time_point</code> (thus the inspiration for the name
+<code>day_point</code>).  So this is also evidence that there is zero overhead for the
+safe type system of the <code>&lt;chrono&gt;</code> library.
+</p>
+
+<p>
+Similar assembly comparisons can be made showing that <code>day_point</code>
+(day-oriented) arithmetic has zero overhead compared to <code>int</code> arithmetic.
+</p>
+
+<h3>What about a date-time type?</h3>
+
+<p>
+You've already got a good one. It is called
+<code>std::chrono::system_clock::time_point</code>. And it is completely interoperable
+with <code>day_point</code>.  
+</p>
+
+<p>
+<code>day_point</code> is nothing but a <code>std::chrono::system_clock::time_point</code>
+with much longer tick periods.  Thus one can view a <code>day_point</code> as referring
+to an entire day, or blink your eyes and it is a precise pointer to the very beginning
+of a day:  00:00:00 UTC.
+</p>
+
+<p>
+For example here is a <code>std::chrono::time_point</code> referring to 2015-03-22
+18:30:00 UTC:
+</p>
+
+<blockquote><pre>
+auto tp = day_point(mar/22/2015) + 18h + 30min;
+</pre></blockquote>
+
+<p>
+And here is how long ago <code>tp</code> was:
+</p>
+
+<blockquote><pre>
+auto diff = system_clock::now() - tp;
+</pre></blockquote>
+
+<p>
+Now it is true that the standard does not specify that <code>system_clock</code> measures
+time in UTC.  But every single implementation on the planet does.
+</p>
+
+<p>
+Need to traffic in your local time zone instead of UTC?  This library, at this time, does
+not provide a packaged system for discovering your current UTC offset.  However this
+would be a good foundational library for writing such a utility.  Daylight savings time
+often triggers on events such as the second Sunday in March (e.g. <code>sun[2]/mar</code>),
+or the last Sunday in March (e.g. <code>sun[last]/mar</code>).
+</p>
+
+<a name="Reference"></a><h2>Reference</h2>
+
+<p>
+Here is a detailed specification of the entire library.  This specification is detailed
+enough that you could write your own implementation from it if desired.  But feel free
+to use <a href="date.h">this one</a> instead.  Each type, and each operation is simple
+and predictable.
+</p>
+
+<table>
+<tr><td>durations</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#days"><code>days</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#weeks"><code>weeks</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#months"><code>months</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#years"><code>years</code></a></td></tr>
+
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>time_point</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#day_point"><code>day_point</code></a></td></tr>
+
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>types</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#last_spec"><code>last_spec</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#day"><code>day</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#month"><code>month</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#year"><code>year</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#weekday"><code>weekday</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#weekday_indexed"><code>weekday_indexed</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#weekday_last"><code>weekday_last</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#month_day"><code>month_day</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#month_day_last"><code>month_day_last</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#month_weekday"><code>month_weekday</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#month_weekday_last"><code>month_weekday_last</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#year_month"><code>year_month</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#year_month_day"><code>year_month_day</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#year_month_day_last"><code>year_month_day_last</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#year_month_weekday"><code>year_month_weekday</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#year_month_weekday_last"><code>year_month_weekday_last</code></a></td></tr>
+
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>date composition operators</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_1"><code>constexpr year_month operator/(const year&amp; y, const month&amp; m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_2"><code>constexpr year_month operator/(const year&amp; y, int   m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_3"><code>constexpr month_day operator/(const month&amp; m, const day&amp; d) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_4"><code>constexpr month_day operator/(const month&amp; m, int d) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_5"><code>constexpr month_day operator/(int   m, const day&amp; d) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_6"><code>constexpr month_day operator/(const day&amp; d, const month&amp; m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_7"><code>constexpr month_day operator/(const day&amp; d,   int m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_8"><code>constexpr month_day_last operator/(const month&amp; m, last_spec) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_9"><code>constexpr month_day_last operator/(int   m, last_spec) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_10"><code>constexpr month_day_last operator/(last_spec, const month&amp; m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_11"><code>constexpr month_day_last operator/(last_spec, int   m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_12"><code>constexpr month_weekday operator/(const month&amp; m, const weekday_indexed&amp; wdi) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_13"><code>constexpr month_weekday operator/(int   m, const weekday_indexed&amp; wdi) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_14"><code>constexpr month_weekday operator/(const weekday_indexed&amp; wdi, const month&amp; m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_15"><code>constexpr month_weekday operator/(const weekday_indexed&amp; wdi, int   m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_16"><code>constexpr month_weekday_last operator/(const month&amp; m, const weekday_last&amp; wdl) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_17"><code>constexpr month_weekday_last operator/(int   m, const weekday_last&amp; wdl) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_18"><code>constexpr month_weekday_last operator/(const weekday_last&amp; wdl, const month&amp; m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_19"><code>constexpr month_weekday_last operator/(const weekday_last&amp; wdl, int   m) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_20"><code>constexpr year_month_day operator/(const year_month&amp; ym, const day&amp; d) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_21"><code>constexpr year_month_day operator/(const year_month&amp; ym, int d) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_22"><code>constexpr year_month_day operator/(const year&amp; y, const month_day&amp; md) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_23"><code>constexpr year_month_day operator/(int  y, const month_day&amp; md) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_24"><code>constexpr year_month_day operator/(const month_day&amp; md, const year&amp; y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_25"><code>constexpr year_month_day operator/(const month_day&amp; md, int  y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_26"><code>constexpr year_month_day_last operator/(const year_month&amp; ym,   last_spec) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_27"><code>constexpr year_month_day_last operator/(const year&amp; y, const month_day_last&amp; mdl) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_28"><code>constexpr year_month_day_last operator/(int  y, const month_day_last&amp; mdl) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_29"><code>constexpr year_month_day_last operator/(const month_day_last&amp; mdl, const year&amp; y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_30"><code>constexpr year_month_day_last operator/(const month_day_last&amp; mdl, int  y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_31"><code>constexpr year_month_weekday operator/(const year_month&amp; ym, const weekday_indexed&amp; wdi) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_32"><code>constexpr year_month_weekday operator/(const year&amp;        y, const month_weekday&amp;   mwd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_33"><code>constexpr year_month_weekday operator/(int         y, const month_weekday&amp;   mwd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_34"><code>constexpr year_month_weekday operator/(const month_weekday&amp; mwd, const year&amp;          y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_35"><code>constexpr year_month_weekday operator/(const month_weekday&amp; mwd, int           y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_36"><code>constexpr year_month_weekday_last operator/(const year_month&amp; ym, const weekday_last&amp; wdl) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_37"><code>constexpr year_month_weekday_last operator/(const year&amp; y, const month_weekday_last&amp; mwdl) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_38"><code>constexpr year_month_weekday_last operator/(int  y, const month_weekday_last&amp; mwdl) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_39"><code>constexpr year_month_weekday_last operator/(const month_weekday_last&amp; mwdl, const year&amp; y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_40"><code>constexpr year_month_weekday_last operator/(const month_weekday_last&amp; mwdl, int  y) noexcept;</code></a></td></tr>
+</table>
+
+<p>
+Everything here is contained in the namespace <code>date</code>.
+</p>
+
+<a name="days"></a><h3><code>days</code></h3>
+
+<blockquote>
+<p>
+<code>days</code> is a <code>std::chrono::duration</code> with a tick period of 24 hours.
+This definition is not an SI unit but <a
+href="http://www.bipm.org/en/publications/si-brochure/table6.html">is accepted for use
+with SI</a>.
+</p>
+<pre>
+using days = std::chrono::duration
+    &lt;int, std::ratio_multiply&lt;std::ratio&lt;24&gt;, std::chrono::hours::period&gt;&gt;;
+</pre></blockquote>
+
+<a name="weeks"></a><h3><code>weeks</code></h3>
+
+<blockquote>
+<p>
+<code>weeks</code> is a <code>std::chrono::duration</code> with a tick period of 7 days.
+This definition is widely recognized and predates the Gregorian calendar.  It is
+consistent with <a href="http://en.wikipedia.org/wiki/ISO_8601">ISO 8601</a>.
+</p>
+<pre>
+using weeks = std::chrono::duration
+    &lt;int, std::ratio_multiply&lt;std::ratio&lt;7&gt;, days::period&gt;&gt;;
+</pre></blockquote>
+
+<a name="years"></a><h3><code>years</code></h3>
+
+<blockquote>
+<p>
+<code>years</code> is a <code>std::chrono::duration</code> with a tick period of 365.2425
+days.  This definition accurately describes the length of the average year in the
+Gregorian calendar.
+</p>
+<pre>
+using years = std::chrono::duration
+    &lt;int, std::ratio_multiply&lt;std::ratio&lt;146097, 400&gt;, days::period&gt;&gt;;
+</pre></blockquote>
+
+<a name="months"></a><h3><code>months</code></h3>
+
+<blockquote>
+<p>
+<code>months</code> is a <code>std::chrono::duration</code> with a tick period of
+<sup>1</sup>/<sub>12</sub> of a year.  This definition accurately describes the length of
+the average month in the Gregorian calendar.
+</p>
+<pre>
+using months = std::chrono::duration
+    &lt;int, std::ratio_divide&lt;years::period, std::ratio&lt;12&gt;&gt;&gt;;
+</pre></blockquote>
+
+<a name="day_point"></a><h3><code>day_point</code></h3>
+
+<blockquote>
+<p>
+<code>day_point</code> is a <code>std::chrono::time_point</code> using
+<code>std::chrono::system_clock</code> and <code>days</code>.  This makes
+<code>day_point</code> interoperable with
+<code>std::chrono::system_clock::time_point</code>.  It is simply a count of days since
+the epoch of <code>std::chrono::system_clock</code> which in every implementation is
+Jan. 1, 1970.
+</p>
+<pre>
+using day_point = std::chrono::time_point&lt;std::chrono::system_clock, days&gt;;
+</pre>
+</blockquote>
+
+<a name="last_spec"></a><h3><code>last_spec</code></h3>
+
+<blockquote>
+<p>
+<code>last_spec</code> is a <code>struct</code> that is <code>CopyConstructible</code>.
+There exists a <code>constexpr</code> instance of <code>last_spec</code> named
+<code>last</code>.  This is simply a tag type.  It is used to indicate the last day of
+a month, or the last weekday of a month.
+</p>
+<pre>
+constexpr struct last_spec {} last{};
+</pre>
+</blockquote>
+
+<a name="day"></a><h3><code>day</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class day
+{
+    unsigned char d_;  // exposition only
+public:
+    explicit constexpr day(unsigned d) noexcept;
+
+    day&amp; operator++() noexcept;
+    day operator++(int) noexcept;
+    day&amp; operator--() noexcept;
+    day operator--(int) noexcept;
+
+    day&amp; operator+=(const days&amp; d) noexcept;
+    day&amp; operator-=(const days&amp; d) noexcept;
+
+    constexpr explicit operator unsigned() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const day&amp; x, const day&amp; y) noexcept;
+constexpr bool operator!=(const day&amp; x, const day&amp; y) noexcept;
+constexpr bool operator&lt; (const day&amp; x, const day&amp; y) noexcept;
+constexpr bool operator&gt; (const day&amp; x, const day&amp; y) noexcept;
+constexpr bool operator&lt;=(const day&amp; x, const day&amp; y) noexcept;
+constexpr bool operator&gt;=(const day&amp; x, const day&amp; y) noexcept;
+
+constexpr day  operator+(const day&amp;  x, const days&amp; y) noexcept;
+constexpr day  operator+(const days&amp; x, const day&amp;  y) noexcept;
+constexpr day  operator-(const day&amp;  x, const days&amp; y) noexcept;
+constexpr days operator-(const day&amp;  x, const day&amp;  y) noexcept;
+
+constexpr day operator "" _d(unsigned long long d) noexcept;
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const day&amp; d);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>day</code> represents a day of a month.  It should only be representing values in
+the range 1 to 31.  However it may hold values outside this range.  It can be constructed
+with any <code>unsigned</code> value, which will be subsequently truncated to fit into
+<code>day</code>'s internal storage.  <code>day</code> is equality and less-than
+comparable, and participates in basic arithmetic with <code>days</code> representing the
+quantity between any two <code>day</code>'s.  One can form a <code>day</code> literal with
+<code>_d</code>.  And one can stream out a <code>day</code> for debugging purposes.
+<code>day</code> has explicit conversions to and from <code>unsigned</code>.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>day</code> is a trivially copyable class type.</br>
+<code>day</code> is a standard-layout class type.</br>
+<code>day</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr day::day(unsigned d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>day</code> by constructing
+<code>d_</code> with <code>d</code>.
+</p>
+</blockquote>
+
+<pre>
+day&amp; day::operator++() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++d_</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+day day::operator++(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+day&amp; day::operator--() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--d_</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+day day::operator--(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+day&amp; day::operator+=(const days&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + d</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+day&amp; day::operator-=(const days&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - d</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr explicit day::operator unsigned() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>d_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool day::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>1 <= d_ && d_ <= 31</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const day&amp; x, const day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) == static_cast&lt;unsigned&gt;(y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const day&amp; x, const day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const day&amp; x, const day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) &lt; static_cast&lt;unsigned&gt;(y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const day&amp; x, const day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const day&amp; x, const day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const day&amp; x, const day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr day  operator+(const day&amp;  x, const days&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>day{static_cast&lt;unsigned&gt;(x) + y.count()}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr day  operator+(const days&amp; x, const day&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y + x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr day  operator-(const day&amp;  x, const days&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x + -y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr days operator-(const day&amp;  x, const day&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>days{static_cast&lt;days::rep&gt;(static_cast&lt;unsigned&gt;(x)
+                                 - static_cast&lt;unsigned&gt;(y))}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr day operator "" _d(unsigned long long d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>day{static_cast&lt;unsigned&gt;(d)}</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const day&amp; d);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>d</code> into
+<code>os</code>. For two objects of type <code>day</code> <code>x</code> and
+<code>y</code>, if <code>x == y</code> the <code>day</code> objects shall have the same
+text representation and if <code>x != y</code> the <code>day</code> shall have distinct
+text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="month"></a><h3><code>month</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class month
+{
+    unsigned char m_;  // exposition only
+public:
+    explicit constexpr month(unsigned m) noexcept;
+
+    month&amp; operator++() noexcept;
+    month operator++(int) noexcept;
+    month&amp; operator--() noexcept;
+    month operator--(int) noexcept;
+
+    month&amp; operator+=(const months&amp; m) noexcept;
+    month&amp; operator-=(const months&amp; m) noexcept;
+
+    constexpr explicit operator unsigned() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const month&amp; x, const month&amp; y) noexcept;
+constexpr bool operator!=(const month&amp; x, const month&amp; y) noexcept;
+constexpr bool operator&lt; (const month&amp; x, const month&amp; y) noexcept;
+constexpr bool operator&gt; (const month&amp; x, const month&amp; y) noexcept;
+constexpr bool operator&lt;=(const month&amp; x, const month&amp; y) noexcept;
+constexpr bool operator&gt;=(const month&amp; x, const month&amp; y) noexcept;
+
+constexpr month  operator+(const month&amp;  x, const months&amp; y) noexcept;
+constexpr month  operator+(const months&amp; x,  const month&amp; y) noexcept;
+constexpr month  operator-(const month&amp;  x, const months&amp; y) noexcept;
+constexpr months operator-(const month&amp;  x,  const month&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month&amp; m);
+
+constexpr month jan{1};
+constexpr month feb{2};
+constexpr month mar{3};
+constexpr month apr{4};
+constexpr month may{5};
+constexpr month jun{6};
+constexpr month jul{7};
+constexpr month aug{8};
+constexpr month sep{9};
+constexpr month oct{10};
+constexpr month nov{11};
+constexpr month dec{12};
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>month</code> represents a month of a year.  It should only be representing values in
+the range 1 to 12.  However it may hold values outside this range.  It can be constructed
+with any <code>unsigned</code> value, which will be subsequently truncated to fit into
+<code>month</code>'s internal storage.  <code>month</code> is equality and less-than
+comparable, and participates in basic arithmetic with <code>months</code> representing the
+quantity between any two <code>month</code>'s.   One can stream out a <code>month</code>
+for debugging purposes. <code>month</code> has explicit conversions to and from
+<code>unsigned</code>.  There are 12 <code>month</code> constants, one for each month of
+the year.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>month</code> is a trivially copyable class type.</br>
+<code>month</code> is a standard-layout class type.</br>
+<code>month</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr month::month(unsigned m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>month</code> by constructing
+<code>m_</code> with <code>m</code>.
+</p>
+</blockquote>
+
+<pre>
+month&amp; month::operator++() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> If <code>m_ != 12</code>, <code>++m_</code>.  Otherwise sets
+<code>m_</code> to 1.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+month month::operator++(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+month&amp; month::operator--() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> If <code>m_ != 1</code>, <code>--m_</code>.  Otherwise sets
+<code>m_</code> to 12.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+month month::operator--(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+month&amp; month::operator+=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + m</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+month&amp; month::operator-=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - m</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr explicit month::operator unsigned() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool month::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>1 <= m_ && m_ <= 12</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const month&amp; x, const month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) == static_cast&lt;unsigned&gt;(y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const month&amp; x, const month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const month&amp; x, const month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) &lt; static_cast&lt;unsigned&gt;(y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const month&amp; x, const month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const month&amp; x, const month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const month&amp; x, const month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month  operator+(const month&amp;  x, const months&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>x.ok() == true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>month</code> for which <code>ok() == true</code> and is found as
+if by incrementing (or decrementing if <code>y &lt; months{0}</code>) <code>x</code>,
+<code>y</code> times.
+</p>
+<p>
+<i>Complexity:</i> O(1) with respect to the value of <code>y</code>.  That is, repeated
+increments or decrements is not a valid implementation.
+</p>
+<p>
+<i>Example:</i> <code>feb + months{11} == jan</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month  operator+(const months&amp; x, const month&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y + x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month  operator-(const month&amp;  x, const months&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x + -y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr months operator-(const month&amp;  x, const month&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>x.ok() == true</code> and <code>y.ok() == true</code>.
+</p>
+<p>
+<i>Returns:</i> A value of <code>months</code> in the range of <code>months{0}</code> to
+<code>months{11}</code> inclusive.
+</p>
+<p>
+<i>Remarks:</i> The returned value <code>m</code> shall satisfy the equality:
+<code>y + m == x</code>.
+</p>
+<p>
+<i>Example:</i> <code>jan - feb == months{11} </code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month&amp; m);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>m</code> into
+<code>os</code>. For two objects of type <code>month</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month</code> objects
+shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
+<code>month</code> objects shall have distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="year"></a><h3><code>year</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class year
+{
+    short y_;  // exposition only
+public:
+    explicit constexpr year(int y) noexcept;
+
+    year&amp; operator++() noexcept;
+    year operator++(int) noexcept;
+    year&amp; operator--() noexcept;
+    year operator--(int) noexcept;
+
+    year&amp; operator+=(const years&amp; y) noexcept;
+    year&amp; operator-=(const years&amp; y) noexcept;
+
+    constexpr bool is_leap() const noexcept;
+
+    constexpr explicit operator int() const noexcept;
+    constexpr bool ok() const noexcept;
+
+    static constexpr year min() noexcept;
+    static constexpr year max() noexcept;
+};
+
+constexpr bool operator==(const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator!=(const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator&lt; (const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator&gt; (const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator&lt;=(const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator&gt;=(const year&amp; x, const year&amp; y) noexcept;
+
+constexpr year  operator+(const year&amp;  x, const years&amp; y) noexcept;
+constexpr year  operator+(const years&amp; x, const year&amp;  y) noexcept;
+constexpr year  operator-(const year&amp;  x, const years&amp; y) noexcept;
+constexpr years operator-(const year&amp;  x, const year&amp;  y) noexcept;
+
+constexpr year operator "" _y(unsigned long long y) noexcept;
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year&amp; y);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>year</code> represents a year in the Gregorian calendar.  It shall represent values
+in the range -32768 to 32767 or a superset of this range.  It can be constructed with any
+<code>int</code> value, which will be subsequently truncated to fit into
+<code>year</code>'s internal storage.  <code>year</code> is equality and less-than
+comparable, and participates in basic arithmetic with <code>years</code> representing the
+quantity between any two <code>year</code>'s.  One can form a <code>year</code> literal
+with <code>_y</code>.  And one can stream out a <code>year</code> for debugging purposes.
+<code>year</code> has explicit conversions to and from <code>int</code>.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>year</code> is a trivially copyable class type.</br>
+<code>year</code> is a standard-layout class type.</br>
+<code>year</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr year::year(int y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year</code> by constructing
+<code>y_</code> with <code>y</code>.
+</p>
+</blockquote>
+
+<pre>
+year&amp; year::operator++() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++y_</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year year::operator++(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+year&amp; year::operator--() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--y_</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year year::operator--(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+year&amp; year::operator+=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + y</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year&amp; year::operator-=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - y</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool year::is_leap() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>true</code> if <code>*this</code> represents a leap year, else
+returns <code>false</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr explicit year::operator int() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool year::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>true</code>.
+</p>
+</blockquote>
+
+<pre>
+static constexpr year year::min() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>year</code> constructed with the minimum representable year
+number. This year shall be less than or equal to <code>year{-32768}</code>.
+</p>
+</blockquote>
+
+<pre>
+static constexpr year year::max() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>year</code> constructed with the maximum representable year
+number. This year shall be greater than or equal to <code>year{32767}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;int&gt;(x) == static_cast&lt;int&gt;(y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;int&gt;(x) &lt; static_cast&lt;int&gt;(y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year  operator+(const year&amp;  x, const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>year{static_cast&lt;int&gt;(x) + y.count()}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year  operator+(const years&amp; x, const year&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y + x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year  operator-(const year&amp;  x, const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x + -y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr years operator-(const year&amp;  x, const year&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years{static_cast&lt;int&gt;(x) - static_cast&lt;int&gt;(y)}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year operator "" _y(unsigned long long y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>year{static_cast&lt;int&gt;(y)}</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year&amp; y);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>y</code> into
+<code>os</code>. For two objects of type <code>year</code> <code>x</code> and
+<code>y</code>, if <code>x == y</code> the <code>year</code> objects shall have the same
+text representation and if <code>x != y</code> the <code>year</code> shall have distinct
+text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="weekday"></a><h3><code>weekday</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class weekday
+{
+    unsigned char wd_;  // exposition only
+public:
+    explicit constexpr weekday(unsigned wd) noexcept;
+    constexpr weekday(const day_point&amp; dp) noexcept;
+
+    weekday&amp; operator++() noexcept;
+    weekday operator++(int) noexcept;
+    weekday&amp; operator--() noexcept;
+    weekday operator--(int) noexcept;
+
+    weekday&amp; operator+=(const days&amp; d) noexcept;
+    weekday&amp; operator-=(const days&amp; d) noexcept;
+
+    constexpr explicit operator unsigned() const noexcept;
+    constexpr bool ok() const noexcept;
+    constexpr weekday_indexed operator[](unsigned index) const noexcept;
+    constexpr weekday_last operator[](last_spec) const noexcept;
+};
+
+constexpr bool operator==(const weekday&amp; x, const weekday&amp; y) noexcept;
+constexpr bool operator!=(const weekday&amp; x, const weekday&amp; y) noexcept;
+
+constexpr weekday operator+(const weekday&amp; x, const days&amp;    y) noexcept;
+constexpr weekday operator+(const days&amp;    x, const weekday&amp; y) noexcept;
+constexpr weekday operator-(const weekday&amp; x, const days&amp;    y) noexcept;
+constexpr days    operator-(const weekday&amp; x, const weekday&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday&amp; wd);
+
+constexpr weekday sun{0};
+constexpr weekday mon{1};
+constexpr weekday tue{2};
+constexpr weekday wed{3};
+constexpr weekday thu{4};
+constexpr weekday fri{5};
+constexpr weekday sat{6};
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>weekday</code> represents a day of the week in the Gregorian calendar.  It should
+only be representing values in the range 0 to 6, corresponding to Sunday thru Saturday. 
+However it may hold values outside this range.  It can be constructed with any
+<code>unsigned</code> value, which will be subsequently truncated to fit into
+<code>weekday</code>'s internal storage.  <code>weekday</code> is equality comparable.
+<code>weekday</code> is not less-than comparable because there is no universal consensus
+on which day is the first day of the week.  This design chooses the encoding of 0 to 6 to
+represent Sunday thru Saturday only because this is consistent with existing C and C++
+practice.  However  <code>weekday</code>'s comparison and arithmetic operations treat the
+days of the week as a circular range, with no beginning and no end.   One can stream out a
+<code>weekday</code> for debugging purposes. <code>weekday</code> has explicit conversions
+to and from <code>unsigned</code>.  There are 7 <code>weekday</code> constants, one for each
+day of the week.
+</p>
+
+<p>
+A <code>weekday</code> can be implicitly constructed from a <code>day_point</code>. This
+is the computation that discovers the day of the week of an arbitrary date.
+</p>
+
+<p>
+A <code>weekday</code> can be indexed with either <code>unsigned</code> or
+<code>last</code>. This produces new types which represent the first, second, third,
+fourth, fifth or last weekdays of a month.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>weekday</code> is a trivially copyable class type.</br>
+<code>weekday</code> is a standard-layout class type.</br>
+<code>weekday</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr weekday::weekday(unsigned wd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>weekday</code> by constructing
+<code>wd_</code> with <code>wd</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday(const day_point&amp; dp) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>weekday</code> by computing what day
+of the week corresponds to the <code>day_point dp</code>, and representing that day of
+the week in <code>wd_</code>.
+</p>
+<p>
+<i>Example:</i> If <code>dp</code> represents 1970-01-01, the constructed
+<code>weekday</code> shall represent Thursday by storing 4 in <code>wd_</code>.
+</p>
+</blockquote>
+
+<pre>
+weekday&amp; weekday::operator++() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> If <code>wd_ != 6</code>, <code>++wd_</code>.  Otherwise sets
+<code>wd_</code> to 0.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+weekday weekday::operator++(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+weekday&amp; weekday::operator--() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> If <code>wd_ != 0</code>, <code>--wd_</code>.  Otherwise sets
+<code>wd_</code> to 6.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+weekday weekday::operator--(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+weekday&amp; weekday::operator+=(const days&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + d</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+weekday&amp; weekday::operator-=(const days&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - d</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr explicit weekday::operator unsigned() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool weekday::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_ <= 6</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday_indexed weekday::operator[](unsigned index) const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>weekday_indexed</code> which stores <code>*this</code> and
+<code>index</code>.  [<i>Note:</i> <code>weekday_indexed</code> has no such publicly
+specified constructor. &mdash; <i>end note</i>]
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday_last weekday::operator[](last_spec) const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>weekday_last</code> which stores <code>*this</code>. [<i>Note:</i>
+<code>weekday_last</code> has no such publicly specified constructor. &mdash; <i>end
+note</i>]
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const weekday&amp; x, const weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) == static_cast&lt;unsigned&gt;(y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const weekday&amp; x, const weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday  operator+(const weekday&amp;  x, const days&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>x.ok() == true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>weekday</code> for which <code>ok() == true</code> and is found as
+if by incrementing (or decrementing if <code>y &lt; days{0}</code>) <code>x</code>,
+<code>y</code> times.
+</p>
+<p>
+<i>Complexity:</i> O(1) with respect to the value of <code>y</code>.  That is, repeated
+increments or decrements is not a valid implementation.
+</p>
+<p>
+<i>Example:</i> <code>mon + days{6} == sun</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday  operator+(const days&amp; x, const weekday&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y + x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday  operator-(const weekday&amp;  x, const days&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x + -y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr days operator-(const weekday&amp;  x, const weekday&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>x.ok() == true</code> and <code>y.ok() == true</code>.
+</p>
+<p>
+<i>Returns:</i> A value of <code>days</code> in the range of <code>days{0}</code> to
+<code>days{6}</code> inclusive.
+</p>
+<p>
+<i>Remarks:</i> The returned value <code>d</code> shall satisfy the equality:
+<code>y + d == x</code>.
+</p>
+<p>
+<i>Example:</i> <code>sun - mon == days{6}</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday&amp; wd);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>wd</code> into
+<code>os</code>. For two objects of type <code>weekday</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>weekday</code> objects
+shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
+<code>weekday</code> objects shall have distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="weekday_indexed"></a><h3><code>weekday_indexed</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class weekday_indexed
+{
+    date::weekday    wd_;     // exposition only
+    unsigned char    index_;  // exposition only
+
+public:
+    constexpr weekday_indexed(const date::weekday&amp; wd, unsigned index) noexcept;
+
+    constexpr date::weekday weekday() const noexcept;
+    constexpr unsigned index() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const weekday_indexed&amp; x, const weekday_indexed&amp; y) noexcept;
+constexpr bool operator!=(const weekday_indexed&amp; x, const weekday_indexed&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday_indexed&amp; wdi);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>weekday_indexed</code> represents a <code>weekday</code> and a small index in the
+range 1 to 5. This class is used to represent the first, second, third, fourth or fifth
+weekday of a month.  It is most easily constructed by indexing a <code>weekday</code>.
+</p>
+
+<p>
+[<i>Example:</i>
+</p>
+
+<blockquote><pre>
+constexpr auto wdi = sun[2];  // wdi is the second Sunday of an as yet unspecified month
+static_assert(wdi.weekday() == sun);
+static_assert(wdi.index() == 2);
+</pre></blockquote>
+
+<p>
+&mdash; <i>end example:</i>]
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>weekday_indexed</code> is a trivially copyable class type.</br>
+<code>weekday_indexed</code> is a standard-layout class type.</br>
+<code>weekday_indexed</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr weekday_indexed::weekday_indexed(const date::weekday&amp; wd, unsigned index) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>weekday_indexed</code> by constructing
+<code>wd_</code> with <code>wd</code> and <code>index_</code> with <code>index</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday weekday_indexed::weekday() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr unsigned weekday_indexed::index() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>index_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool weekday_indexed::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_.ok() &amp;&amp; 1 &lt;= index_ && index_ &lt;= 5</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const weekday_indexed&amp; x, const weekday_indexed&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.weekday() == y.weekday() && x.index() == y.index()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const weekday_indexed&amp; x, const weekday_indexed&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday_indexed&amp; wdi);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>wdi</code> into
+<code>os</code>. For two objects of type <code>weekday_indexed</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>weekday_indexed</code>
+objects shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code>
+the <code>weekday_indexed</code> objects shall have distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="weekday_last"></a><h3><code>weekday_last</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class weekday_last
+{
+    date::weekday wd_;  // exposition only
+
+public:
+    explicit constexpr weekday_last(const date::weekday&amp; wd) noexcept;
+
+    constexpr date::weekday weekday() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const weekday_last&amp; x, const weekday_last&amp; y) noexcept;
+constexpr bool operator!=(const weekday_last&amp; x, const weekday_last&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday_last&amp; wdl);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>weekday_last</code> represents the last <code>weekday</code> of a month. 
+It is most easily constructed by indexing a <code>weekday</code> with <code>last</code>.
+</p>
+
+<p>
+[<i>Example:</i>
+</p>
+
+<blockquote><pre>
+constexpr auto wdl = sun[last];  // wdl is the last Sunday of an as yet unspecified month
+static_assert(wdl.weekday() == sun);
+</pre></blockquote>
+
+<p>
+&mdash; <i>end example:</i>]
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>weekday_last</code> is a trivially copyable class type.</br>
+<code>weekday_last</code> is a standard-layout class type.</br>
+<code>weekday_last</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr weekday_last::weekday_last(const date::weekday&amp; wd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>weekday_last</code> by constructing
+<code>wd_</code> with <code>wd</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday weekday_last::weekday() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool weekday_last::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_.ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const weekday_last&amp; x, const weekday_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.weekday() == y.weekday()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const weekday_last&amp; x, const weekday_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday_last&amp; wdl);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>wdl</code> into
+<code>os</code>. For two objects of type <code>weekday_last</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>weekday_last</code>
+objects shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code>
+the <code>weekday_last</code> objects shall have distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="month_day"></a><h3><code>month_day</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class month_day
+{
+    date::month m_;  // exposition only
+    date::day   d_;  // exposition only
+
+public:
+    constexpr month_day(const date::month&amp; m, const date::day&amp; d) noexcept;
+
+    constexpr date::month month() const noexcept;
+    constexpr date::day day() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const month_day&amp; x, const month_day&amp; y) noexcept;
+constexpr bool operator!=(const month_day&amp; x, const month_day&amp; y) noexcept;
+constexpr bool operator&lt; (const month_day&amp; x, const month_day&amp; y) noexcept;
+constexpr bool operator&gt; (const month_day&amp; x, const month_day&amp; y) noexcept;
+constexpr bool operator&lt;=(const month_day&amp; x, const month_day&amp; y) noexcept;
+constexpr bool operator&gt;=(const month_day&amp; x, const month_day&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_day&amp; md);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>month_day</code> represents a specific <code>day</code> of a specific
+<code>month</code>, but with an unspecified <code>year</code>.  One can observe the
+different components.  One can assign a new value.  <code>month_day</code> is equality
+comparable and less-than comparable.  One can stream out a <code>month_day</code> for
+debugging purposes.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>month_day</code> is a trivially copyable class type.</br>
+<code>month_day</code> is a standard-layout class type.</br>
+<code>month_day</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr month_day::month_day(const date::month&amp; m, const date::day&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>month_day</code> by constructing
+<code>m_</code> with <code>m</code>, and <code>d_</code> with <code>d</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month month_day::month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr day month_day::day() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>d_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool month_day::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>true</code> if <code>m_.ok()</code> is true, and if
+<code>1_d &lt;= d_</code>, and if <code>d_ &lt;=</code> the number of days in month
+<code>m_</code>.  For <code>m_ == feb</code> the number of days is considered to be 29.
+Otherwise returns <code>false</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const month_day&amp; x, const month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.month() == y.month() &amp;&amp; x.day() == y.day()</code>
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const month_day&amp; x, const month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const month_day&amp; x, const month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> If <code>x.month() &lt; y.month()</code> returns <code>true</code>.  Else
+if <code>x.month() &gt; y.month()</code> returns <code>false</code>. Else returns
+<code>x.day() &lt; y.day()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const month_day&amp; x, const month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const month_day&amp; x, const month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const month_day&amp; x, const month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_day&amp; md);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>md</code> into
+<code>os</code>. For two objects of type <code>month_day</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month_day</code>
+objects shall have the same text representation and if
+<code>x.ok() &amp;&amp; x != y</code> the <code>month_day</code> objects shall have
+distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="month_day_last"></a><h3><code>month_day_last</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class month_day_last
+{
+    date::month m_;  // exposition only
+
+public:
+    constexpr explicit month_day_last(const date::month&amp; m) noexcept;
+
+    constexpr date::month month() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+constexpr bool operator!=(const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+constexpr bool operator&lt; (const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+constexpr bool operator&gt; (const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+constexpr bool operator&lt;=(const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+constexpr bool operator&gt;=(const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_day_last&amp; mdl);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>month_day_last</code> represents the last <code>day</code> of a <code>month</code>.
+It is most easily constructed using the expression <code>m/last</code> or
+<code>last/m</code>, where <code>m</code> is an expression with type <code>month</code>.
+</p>
+
+<p>
+[<i>Example:</i>
+</p>
+
+<blockquote><pre>
+constexpr auto mdl = feb/last;  // mdl is the last day of February of an as yet unspecified year
+static_assert(mdl.month() == feb);
+</pre></blockquote>
+
+<p>
+&mdash; <i>end example:</i>]
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>month_day_last</code> is a trivially copyable class type.</br>
+<code>month_day_last</code> is a standard-layout class type.</br>
+<code>month_day_last</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr explicit month_day_last::month_day_last(const date::month&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>month_day_last</code> by constructing
+<code>m_</code> with <code>m</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month month_day_last::month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool month_day_last::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_.ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.month() == y.month()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.month() &lt; y.month()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const month_day_last&amp; x, const month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_day_last&amp; mdl);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>mdl</code> into
+<code>os</code>. For two objects of type <code>month_day_last</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month_day_last</code>
+objects shall have the same text representation and if
+<code>x.ok() &amp;&amp; x != y</code> the <code>month_day_last</code> objects shall have
+distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="month_weekday"></a><h3><code>month_weekday</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class month_weekday
+{
+    date::month           m_;    // exposition only
+    date::weekday_indexed wdi_;  // exposition only
+public:
+    constexpr month_weekday(const date::month&amp; m, const date::weekday_indexed&amp; wdi) noexcept;
+
+    constexpr date::month month() const noexcept;
+    constexpr date::weekday_indexed weekday_indexed() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const month_weekday&amp; x, const month_weekday&amp; y) noexcept;
+constexpr bool operator!=(const month_weekday&amp; x, const month_weekday&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_weekday&amp; mwd);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>month_weekday</code> represents the nth <code>weekday</code> of a
+<code>month</code>, of an as yet unspecified <code>year</code>.  To do this the
+<code>month_weekday</code> stores a <code>month</code> and a <code>weekday_indexed</code>.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>month_weekday</code> is a trivially copyable class type.</br>
+<code>month_weekday</code> is a standard-layout class type.</br>
+<code>month_weekday</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr month_weekday::month_weekday(const date::month&amp; m, const date::weekday_indexed&amp; wdi) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>month_weekday</code> by constructing
+<code>m_</code> with <code>m</code>, and <code>wdi_</code> with <code>wdi</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month month_weekday::month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday_indexed month_weekday::weekday_indexed() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wdi_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool month_weekday::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_.ok() &amp;&amp; wdi_.ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const month_weekday&amp; x, const month_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.month() == y.month() &amp;&amp; x.weekday_indexed() == y.weekday_indexed()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const month_weekday&amp; x, const month_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_weekday&amp; mwd);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>mwd</code> into
+<code>os</code>. For two objects of type <code>month_weekday</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month_weekday</code>
+objects shall have the same text representation and if
+<code>x.ok() &amp;&amp; x != y</code> the <code>month_weekday</code> objects shall have
+distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="month_weekday_last"></a><h3><code>month_weekday_last</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class month_weekday_last
+{
+    date::month   m_;    // exposition only
+    date::weekday wd_;   // exposition only
+public:
+    constexpr month_weekday_last(const date::month&amp; m, const date::weekday&amp; wd) noexcept;
+
+    constexpr date::month month() const noexcept;
+    constexpr date::weekday weekday() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const month_weekday_last&amp; x, const month_weekday_last&amp; y) noexcept;
+constexpr bool operator!=(const month_weekday_last&amp; x, const month_weekday_last&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_weekday_last&amp; mwdl);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>month_weekday_last</code> represents the last <code>weekday</code> of a
+<code>month</code>, of an as yet unspecified <code>year</code>.  To do this the
+<code>month_weekday_last</code> stores a <code>month</code> and a <code>weekday</code>.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>month_weekday_last</code> is a trivially copyable class type.</br>
+<code>month_weekday_last</code> is a standard-layout class type.</br>
+<code>month_weekday_last</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr month_weekday_last::month_weekday_last(const date::month&amp; m, const date::weekday&amp; wd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>month_weekday_last</code> by constructing
+<code>m_</code> with <code>m</code>, and <code>wd_</code> with <code>wd</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month month_weekday_last::month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday month_weekday_last::weekday() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool month_weekday_last::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_.ok() &amp;&amp; wd_.ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const month_weekday_last&amp; x, const month_weekday_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.month() == y.month() &amp;&amp; x.weekday() == y.weekday()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const month_weekday_last&amp; x, const month_weekday_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_weekday_last&amp; mwdl);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>mwdl</code> into
+<code>os</code>. For two objects of type <code>month_weekday_last</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month_weekday_last</code>
+objects shall have the same text representation and if
+<code>x.ok() &amp;&amp; x != y</code> the <code>month_weekday_last</code> objects shall have
+distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="year_month"></a><h3><code>year_month</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class year_month
+{
+    date::year  y_;  // exposition only
+    date::month m_;  // exposition only
+
+public:
+    constexpr year_month(const date::year&amp; y, const date::month&amp; m) noexcept;
+
+    constexpr date::year year() const noexcept;
+    constexpr date::month month() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const year_month&amp; x, const year_month&amp; y) noexcept;
+constexpr bool operator!=(const year_month&amp; x, const year_month&amp; y) noexcept;
+constexpr bool operator&lt; (const year_month&amp; x, const year_month&amp; y) noexcept;
+constexpr bool operator&gt; (const year_month&amp; x, const year_month&amp; y) noexcept;
+constexpr bool operator&lt;=(const year_month&amp; x, const year_month&amp; y) noexcept;
+constexpr bool operator&gt;=(const year_month&amp; x, const year_month&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month&amp; ym);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>year_month</code> represents a specific <code>month</code> of a specific
+<code>year</code>, but with an unspecified <code>day</code>.  One can observe the
+different components.  One can assign a new value.  <code>year_month</code> is equality
+comparable and less-than comparable.  One can stream out a <code>year_month</code> for
+debugging purposes.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>year_month</code> is a trivially copyable class type.</br>
+<code>year_month</code> is a standard-layout class type.</br>
+<code>year_month</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr year_month::year_month(const date::year&amp; y, const date::month&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year_month</code> by constructing
+<code>y_</code> with <code>y</code>, and <code>m_</code> with <code>m</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year year_month::year() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month year_month::month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool year_month::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_.ok() &amp;&amp; m_.ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const year_month&amp; x, const year_month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.year() == y.year() &amp;&amp; x.month() == y.month()</code>
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const year_month&amp; x, const year_month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const year_month&amp; x, const year_month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> If <code>x.year() &lt; y.year()</code> returns <code>true</code>.  Else
+if <code>x.year() &gt; y.year()</code> returns <code>false</code>. Else returns
+<code>x.month() &lt; y.month()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const year_month&amp; x, const year_month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const year_month&amp; x, const year_month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const year_month&amp; x, const year_month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month&amp; ym);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>ym</code> into
+<code>os</code>. For two objects of type <code>year_month</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month</code>
+objects shall have the same text representation and if
+<code>x.ok() &amp;&amp; x != y</code> the <code>year_month</code> objects shall have
+distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="year_month_day"></a><h3><code>year_month_day</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class year_month_day
+{
+    date::year  y_;  // exposition only
+    date::month m_;  // exposition only
+    date::day   d_;  // exposition only
+
+public:
+    constexpr year_month_day(const date::year&amp; y, const date::month&amp; m, const date::day&amp; d) noexcept;
+    constexpr year_month_day(const year_month_day_last&amp; ymdl) noexcept;
+    constexpr year_month_day(const day_point&amp; dp) noexcept;
+
+    year_month_day&amp; operator+=(const months&amp; m) noexcept;
+    year_month_day&amp; operator-=(const months&amp; m) noexcept;
+    year_month_day&amp; operator+=(const years&amp; y) noexcept;
+    year_month_day&amp; operator-=(const years&amp; y) noexcept;
+
+    constexpr date::year year() const noexcept;
+    constexpr date::month month() const noexcept;
+    constexpr date::day day() const noexcept;
+    constexpr operator day_point() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+constexpr bool operator!=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+constexpr bool operator&lt; (const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+constexpr bool operator&lt; (const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+constexpr bool operator&lt;=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+constexpr bool operator&lt;=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+
+constexpr year_month_day operator+(const year_month_day&amp; ymd, const months&amp; dm) noexcept;
+constexpr year_month_day operator+(const months&amp; dm, const year_month_day&amp; ymd) noexcept;
+constexpr year_month_day operator+(const year_month_day&amp; ymd, const years&amp; dy) noexcept;
+constexpr year_month_day operator+(const years&amp; dy, const year_month_day&amp; ymd) noexcept;
+constexpr year_month_day operator-(const year_month_day&amp; ymd, const months&amp; dm) noexcept;
+constexpr year_month_day operator-(const year_month_day&amp; ymd, const years&amp; dy) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_day&amp; ymd);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>year_month_day</code> represents a specific <code>year</code>, <code>month</code>,
+and <code>day</code>.  One can observe each field.  <code>year_month_day</code> supports
+<code>years</code> and <code>months</code> oriented arithmetic, but not <code>days</code>
+oriented arithmetic.  For the latter, there is a conversion to <code>day_point</code>
+which efficiently supports <code>days</code> oriented arithmetic.  There is a also a
+conversion <i>from</i> <code>day_point</code>. <code>year_month_day</code> is equality and
+less-than comparable.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>year_month_day</code> is a trivially copyable class type.</br>
+<code>year_month_day</code> is a standard-layout class type.</br>
+<code>year_month_day</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr year_month_day::year_month_day(const date::year&amp; y, const date::month&amp; m, const date::day&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year_month_day</code> by constructing
+<code>y_</code> with <code>y</code>, <code>m_</code> with <code>m</code>, and,
+<code>d_</code> with <code>d</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day::year_month_day(const year_month_day_last&amp; ymdl) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year_month_day</code> by constructing
+<code>y_</code> with <code>ymdl.year()</code>, <code>m_</code> with
+<code>ymdl.month()</code>, and, <code>d_</code> with <code>ymdl.day()</code>.
+</p>
+<p>
+<i>Note:</i> This conversion from <code>year_month_day_last</code> to
+<code>year_month_day</code> is more efficient than converting a
+<code>year_month_day_last</code> to a <code>day_point</code>, and then converting that
+<code>day_point</code> to a <code>year_month_day</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day::year_month_day(const day_point&amp; dp) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year_month_day</code> which corresponds
+to the date represented by <code>dp</code>.
+</p>
+<p>
+<i>Remarks:</i> For any value of <code>year_month_day</code>, <code>ymd</code>, for which
+<code>ymd.ok()</code> is <code>true</code>, this equality will also be <code>true</code>:
+<code>ymd == year_month_day(static_cast&lt;day_point&gt;(ymd))</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_day&amp; year_month_day::operator+=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + m;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_day&amp; year_month_day::operator-=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - m;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_day&amp; year_month_day::operator+=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + y;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_day&amp; year_month_day::operator-=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - y;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year year_month_day::year() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month year_month_day::month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr day year_month_day::day() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>d_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day::operator day_point() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>ok() == true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>day_point</code> which represents the date represented by
+<code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool year_month_day::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> If <code>y_.ok()</code> is <code>true</code>, and <code>m_.ok()</code> is
+<code>true</code>, and <code>d_</code> is in the range
+<code>[1_d, (y_/m_/last).day()]</code>, then returns <code>true</code>, else returns
+<code>false</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.year() == y.year() &amp;&amp; x.month() == y.month() &amp;&amp; x.day() == y.day()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> If <code>x.year() &lt; y.year()</code>, returns <code>true</code>.  Else
+if <code>x.year() &gt; y.year()</code> returns <code>false</code>.
+Else if <code>x.month() &lt; y.month()</code>, returns <code>true</code>.
+Else if <code>x.month() &gt; y.month()</code>, returns <code>false</code>.
+Else returns <code>x.day() &lt; y.day()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day operator+(const year_month_day&amp; ymd, const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>ymd.month().ok()</code> is <code>true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>year_month_day</code> which has been advanced by
+<code>dm months</code>.  Negative values for <code>dm</code> will result in prior dates.
+The <code>year</code> of the resulting <code>year_month_day</code> is incremented or
+decremented appropriately as <code>month</code> addition/subtraction wraps from
+<code>dec</code> to <code>jan</code> or from  <code>jan</code> to <code>dec</code>.
+</p>
+<p>
+<i>Postconditions:</i> The <code>day()</code> returned by the result will be equal to
+<code>ymd.day()</code>.  The resultant <code>month</code> and <code>year</code> will
+return <code>true</code> from their respective <code>ok()</code> member functions.
+</p>
+<p>
+<i>Remarks:</i> If <code>ymd.day()</code> is in the range <code>[1_d, 28_d]</code>,
+the resultant <code>year_month_day</code> is guaranteed to return <code>true</code> from
+<code>ok()</code>.
+</p>
+<p>
+<i>Complexity:</i> O(1) with respect to the value of <code>dm</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day operator+(const months&amp; dm, const year_month_day&amp; ymd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymd + dm</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day operator-(const year_month_day&amp; ymd, const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymd + (-dm)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day operator+(const year_month_day&amp; ymd, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>{ymd.year()+dy, ymd.month(), ymd.day()}</code>.
+</p>
+<p>
+<i>Remarks:</i> If <code>ymd.month()</code> is <code>feb</code> and <code>ymd.day()</code>
+is not in the range <code>[1_d, 28_d]</code>, the resultant <code>year_month_day</code> is
+not guaranteed to return <code>true</code> from <code>ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day operator+(const years&amp; dy, const year_month_day&amp; ymd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymd + dy</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day operator-(const year_month_day&amp; ymd, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymd + (-dy)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_day&amp; ymd);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>ymd</code> into
+<code>os</code>. For two objects of type <code>year_month_day</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month_day</code> objects
+shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
+<code>year_month_day</code> objects shall have distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="year_month_day_last"></a><h3><code>year_month_day_last</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class year_month_day_last
+{
+    date::year  y_;  // exposition only
+    date::month m_;  // exposition only
+
+public:
+    constexpr year_month_day_last(const date::year&amp; y, const date::month&amp; m) noexcept;
+
+    year_month_day_last&amp; operator+=(const months&amp; m) noexcept;
+    year_month_day_last&amp; operator-=(const months&amp; m) noexcept;
+    year_month_day_last&amp; operator+=(const years&amp; y) noexcept;
+    year_month_day_last&amp; operator-=(const years&amp; y) noexcept;
+
+    constexpr date::year year() const noexcept;
+    constexpr date::month month() const noexcept;
+    constexpr date::day day() const noexcept;
+    constexpr operator day_point() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+constexpr bool operator!=(const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+constexpr bool operator&lt; (const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+constexpr bool operator&gt; (const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+constexpr bool operator&lt;=(const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+constexpr bool operator&gt;=(const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+
+constexpr year_month_day_last operator+(const year_month_day_last&amp; ymdl, const months&amp; dm) noexcept;
+constexpr year_month_day_last operator+(const months&amp; dm, const year_month_day_last&amp; ymdl) noexcept;
+constexpr year_month_day_last operator+(const year_month_day_last&amp; ymdl, const years&amp; dy) noexcept;
+constexpr year_month_day_last operator+(const years&amp; dy, const year_month_day_last&amp; ymdl) noexcept;
+constexpr year_month_day_last operator-(const year_month_day_last&amp; ymdl, const months&amp; dm) noexcept;
+constexpr year_month_day_last operator-(const year_month_day_last&amp; ymdl, const years&amp; dy) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_day_last&amp; ymdl);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>year_month_day_last</code> represents a specific <code>year</code>,
+<code>month</code>, and the last <code>day</code> of the <code>month</code>.  One can
+observe each field.  The <code>day</code> field is computed on demand.
+<code>year_month_day_last</code> supports <code>years</code> and <code>months</code>
+oriented arithmetic, but not <code>days</code> oriented arithmetic.  For the latter, there
+is a conversion to <code>day_point</code> which efficiently supports <code>days</code>
+oriented arithmetic.  <code>year_month_day_last</code> is equality and less-than
+comparable.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>year_month_day_last</code> is a trivially copyable class type.</br>
+<code>year_month_day_last</code> is a standard-layout class type.</br>
+<code>year_month_day_last</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr year_month_day_last::year_month_day_last(const date::year&amp; y, const date::month&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year_month_day_last</code> by
+constructing <code>y_</code> with <code>y</code> and <code>m_</code> with <code>m</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_day_last&amp; year_month_day_last::operator+=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + m;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_day_last&amp; year_month_day_last::operator-=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - m;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_day_last&amp; year_month_day_last::operator+=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + y;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_day_last&amp; year_month_day_last::operator-=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - y;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year year_month_day_last::year() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month year_month_day_last::month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr day year_month_day_last::day() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>day</code> representing the last day of the <code>year</code>,
+<code>month</code> pair represented by <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day_last::operator day_point() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>ok() == true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>day_point</code> which represents the date represented by
+<code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool year_month_day_last::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_.ok() &amp;&amp; m_.ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.year() == y.year() &amp;&amp; x.month() == y.month()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> If <code>x.year() &lt; y.year()</code>, returns <code>true</code>.  Else
+if <code>x.year() &gt; y.year()</code> returns <code>false</code>.
+Else returns <code>x.month() &lt; y.month()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const year_month_day_last&amp; x, const year_month_day_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day_last operator+(const year_month_day_last&amp; ymdl, const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>ymdl.ok()</code> is <code>true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>year_month_day_last</code> which has been advanced by
+<code>dm months</code>.  Negative values for <code>dm</code> will result in prior dates.
+The <code>year</code> of the resulting <code>year_month_day_last</code> is incremented or
+decremented appropriately as <code>month</code> addition/subtraction wraps from
+<code>dec</code> to <code>jan</code> or from  <code>jan</code> to <code>dec</code>.
+</p>
+<p>
+<i>Postconditions:</i> The resultant <code>year_month_day_last</code> will return
+<code>true</code> from <code>ok()</code>.
+</p>
+<p>
+<i>Complexity:</i> O(1) with respect to the value of <code>dm</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day_last operator+(const months&amp; dm, const year_month_day_last&amp; ymdl) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymdl + dm</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day_last operator-(const year_month_day_last&amp; ymdl, const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymdl + (-dm)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day_last operator+(const year_month_day_last&amp; ymdl, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>{ymdl.year()+dy, ymdl.month()}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day_last operator+(const years&amp; dy, const year_month_day_last&amp; ymdl) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymdl + dy</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_day_last operator-(const year_month_day_last&amp; ymdl, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymdl + (-dy)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_day_last&amp; ymdl);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>ymdl</code> into
+<code>os</code>. For two objects of type <code>year_month_day_last</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month_day_last</code> objects
+shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
+<code>year_month_day_last</code> objects shall have distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="year_month_weekday"></a><h3><code>year_month_weekday</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class year_month_weekday
+{
+    date::year            y_;    // exposition only
+    date::month           m_;    // exposition only
+    date::weekday_indexed wdi_;  // exposition only
+
+public:
+    constexpr year_month_weekday(const date::year&amp; y, const date::month&amp; m,
+                                 const date::weekday_indexed&amp; wdi) noexcept;
+    constexpr year_month_weekday(const day_point&amp; dp) noexcept;
+
+    year_month_weekday&amp; operator+=(const months&amp; m) noexcept;
+    year_month_weekday&amp; operator-=(const months&amp; m) noexcept;
+    year_month_weekday&amp; operator+=(const years&amp; y) noexcept;
+    year_month_weekday&amp; operator-=(const years&amp; y) noexcept;
+
+    constexpr date::year year() const noexcept;
+    constexpr date::month month() const noexcept;
+    constexpr date::weekday_indexed weekday_indexed() const noexcept;
+    constexpr operator day_point() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const year_month_weekday&amp; x, const year_month_weekday&amp; y) noexcept;
+constexpr bool operator!=(const year_month_weekday&amp; x, const year_month_weekday&amp; y) noexcept;
+
+constexpr year_month_weekday operator+(const year_month_weekday&amp; ymwd, const months&amp; dm) noexcept;
+constexpr year_month_weekday operator+(const months&amp; dm, const year_month_weekday&amp; ymwd) noexcept;
+constexpr year_month_weekday operator+(const year_month_weekday&amp; ymwd, const years&amp; dy) noexcept;
+constexpr year_month_weekday operator+(const years&amp; dy, const year_month_weekday&amp; ymwd) noexcept;
+constexpr year_month_weekday operator-(const year_month_weekday&amp; ymwd, const months&amp; dm) noexcept;
+constexpr year_month_weekday operator-(const year_month_weekday&amp; ymwd, const years&amp; dy) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_weekday&amp; ymwdi);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>year_month_weekday</code> represents a specific <code>year</code>,
+<code>month</code>, and nth <code>weekday</code> of the <code>month</code>.  One can
+observe each field. <code>year_month_weekday</code> supports <code>years</code> and
+<code>months</code> oriented arithmetic, but not <code>days</code> oriented arithmetic. 
+For the latter, there is a conversion to <code>day_point</code> which efficiently supports
+<code>days</code> oriented arithmetic.  <code>year_month_weekday</code> is equality
+comparable.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>year_month_weekday</code> is a trivially copyable class type.</br>
+<code>year_month_weekday</code> is a standard-layout class type.</br>
+<code>year_month_weekday</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr year_month_weekday::year_month_weekday(const date::year&amp; y, const date::month&amp; m,
+                                                 const date::weekday_indexed&amp; wdi) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year_month_weekday</code> by
+constructing <code>y_</code> with <code>y</code>, <code>m_</code> with <code>m</code>,
+and <code>wdi_</code> with <code>wdi</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday(const day_point&amp; dp) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year_month_weekday</code> which
+corresponds to the date represented by <code>dp</code>.
+</p>
+<p>
+<i>Remarks:</i> For any value of <code>year_month_weekday</code>, <code>ymdl</code>, for
+which <code>ymdl.ok()</code> is <code>true</code>, this equality will also be
+<code>true</code>: <code>ymdl == year_month_weekday(static_cast&lt;day_point&gt;(ymdl))</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_weekday&amp; year_month_weekday::operator+=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + m;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_weekday&amp; year_month_weekday::operator-=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - m;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_weekday&amp; year_month_weekday::operator+=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + y;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_weekday&amp; year_month_weekday::operator-=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - y;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year year_month_weekday::year() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month year_month_weekday::month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday_indexed year_month_weekday::weekday_indexed() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wdi_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday::operator day_point() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>ok() == true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>day_point</code> which represents the date represented by
+<code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool year_month_weekday::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> If <code>y_.ok()</code> or <code>m_.ok()</code> or <code>wdi_.ok()</code>
+returns <code>false</code>, returns <code>false</code>.  Else if <code>*this</code>
+represents a valid date, returns <code>true</code>, else returns <code>false</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const year_month_weekday&amp; x, const year_month_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.year() == y.year() &amp;&amp; x.month() == y.month() &amp;&amp; x.weekday_indexed() == y.weekday_indexed()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const year_month_weekday&amp; x, const year_month_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday operator+(const year_month_weekday&amp; ymwd, const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>ymwd.ok()</code> is <code>true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>year_month_weekday</code> which has been advanced by
+<code>dm months</code>.  Negative values for <code>dm</code> will result in prior dates.
+The <code>year</code> of the resulting <code>year_month_weekday</code> is incremented or
+decremented appropriately as <code>month</code> addition/subtraction wraps from
+<code>dec</code> to <code>jan</code> or from  <code>jan</code> to <code>dec</code>.
+</p>
+<p>
+<i>Postconditions:</i> The resultant <code>year_month_weekday</code> will return
+<code>true</code> from <code>ok()</code>.
+</p>
+<p>
+<i>Complexity:</i> O(1) with respect to the value of <code>dm</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday operator+(const months&amp; dm, const year_month_weekday&amp; ymwd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymwd + dm</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday operator-(const year_month_weekday&amp; ymwd, const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymwd + (-dm)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday operator+(const year_month_weekday&amp; ymwd, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>{ymwd.year()+dy, ymwd.month(), ymwd.weekday_indexed()}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday operator+(const years&amp; dy, const year_month_weekday&amp; ymwd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymwd + dm</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday operator-(const year_month_weekday&amp; ymwd, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymwd + (-dm)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_weekday&amp; ymwd);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>ymwd</code> into
+<code>os</code>. For two objects of type <code>year_month_weekday</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month_weekday</code> objects
+shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
+<code>year_month_weekday</code> objects shall have distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="year_month_weekday_last"></a><h3><code>year_month_weekday_last</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class year_month_weekday_last
+{
+    date::year         y_;    // exposition only
+    date::month        m_;    // exposition only
+    date::weekday_last wdl_;  // exposition only
+
+public:
+    constexpr year_month_weekday_last(const date::year&amp; y, const date::month&amp; m,
+                                      const date::weekday_last&amp; wdl) noexcept;
+
+    year_month_weekday_last&amp; operator+=(const months&amp; m) noexcept;
+    year_month_weekday_last&amp; operator-=(const months&amp; m) noexcept;
+    year_month_weekday_last&amp; operator+=(const years&amp; y) noexcept;
+    year_month_weekday_last&amp; operator-=(const years&amp; y) noexcept;
+
+    constexpr date::year year() const noexcept;
+    constexpr date::month month() const noexcept;
+    constexpr date::weekday_last weekday_last() const noexcept;
+    constexpr operator day_point() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr
+bool
+operator==(const year_month_weekday_last&amp; x, const year_month_weekday_last&amp; y) noexcept;
+
+constexpr
+bool
+operator!=(const year_month_weekday_last&amp; x, const year_month_weekday_last&amp; y) noexcept;
+
+constexpr
+year_month_weekday_last
+operator+(const year_month_weekday_last&amp; ymwdl, const months&amp; dm) noexcept;
+
+constexpr
+year_month_weekday_last
+operator+(const months&amp; dm, const year_month_weekday_last&amp; ymwdl) noexcept;
+
+constexpr
+year_month_weekday_last
+operator+(const year_month_weekday_last&amp; ymwdl, const years&amp; dy) noexcept;
+
+constexpr
+year_month_weekday_last
+operator+(const years&amp; dy, const year_month_weekday_last&amp; ymwdl) noexcept;
+
+constexpr
+year_month_weekday_last
+operator-(const year_month_weekday_last&amp; ymwdl, const months&amp; dm) noexcept;
+
+constexpr
+year_month_weekday_last
+operator-(const year_month_weekday_last&amp; ymwdl, const years&amp; dy) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_weekday_last&amp; ymwdl);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>year_month_weekday_last</code> represents a specific <code>year</code>,
+<code>month</code>, and last <code>weekday</code> of the <code>month</code>.  One can
+observe each field. <code>year_month_weekday_last</code> supports <code>years</code> and
+<code>months</code> oriented arithmetic, but not <code>days</code> oriented arithmetic. 
+For the latter, there is a conversion to <code>day_point</code> which efficiently supports
+<code>days</code> oriented arithmetic.  <code>year_month_weekday_last</code> is equality
+comparable.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>year_month_weekday_last</code> is a trivially copyable class type.</br>
+<code>year_month_weekday_last</code> is a standard-layout class type.</br>
+<code>year_month_weekday_last</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr year_month_weekday_last::year_month_weekday_last(const date::year&amp; y, const date::month&amp; m,
+                                                           const date::weekday_last&amp; wdl) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year_month_weekday_last</code> by
+constructing <code>y_</code> with <code>y</code>, <code>m_</code> with <code>m</code>,
+and <code>wdl_</code> with <code>wdl</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_weekday_last&amp; year_month_weekday_last::operator+=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + m;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_weekday_last&amp; year_month_weekday_last::operator-=(const months&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - m;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_weekday_last&amp; year_month_weekday_last::operator+=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + y;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month_weekday_last&amp; year_month_weekday_last::operator-=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - y;</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year year_month_weekday_last::year() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month year_month_weekday_last::month() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday_last year_month_weekday_last::weekday_last() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wdl_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday_last::operator day_point() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>ok() == true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>day_point</code> which represents the date represented by
+<code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool year_month_weekday_last::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> If <code>m_.ok() &amp;&amp; wdl_.ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const year_month_weekday_last&amp; x, const year_month_weekday_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.year() == y.year() &amp;&amp; x.month() == y.month() &amp;&amp; x.weekday_last() == y.weekday_last()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const year_month_weekday_last&amp; x, const year_month_weekday_last&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday_last operator+(const year_month_weekday_last&amp; ymwdl, const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>ymwdl.ok()</code> is <code>true</code>.
+</p>
+<p>
+<i>Returns:</i> A <code>year_month_weekday_last</code> which has been advanced by
+<code>dm months</code>.  Negative values for <code>dm</code> will result in prior dates.
+The <code>year</code> of the resulting <code>year_month_weekday_last</code> is incremented or
+decremented appropriately as <code>month</code> addition/subtraction wraps from
+<code>dec</code> to <code>jan</code> or from  <code>jan</code> to <code>dec</code>.
+</p>
+<p>
+<i>Postconditions:</i> The resultant <code>year_month_weekday_last</code> will return
+<code>true</code> from <code>ok()</code>.
+</p>
+<p>
+<i>Complexity:</i> O(1) with respect to the value of <code>dm</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday_last operator+(const months&amp; dm, const year_month_weekday_last&amp; ymwdl) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymwdl + dm</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday_last operator-(const year_month_weekday_last&amp; ymwdl, const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymwdl + (-dm)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday_last operator+(const year_month_weekday_last&amp; ymwdl, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>{ymwdl.year()+dy, ymwdl.month(), ymwdl.weekday_last()}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday_last operator+(const years&amp; dy, const year_month_weekday_last&amp; ymwdl) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymwdl + dy</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month_weekday_last operator-(const year_month_weekday_last&amp; ymwdl, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ymwdl + (-dy)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_weekday_last&amp; ymwdl);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts an unspecified text representation of <code>ymwdl</code> into
+<code>os</code>. For two objects of type <code>year_month_weekday_last</code> <code>x</code> and
+<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month_weekday_last</code> objects
+shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
+<code>year_month_weekday_last</code> objects shall have distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<h3>date composition operators</h3>
+
+<blockquote>
+
+<a name="_1"></a><pre>
+constexpr year_month operator/(const year&amp; y, const month&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{y, m}</code>.
+</blockquote>
+
+<a name="_2"></a><pre>
+constexpr year_month operator/(const year&amp; y, int   m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>y / month(m)</code>.
+</blockquote>
+
+<p>&nbsp;</p>
+
+<a name="_3"></a><pre>
+constexpr month_day operator/(const month&amp; m, const day&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{m, d}</code>.
+</blockquote>
+
+<a name="_4"></a><pre>
+constexpr month_day operator/(const month&amp; m, int d) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>m / day(d)</code>.
+</blockquote>
+
+<a name="_5"></a><pre>
+constexpr month_day operator/(int m, const day&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>month(m) / d</code>.
+</blockquote>
+
+<a name="_6"></a><pre>
+constexpr month_day operator/(const day&amp; d, const month&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>m / d</code>.
+</blockquote>
+
+<a name="_7"></a><pre>
+constexpr month_day operator/(const day&amp; d, int m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>month(m) / d</code>.
+</blockquote>
+
+<p>&nbsp;</p>
+
+<a name="_8"></a><pre>
+constexpr month_day_last operator/(const month&amp; m, last_spec) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>month_day_last{m}</code>.
+</blockquote>
+
+<a name="_9"></a><pre>
+constexpr month_day_last operator/(int m, last_spec) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>month(m) / last</code>.
+</blockquote>
+
+<a name="_10"></a><pre>
+constexpr month_day_last operator/(last_spec, const month&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>m / last</code>.
+</blockquote>
+
+<a name="_11"></a><pre>
+constexpr month_day_last operator/(last_spec, int m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>month(m) / last</code>.
+</blockquote>
+
+<p>&nbsp;</p>
+
+<a name="_12"></a><pre>
+constexpr month_weekday operator/(const month&amp; m, const weekday_indexed&amp; wdi) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{m, wdi}</code>.
+</blockquote>
+
+<a name="_13"></a><pre>
+constexpr month_weekday operator/(int m, const weekday_indexed&amp; wdi) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>month(m) / wdi</code>.
+</blockquote>
+
+<a name="_14"></a><pre>
+constexpr month_weekday operator/(const weekday_indexed&amp; wdi, const month&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>m / wdi</code>.
+</blockquote>
+
+<a name="_15"></a><pre>
+constexpr month_weekday operator/(const weekday_indexed&amp; wdi, int m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>month(m) / wdi</code>.
+</blockquote>
+
+<p>&nbsp;</p>
+
+<a name="_16"></a><pre>
+constexpr month_weekday_last operator/(const month&amp; m, const weekday_last&amp; wdl) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{m, wdl.weekday()}</code>.
+</blockquote>
+
+<a name="_17"></a><pre>
+constexpr month_weekday_last operator/(int m, const weekday_last&amp; wdl) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>month(m) / wdl</code>.
+</blockquote>
+
+<a name="_18"></a><pre>
+constexpr month_weekday_last operator/(const weekday_last&amp; wdl, const month&amp; m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>m / wdl</code>.
+</blockquote>
+
+<a name="_19"></a><pre>
+constexpr month_weekday_last operator/(const weekday_last&amp; wdl, int m) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>month(m) / wdl</code>.
+</blockquote>
+
+<p>&nbsp;</p>
+
+<a name="_20"></a><pre>
+constexpr year_month_day operator/(const year_month&amp; ym, const day&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{ym.year(), ym.month(), d}</code>.
+</blockquote>
+
+<a name="_21"></a><pre>
+constexpr year_month_day operator/(const year_month&amp; ym, int d) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>ym / day(d)</code>.
+</blockquote>
+
+<a name="_22"></a><pre>
+constexpr year_month_day operator/(const year&amp; y, const month_day&amp; md) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>y / md.month() / md.day()</code>.
+</blockquote>
+
+<a name="_23"></a><pre>
+constexpr year_month_day operator/(int y, const month_day&amp; md) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>year(y) / md</code>.
+</blockquote>
+
+<a name="_24"></a><pre>
+constexpr year_month_day operator/(const month_day&amp; md, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>y / md</code>.
+</blockquote>
+
+<a name="_25"></a><pre>
+constexpr year_month_day operator/(const month_day&amp; md, int y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>year(y) / md</code>.
+</blockquote>
+
+<p>&nbsp;</p>
+
+<a name="_26"></a><pre>
+constexpr year_month_day_last operator/(const year_month&amp; ym, last_spec) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{ym.year(), ym.month()}</code>.
+</blockquote>
+
+<a name="_27"></a><pre>
+constexpr year_month_day_last operator/(const year&amp; y, const month_day_last&amp; mdl) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{y, mdl.month()}</code>.
+</blockquote>
+
+<a name="_28"></a><pre>
+constexpr year_month_day_last operator/(int y, const month_day_last&amp; mdl) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>year(y) / mdl</code>.
+</blockquote>
+
+<a name="_29"></a><pre>
+constexpr year_month_day_last operator/(const month_day_last&amp; mdl, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>y / mdl</code>.
+</blockquote>
+
+<a name="_30"></a><pre>
+constexpr year_month_day_last operator/(const month_day_last&amp; mdl, int y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>year(y) / mdl</code>.
+</blockquote>
+
+<p>&nbsp;</p>
+
+<a name="_31"></a><pre>
+constexpr year_month_weekday operator/(const year_month&amp; ym, const weekday_indexed&amp; wdi) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{ym.year(), ym.month(), wdi}</code>.
+</blockquote>
+
+<a name="_32"></a><pre>
+constexpr year_month_weekday operator/(const year&amp; y, const month_weekday&amp; mwd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{y, mwd.month(), mwd.weekday_indexed()}</code>.
+</blockquote>
+
+<a name="_33"></a><pre>
+constexpr year_month_weekday operator/(int y, const month_weekday&amp; mwd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>year(y) / mwd</code>.
+</blockquote>
+
+<a name="_34"></a><pre>
+constexpr year_month_weekday operator/(const month_weekday&amp; mwd, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>y / mwd</code>.
+</blockquote>
+
+<a name="_35"></a><pre>
+constexpr year_month_weekday operator/(const month_weekday&amp; mwd, int y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>year(y) / mwd</code>.
+</blockquote>
+
+<p>&nbsp;</p>
+
+<a name="_36"></a><pre>
+constexpr year_month_weekday_last operator/(const year_month&amp; ym, const weekday_last&amp; wdl) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{ym.year(), ym.month(), wdl}</code>.
+</blockquote>
+
+<a name="_37"></a><pre>
+constexpr year_month_weekday_last operator/(const year&amp; y, const month_weekday_last&amp; mwdl) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{y, mwdl.month(), mwdl.weekday()[last]}</code>.
+</blockquote>
+
+<a name="_38"></a><pre>
+constexpr year_month_weekday_last operator/(int y, const month_weekday_last&amp; mwdl) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>year(y) / mwdl</code>.
+</blockquote>
+
+<a name="_39"></a><pre>
+constexpr year_month_weekday_last operator/(const month_weekday_last&amp; mwdl, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>y / mwdl</code>.
+</blockquote>
+
+<a name="_40"></a><pre>
+constexpr year_month_weekday_last operator/(const month_weekday_last&amp; mwdl, int y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>year(y) / mwdl</code>.
+</blockquote>
+
+</blockquote>
+
+</body>
+</html>
