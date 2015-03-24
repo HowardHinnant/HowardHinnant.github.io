@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-03-22<br/>
+2015-03-23<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -304,7 +304,7 @@ constexpr auto x3 = last/feb/2015;
 <p>
 Instead of constructing a <code>year_month_day</code>, these expressions construct a
 <code>year_month_day_last</code>.  This type always represents the last day of a
-<code>year</code> and <code>month</code>.  <code>year</code> and <code>month</code> will
+<code>year</code> and <code>month</code>.  <code>year_month_day_last</code> will
 implicitly convert to <code>year_month_day</code>.
 </p>
 
@@ -588,7 +588,7 @@ a <code>year_month_day</code> is zero, at least in release builds.
 
 <p>
 A similar experiment is made for constructing a <code>day_point</code> from a count of
-days held in an <code>int</code>.  To do this one first create a <code>days</code>
+days held in an <code>int</code>.  To do this one must first create a <code>days</code>
 duration, and then construct the <code>day_point</code> from the <code>days</code>
 duration.  This is contrasted with the very simplistic <code>struct SERIAL_4</code>.
 </p>
@@ -682,8 +682,8 @@ It is easy to see that the generated code is identical, and thus there is no ove
 associated with the <code>day_point</code> type.  It is also noteworthy that the code for
 this construction does not actually come from this <code>date</code> library, but instead
 comes from your std::lib header <code>&lt;chrono&gt;</code>.  <code>days</code> is nothing
-but a <code>typedef</code> for a <code>std::chrono::duration</code>, and
-<code>day_point</code> is nothing but a <code>typedef</code> for a
+but a <i>type-alias</i> for a <code>std::chrono::duration</code>, and
+<code>day_point</code> is nothing but a <i>type-alias</i> for a
 <code>std::chrono::time_point</code> (thus the inspiration for the name
 <code>day_point</code>).  So this is also evidence that there is zero overhead for the
 safe type system of the <code>&lt;chrono&gt;</code> library.
@@ -2110,9 +2110,7 @@ constexpr weekday_indexed weekday::operator[](unsigned index) const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> A <code>weekday_indexed</code> which stores <code>*this</code> and
-<code>index</code>.  [<i>Note:</i> <code>weekday_indexed</code> has no such publicly
-specified constructor. &mdash; <i>end note</i>]
+<i>Returns:</i> <code>{*this, index}</code>.
 </p>
 </blockquote>
 
@@ -2122,9 +2120,7 @@ constexpr weekday_last weekday::operator[](last_spec) const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> A <code>weekday_last</code> which stores <code>*this</code>. [<i>Note:</i>
-<code>weekday_last</code> has no such publicly specified constructor. &mdash; <i>end
-note</i>]
+<i>Returns:</i> <code>weekday_last{*this}</code>.
 </p>
 </blockquote>
 
