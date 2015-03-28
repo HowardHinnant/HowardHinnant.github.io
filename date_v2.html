@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-03-23<br/>
+2015-03-27<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -689,9 +689,125 @@ but a <i>type-alias</i> for a <code>std::chrono::duration</code>, and
 safe type system of the <code>&lt;chrono&gt;</code> library.
 </p>
 
+<a name="shift_epoch"></a>
 <p>
-Similar assembly comparisons can be made showing that <code>day_point</code>
-(day-oriented) arithmetic has zero overhead compared to <code>int</code> arithmetic.
+One final example taken from real-world code.  Below are two ways of implementing a system
+which counts seconds since Jan. 1, 2000:  One that uses this library and another that
+simply stores the count of seconds in a <code>long</code>.  A utility is needed to convert
+that count to <a href="http://en.wikipedia.org/wiki/Unix_time">Unix Time</a>, which simply
+involves shifting the epoch to Jan. 1, 1970.
+</p>
+
+<blockquote>
+<table border="1" cellpadding="10">
+<caption>Shift epoch from <code>jan/1/2000</code> to <code>jan/1/1970</code></caption>
+<tr>
+
+<td>
+<pre>
+using time_point = std::chrono::time_point&lt;std::chrono::system_clock,
+                                           std::chrono::seconds&gt;;
+
+time_point
+ripple2system(time_point t)
+{
+    using namespace date;
+    return t + (day_point(jan/1/2000) - day_point(jan/1/1970));
+}
+</pre>
+</td>
+
+<td>
+<pre>
+long
+ripple2system_old(long t)
+{
+    return t + 946684800;
+}
+</pre>
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+<pre>
+	.globl	__Z13ripple2systemNSt3__16chrono10time_pointINS0...
+	.align	4, 0x90
+__Z13ripple2systemNSt3__16chrono10time_pointINS0...
+	.cfi_startproc
+## BB#0:
+	pushq	%rbp
+Ltmp2:
+	.cfi_def_cfa_offset 16
+Ltmp3:
+	.cfi_offset %rbp, -16
+	movq	%rsp, %rbp
+Ltmp4:
+	.cfi_def_cfa_register %rbp
+	leaq	946684800(%rdi), %rax
+	popq	%rbp
+	retq
+	.cfi_endproc
+</pre>
+</td>
+
+<td>
+<pre>
+	.globl	__Z17ripple2system_oldl
+	.align	4, 0x90
+__Z17ripple2system_oldl:
+	.cfi_startproc
+## BB#0:
+	pushq	%rbp
+Ltmp2:
+	.cfi_def_cfa_offset 16
+Ltmp3:
+	.cfi_offset %rbp, -16
+	movq	%rsp, %rbp
+Ltmp4:
+	.cfi_def_cfa_register %rbp
+	leaq	946684800(%rdi), %rax
+	popq	%rbp
+	retq
+	.cfi_endproc
+</pre>
+</td>
+
+</tr>
+</table>
+
+</blockquote>
+
+<p>
+On the left we have a strongly typed solution which makes it explicit that the code is
+adding a time duration equal to the difference between the two epochs.  Though verbose,
+the code is easy to read.  On the right we have the maximally efficient, and yet relatively
+cryptic implementation with <code>long</code>.  As it turns out, there are 946,684,800
+seconds between these two epochs ... who knew?
+</p>
+
+<p>
+clang generates <i>identical</i> assembly for these two functions at -O2 and higher.
+</p>
+
+<p>
+And in the strongly typed case, if in the future one decides that one wants to count
+milliseconds instead of seconds, that can be changed in <b>one</b> place:
+</p>
+
+<blockquote>
+<pre>
+using time_point = std::chrono::time_point&lt;std::chrono::system_clock,
+                                           std::chrono::<ins>milli</ins>seconds&gt;;
+</pre>
+</blockquote>
+
+<p>
+Upon recompile the compiler automatically updates the compile-time constant in
+<code>ripple2system</code> from 946684800 to 946684800000 (and everywhere else such as
+where you perform the epoch shift in the reverse direction).
 </p>
 
 <h3>What about a date-time type?</h3>
