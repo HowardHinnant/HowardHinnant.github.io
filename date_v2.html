@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-03-27<br/>
+2015-03-28<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -212,6 +212,10 @@ Currently this outputs for me:
 </pre></blockquote>
 
 <p>
+Which obtusely indicates that I wrote this 16,516 days after the epoch.
+</p>
+
+<p>
 To get today as a <code>year_month_day</code>, get a <code>day_point</code> as above and
 convert it to a <code>year_month_day</code>:
 </p>
@@ -230,6 +234,10 @@ Currently this outputs for me:
 </pre></blockquote>
 
 <p>
+Which coincidently is 16,516 days after Jan. 1, 1970.
+</p>
+
+<p>
 To get today as a <code>year_month_weekday</code>, get a <code>day_point</code> as above and
 convert it to a <code>year_month_weekday</code>:
 </p>
@@ -246,6 +254,10 @@ Currently this outputs for me:
 <blockquote><pre>
 2015/Mar/Sun[4]
 </pre></blockquote>
+
+<p>
+This indicates that today (2015-03-22) is the fourth Sunday of Mar., 2015.
+</p>
 
 <h3>Constructing dates</h3>
 
@@ -280,10 +292,10 @@ auto x3 = day(d)/m/y;
 </pre></blockquote>
 
 <p>
-As long as the first date component is known, the following components become unambiguous
-and can be formed either with the proper type, or with an <code>int</code> expression.
-And since there is only one order with <code>day</code> in the middle, that order need
-only properly type the <code>day</code> to remain unambiguous:
+As long as the type of the first date component is known, the following components become
+unambiguous and can be formed either with the proper type, or with an <code>int</code>
+expression. And since there is only one order with <code>day</code> in the middle, that
+order need only properly type the <code>day</code> to remain unambiguous:
 </p>
 
 <blockquote><pre>
@@ -373,13 +385,14 @@ cout &lt;&lt; x2 &lt;&lt; '\n';
 <h3>Errors</h3>
 
 <p>
-No exceptions are thrown in the entire library.  Most of the types have a
-<code>constexpr const</code> member function named <code>ok()</code> which returns
-<code>true</code> if the object represents a valid date, or date component, and otherwise
-returns <code>false</code>.  However it is perfectly fine (and sometimes actually useful)
-for these objects to contain invalid dates or date components.  For example, here is a
-very simple and remarkably efficient program to output the odd Fridays of every month in
-2015:
+No exceptions are thrown in the entire library, except those that might be thrown from
+<code>std::ostream</code> when streaming values to a <code>std::ostream</code>.  Most of
+the types have a <code>constexpr const</code> member function named <code>ok()</code>
+which returns <code>true</code> if the object represents a valid date, or date component,
+and otherwise returns <code>false</code>.  However it is perfectly fine (and sometimes
+actually useful) for these objects to contain invalid dates or date components.  For
+example, here is a very simple and remarkably efficient program to output the odd Fridays
+of every month in 2015:
 </p>
 
 <blockquote><pre>
@@ -583,7 +596,7 @@ Ltmp4:
 <p>
 One can see that the generated assembler is virtually identical for these two factory
 functions.  I.e. the code size and run time overhead of the "cute syntax" for constructing
-a <code>year_month_day</code> is zero, at least in release builds.
+a <code>year_month_day</code> is zero, at least in optimized builds.
 </p>
 
 <p>
@@ -789,7 +802,13 @@ seconds between these two epochs ... who knew?
 </p>
 
 <p>
-clang generates <i>identical</i> assembly for these two functions at -O2 and higher.
+clang generates <i>identical</i> assembly for these two functions at -O2 and higher.  That
+is, the sub-expression <code>(day_point(jan/1/2000) - day_point(jan/1/1970))</code> is
+reduced down to a compile-time number of days (10,957) <i>at compile time</i>, and then
+this sub-expression, which has type <code>days</code> is added to a
+<code>time_point</code> with a resolution of <code>seconds</code>, which causes the
+compiler to convert <code>days{10957}</code> to <code>seconds{946684800}</code> <i>at
+compile time</i>.
 </p>
 
 <p>
