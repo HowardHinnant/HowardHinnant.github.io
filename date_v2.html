@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-03-28<br/>
+2015-04-03<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -3225,6 +3225,11 @@ constexpr bool operator&gt; (const year_month&amp; x, const year_month&amp; y) n
 constexpr bool operator&lt;=(const year_month&amp; x, const year_month&amp; y) noexcept;
 constexpr bool operator&gt;=(const year_month&amp; x, const year_month&amp; y) noexcept;
 
+constexpr year_month operator+(const year_month&amp; x, const months&amp; y) noexcept;
+constexpr year_month operator+(const months&amp; x, const year_month&amp; y) noexcept;
+constexpr year_month operator-(const year_month&amp; x, const months&amp; y) noexcept;
+constexpr months operator-(const year_month&amp; x, const year_month&amp; y) noexcept;
+
 std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month&amp; ym);
 </pre>
 
@@ -3346,6 +3351,48 @@ constexpr bool operator&gt;=(const year_month&amp; x, const year_month&amp; y) n
 <blockquote>
 <p>
 <i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month operator+(const year_month& x, const months& y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>year_month</code> value <code>z</code> such that
+<code>z - x == y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month operator+(const months& x, const year_month& y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y + x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month operator-(const year_month& x, const months& y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x + -y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr months operator-(const year_month&amp; x, const year_month&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> The number of <code>months</code> one must add to <code>y</code> to get
+<code>x</code>.
 </p>
 </blockquote>
 

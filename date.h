@@ -374,6 +374,11 @@ constexpr bool operator> (const year_month& x, const year_month& y) noexcept;
 constexpr bool operator<=(const year_month& x, const year_month& y) noexcept;
 constexpr bool operator>=(const year_month& x, const year_month& y) noexcept;
 
+constexpr year_month operator+(const year_month& x, const months& y) noexcept;
+constexpr year_month operator+(const months& x, const year_month& y) noexcept;
+constexpr year_month operator-(const year_month& x, const months& y) noexcept;
+constexpr months operator-(const year_month& x, const year_month& y) noexcept;
+
 std::ostream& operator<<(std::ostream& os, const year_month& ym);
 
 // month_day
@@ -1418,6 +1423,41 @@ bool
 operator>=(const year_month& x, const year_month& y) noexcept
 {
     return !(x < y);
+}
+
+constexpr
+inline
+year_month
+operator+(const year_month& x, const months& y) noexcept
+{
+    auto const mu = static_cast<long long>(static_cast<unsigned>(x.month())) - 1 + y.count();
+    auto const yr = (mu >= 0 ? mu : mu-11) / 12;
+    return (x.year() + years(yr)) / month{static_cast<unsigned>(mu - yr * 12 + 1)};
+}
+
+constexpr
+inline
+year_month
+operator+(const months& x, const year_month& y) noexcept
+{
+    return y + x;
+}
+
+constexpr
+inline
+year_month
+operator-(const year_month& x, const months& y) noexcept
+{
+    return x + -y;
+}
+
+constexpr
+inline
+months
+operator-(const year_month& x, const year_month& y) noexcept
+{
+    return (x.year() - y.year()) +
+            months(static_cast<unsigned>(x.month()) - static_cast<unsigned>(y.month()));
 }
 
 inline
