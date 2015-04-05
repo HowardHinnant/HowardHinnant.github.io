@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-04-03<br/>
+2015-04-04<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -175,22 +175,59 @@ using namespace std::chrono;
 in order to cut down on the verbosity.
 </p>
 
-<h3>Major Types</h3>
+<h3>Major Concepts</h3>
 
 <p>
-There are three different ways to store an arbitrary date:
+A date on a calendar is a time point with a resolution of one day.  This is not
+conceptually different from <code>std::chrono::system_clock::time_point</code> which is a
+time point with a resolution of <code>std::chrono::system_clock::period</code> (typically
+on the order of a microsecond or nanosecond).  Time points are divided into two basic
+types:
 </p>
 
 <ol>
-<li><code>day_point</code>: A count of days since <code>system_clock</code>'s epoch.</li>
-<li><code>year_month_day</code>: A type that holds a year (e.g. 2015), a month
-(encoded as 1 thru 12), and a day (encoded as 1 thru 31).</li>
-<li><code>year_month_weekday</code>:  A type that holds a year (e.g. 2015), a month
-(encoded as 1 thru 12), a day of the week (encoded as 0 thru 6), and an index in the range
-[1, 5] indicating if this is the first, second, etc. weekday of the indicated month.</li>
+<li>serial-based</li>
+<li>field-based</li>
 </ol>
 
-<h3>Today</h3>
+<p>
+This terminology is gratefully borrowed from
+<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3344.pdf">N3344</a>.  In
+short, a <i>serial-based</i> time point stores a single count of time durations from some epoch.
+<code>std::chrono::system_clock::time_point</code> is an example of a <i>serial-based</i>
+time point.  A count of days from some epoch is also a <i>serial-based</i> time point.
+A <i>field-based</i> time point represents the same concept, but with several fields that
+are typically used for human consumption.  For example one might represent the time of day
+with the number of seconds since midnight (<i>serial-based</i>), or with a structure such
+as <code>{hours, minutes, seconds}</code> since midnight (<i>field-based</i>).  Similarly
+one can represent a date with a count of days, or with a <code>{year, month, day}</code>
+structure.  Both representations are useful, and each has its strengths and weaknesses.
+</p>
+
+<h3>Major Types</h3>
+
+<p>
+This library is composed of many types.  But here are the most important ones:
+</p>
+
+<ol>
+<li><code>day_point</code>: A count of days since <code>system_clock</code>'s epoch.  This
+is a serial-based time point with a resolution of one day.</li>
+<li><code>year_month_day</code>: A type that holds a year (e.g. 2015), a month
+(encoded as 1 thru 12), and a day (encoded as 1 thru 31).  This is a field-based time
+point with a resolution of one day.</li>
+<li><code>year_month_weekday</code>:  A type that holds a year (e.g. 2015), a month
+(encoded as 1 thru 12), a day of the week (encoded as 0 thru 6), and an index in the range
+[1, 5] indicating if this is the first, second, etc. weekday of the indicated month. This
+is a field-based time point with a resolution of one day.</li>
+<li>
+<code>year_month</code>: A type that holds a year and a month.  This is a field-based
+time point with a resolution of one month.  This time point implements month-based
+arithmetic, which other field-based time points can reuse.
+</li>
+</ol>
+
+<h3>Example: Today</h3>
 
 <p>
 To get today as a <code>day_point</code>, use <code>system_clock::now()</code> and
@@ -259,7 +296,7 @@ Currently this outputs for me:
 This indicates that today (2015-03-22) is the fourth Sunday of Mar., 2015.
 </p>
 
-<h3>Constructing dates</h3>
+<h3>Example: Constructing dates</h3>
 
 <p>
 <code>constexpr</code> dates can be constructed from literals in one of 3 orders:
@@ -699,7 +736,7 @@ but a <i>type-alias</i> for a <code>std::chrono::duration</code>, and
 <code>day_point</code> is nothing but a <i>type-alias</i> for a
 <code>std::chrono::time_point</code> (thus the inspiration for the name
 <code>day_point</code>).  So this is also evidence that there is zero overhead for the
-safe type system of the <code>&lt;chrono&gt;</code> library.
+type-safe system of the <code>&lt;chrono&gt;</code> library.
 </p>
 
 <a name="shift_epoch"></a>
@@ -804,11 +841,10 @@ seconds between these two epochs ... who knew?
 <p>
 clang generates <i>identical</i> assembly for these two functions at -O2 and higher.  That
 is, the sub-expression <code>(day_point(jan/1/2000) - day_point(jan/1/1970))</code> is
-reduced down to a compile-time number of days (10,957) <i>at compile time</i>, and then
-this sub-expression, which has type <code>days</code> is added to a
-<code>time_point</code> with a resolution of <code>seconds</code>, which causes the
-compiler to convert <code>days{10957}</code> to <code>seconds{946684800}</code> <i>at
-compile time</i>.
+reduced down to a number of days (10,957) <i>at compile time</i>, and then this
+sub-expression, which has type <code>days</code> is added to a <code>time_point</code>
+with a resolution of <code>seconds</code>, which causes the compiler to convert
+<code>days{10957}</code> to <code>seconds{946684800}</code>, again <i>at compile time</i>.
 </p>
 
 <p>
@@ -832,7 +868,7 @@ where you perform the epoch shift in the reverse direction).
 <h3>What about a date-time type?</h3>
 
 <p>
-You've already got a good one. It is called
+You already have a good one. It is called
 <code>std::chrono::system_clock::time_point</code>. And it is completely interoperable
 with <code>day_point</code>.  
 </p>
@@ -981,7 +1017,8 @@ Everything here is contained in the namespace <code>date</code>.
 <code>days</code> is a <code>std::chrono::duration</code> with a tick period of 24 hours.
 This definition is not an SI unit but <a
 href="http://www.bipm.org/en/publications/si-brochure/table6.html">is accepted for use
-with SI</a>.
+with SI</a>.  <code>days</code> is the resultant type when subtracting two
+<code>day_point</code>s.
 </p>
 <pre>
 using days = std::chrono::duration
@@ -995,6 +1032,7 @@ using days = std::chrono::duration
 <code>weeks</code> is a <code>std::chrono::duration</code> with a tick period of 7 days.
 This definition is widely recognized and predates the Gregorian calendar.  It is
 consistent with <a href="http://en.wikipedia.org/wiki/ISO_8601">ISO 8601</a>.
+<code>weeks</code> will implicitly convert to <code>days</code> but not vice-versa.
 </p>
 <pre>
 using weeks = std::chrono::duration
@@ -1007,7 +1045,10 @@ using weeks = std::chrono::duration
 <p>
 <code>years</code> is a <code>std::chrono::duration</code> with a tick period of 365.2425
 days.  This definition accurately describes the length of the average year in the
-Gregorian calendar.
+Gregorian calendar.  <code>years</code> is the resultant type when subtracting two
+<code>year</code> field-based time points.  <code>years</code> is not implicitly
+convertible to <code>days</code> or <code>weeks</code> nor vice-versa.  However
+<code>years</code> will implicitly convert to <code>months</code>.
 </p>
 <pre>
 using years = std::chrono::duration
@@ -1020,7 +1061,10 @@ using years = std::chrono::duration
 <p>
 <code>months</code> is a <code>std::chrono::duration</code> with a tick period of
 <sup>1</sup>/<sub>12</sub> of a year.  This definition accurately describes the length of
-the average month in the Gregorian calendar.
+the average month in the Gregorian calendar.  <code>months</code> is the resultant type
+when subtracting two <code>month</code> field-based time points. <code>months</code> is
+not implicitly convertible to <code>days</code> or <code>weeks</code> nor vice-versa. 
+<code>months</code> will not implicitly convert to <code>years</code>.
 </p>
 <pre>
 using months = std::chrono::duration
@@ -1036,7 +1080,8 @@ using months = std::chrono::duration
 <code>day_point</code> interoperable with
 <code>std::chrono::system_clock::time_point</code>.  It is simply a count of days since
 the epoch of <code>std::chrono::system_clock</code> which in every implementation is
-Jan. 1, 1970.
+Jan. 1, 1970.  <code>day_point</code> is a serial-based time point with a resolution of
+<code>days</code>.
 </p>
 <pre>
 using day_point = std::chrono::time_point&lt;std::chrono::system_clock, days&gt;;
@@ -3225,10 +3270,13 @@ constexpr bool operator&gt; (const year_month&amp; x, const year_month&amp; y) n
 constexpr bool operator&lt;=(const year_month&amp; x, const year_month&amp; y) noexcept;
 constexpr bool operator&gt;=(const year_month&amp; x, const year_month&amp; y) noexcept;
 
-constexpr year_month operator+(const year_month&amp; x, const months&amp; y) noexcept;
-constexpr year_month operator+(const months&amp; x, const year_month&amp; y) noexcept;
-constexpr year_month operator-(const year_month&amp; x, const months&amp; y) noexcept;
+constexpr year_month operator+(const year_month&amp; ym, const months&amp; dm) noexcept;
+constexpr year_month operator+(const months&amp; dm, const year_month&amp; ym) noexcept;
+constexpr year_month operator-(const year_month&amp; ym, const months&amp; dm) noexcept;
 constexpr months operator-(const year_month&amp; x, const year_month&amp; y) noexcept;
+constexpr year_month operator+(const year_month&amp; ym, const years&amp; dy) noexcept;
+constexpr year_month operator+(const years&amp; dy, const year_month&amp; ym) noexcept;
+constexpr year_month operator-(const year_month&amp; ym, const years&amp; dy) noexcept;
 
 std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month&amp; ym);
 </pre>
@@ -3237,7 +3285,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month&amp; y
 
 <p>
 <code>year_month</code> represents a specific <code>month</code> of a specific
-<code>year</code>, but with an unspecified <code>day</code>.  One can observe the
+<code>year</code>, but with an unspecified <code>day</code>. <code>year_month</code> is a
+field-based time point with a resolution of <code>months</code>. One can observe the
 different components.  One can assign a new value.  <code>year_month</code> is equality
 comparable and less-than comparable.  One can stream out a <code>year_month</code> for
 debugging purposes.
@@ -3355,33 +3404,39 @@ constexpr bool operator&gt;=(const year_month&amp; x, const year_month&amp; y) n
 </blockquote>
 
 <pre>
-constexpr year_month operator+(const year_month& x, const months& y) noexcept;
+constexpr year_month operator+(const year_month& ym, const months& dm) noexcept;
 </pre>
 
 <blockquote>
+<p>
+<i>Requires:</i> <code>ym.month().ok()</code> is <code>true</code>.
+</p>
 <p>
 <i>Returns:</i> A <code>year_month</code> value <code>z</code> such that
-<code>z - x == y</code>.
+<code>z - ym == dm</code>.
+</p>
+<p>
+<i>Complexity:</i> O(1) with respect to the value of <code>dm</code>.
 </p>
 </blockquote>
 
 <pre>
-constexpr year_month operator+(const months& x, const year_month& y) noexcept;
+constexpr year_month operator+(const months& dm, const year_month& ym) noexcept;
 </pre>
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>y + x</code>.
+<i>Returns:</i> <code>ym + dm</code>.
 </p>
 </blockquote>
 
 <pre>
-constexpr year_month operator-(const year_month& x, const months& y) noexcept;
+constexpr year_month operator-(const year_month& ym, const months& dm) noexcept;
 </pre>
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>x + -y</code>.
+<i>Returns:</i> <code>ym + -dm</code>.
 </p>
 </blockquote>
 
@@ -3393,6 +3448,36 @@ constexpr months operator-(const year_month&amp; x, const year_month&amp; y) noe
 <p>
 <i>Returns:</i> The number of <code>months</code> one must add to <code>y</code> to get
 <code>x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month operator+(const year_month& ym, const years& dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>(ym.year() + dy) / ym.month()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month operator+(const years& dy, const year_month& ym) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ym + dy</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_month operator-(const year_month& ym, const years& dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ym + -dy</code>.
 </p>
 </blockquote>
 
@@ -3466,12 +3551,13 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_day&am
 
 <p>
 <code>year_month_day</code> represents a specific <code>year</code>, <code>month</code>,
-and <code>day</code>.  One can observe each field.  <code>year_month_day</code> supports
-<code>years</code> and <code>months</code> oriented arithmetic, but not <code>days</code>
-oriented arithmetic.  For the latter, there is a conversion to <code>day_point</code>
-which efficiently supports <code>days</code> oriented arithmetic.  There is a also a
-conversion <i>from</i> <code>day_point</code>. <code>year_month_day</code> is equality and
-less-than comparable.
+and <code>day</code>.  <code>year_month_day</code> is a field-based time point with a
+resolution of <code>days</code>.  One can observe each field.  <code>year_month_day</code>
+supports <code>years</code> and <code>months</code> oriented arithmetic, but not
+<code>days</code> oriented arithmetic.  For the latter, there is a conversion to
+<code>day_point</code> which efficiently supports <code>days</code> oriented arithmetic. 
+There is a also a conversion <i>from</i> <code>day_point</code>.
+<code>year_month_day</code> is equality and less-than comparable.
 </p>
 
 <p><b>Specification</b></p>
@@ -3710,24 +3796,12 @@ constexpr year_month_day operator+(const year_month_day&amp; ymd, const months&a
 <i>Requires:</i> <code>ymd.month().ok()</code> is <code>true</code>.
 </p>
 <p>
-<i>Returns:</i> A <code>year_month_day</code> which has been advanced by
-<code>dm months</code>.  Negative values for <code>dm</code> will result in prior dates.
-The <code>year</code> of the resulting <code>year_month_day</code> is incremented or
-decremented appropriately as <code>month</code> addition/subtraction wraps from
-<code>dec</code> to <code>jan</code> or from  <code>jan</code> to <code>dec</code>.
-</p>
-<p>
-<i>Postconditions:</i> The <code>day()</code> returned by the result will be equal to
-<code>ymd.day()</code>.  The resultant <code>month</code> and <code>year</code> will
-return <code>true</code> from their respective <code>ok()</code> member functions.
+<i>Returns:</i> <code>(ymd.year() / ymd.month() + dm) / ymd.day()</code>.
 </p>
 <p>
 <i>Remarks:</i> If <code>ymd.day()</code> is in the range <code>[1_d, 28_d]</code>,
 the resultant <code>year_month_day</code> is guaranteed to return <code>true</code> from
 <code>ok()</code>.
-</p>
-<p>
-<i>Complexity:</i> O(1) with respect to the value of <code>dm</code>.
 </p>
 </blockquote>
 
@@ -3757,7 +3831,7 @@ constexpr year_month_day operator+(const year_month_day&amp; ymd, const years&am
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>{ymd.year()+dy, ymd.month(), ymd.day()}</code>.
+<i>Returns:</i> <code>(ymd.year() + dy) / ymd.month() / ymd.day()</code>.
 </p>
 <p>
 <i>Remarks:</i> If <code>ymd.month()</code> is <code>feb</code> and <code>ymd.day()</code>
@@ -3852,10 +3926,12 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_day_la
 
 <p>
 <code>year_month_day_last</code> represents a specific <code>year</code>,
-<code>month</code>, and the last <code>day</code> of the <code>month</code>.  One can
-observe each field.  The <code>day</code> field is computed on demand.
+<code>month</code>, and the last <code>day</code> of the <code>month</code>.
+<code>year_month_day_last</code> is a field-based time point with a resolution of
+<code>days</code>, except that it is restricted to pointing to the last day of a year and
+month.  One can observe each field.  The <code>day</code> field is computed on demand.
 <code>year_month_day_last</code> supports <code>years</code> and <code>months</code>
-oriented arithmetic, but not <code>days</code> oriented arithmetic.  For the latter, there
+oriented arithmetic, but not <code>days</code> oriented arithmetic. For the latter, there
 is a conversion to <code>day_point</code> which efficiently supports <code>days</code>
 oriented arithmetic.  <code>year_month_day_last</code> is equality and less-than
 comparable.
@@ -4058,11 +4134,7 @@ constexpr year_month_day_last operator+(const year_month_day_last&amp; ymdl, con
 <i>Requires:</i> <code>ymdl.ok()</code> is <code>true</code>.
 </p>
 <p>
-<i>Returns:</i> A <code>year_month_day_last</code> which has been advanced by
-<code>dm months</code>.  Negative values for <code>dm</code> will result in prior dates.
-The <code>year</code> of the resulting <code>year_month_day_last</code> is incremented or
-decremented appropriately as <code>month</code> addition/subtraction wraps from
-<code>dec</code> to <code>jan</code> or from  <code>jan</code> to <code>dec</code>.
+<i>Returns:</i> <code>(ymdl.year() / ymdl.month() + dm) / last</code>.
 </p>
 <p>
 <i>Postconditions:</i> The resultant <code>year_month_day_last</code> will return
@@ -4188,12 +4260,13 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_weekda
 
 <p>
 <code>year_month_weekday</code> represents a specific <code>year</code>,
-<code>month</code>, and nth <code>weekday</code> of the <code>month</code>.  One can
-observe each field. <code>year_month_weekday</code> supports <code>years</code> and
-<code>months</code> oriented arithmetic, but not <code>days</code> oriented arithmetic. 
-For the latter, there is a conversion to <code>day_point</code> which efficiently supports
-<code>days</code> oriented arithmetic.  <code>year_month_weekday</code> is equality
-comparable.
+<code>month</code>, and nth <code>weekday</code> of the <code>month</code>. 
+<code>year_month_weekday</code> is a field-based time point with a resolution of
+<code>days</code>.  One can observe each field. <code>year_month_weekday</code> supports
+<code>years</code> and <code>months</code> oriented arithmetic, but not <code>days</code>
+oriented arithmetic. For the latter, there is a conversion to <code>day_point</code> which
+efficiently supports <code>days</code> oriented arithmetic. 
+<code>year_month_weekday</code> is equality comparable.
 </p>
 
 <p><b>Specification</b></p>
@@ -4370,11 +4443,7 @@ constexpr year_month_weekday operator+(const year_month_weekday&amp; ymwd, const
 <i>Requires:</i> <code>ymwd.ok()</code> is <code>true</code>.
 </p>
 <p>
-<i>Returns:</i> A <code>year_month_weekday</code> which has been advanced by
-<code>dm months</code>.  Negative values for <code>dm</code> will result in prior dates.
-The <code>year</code> of the resulting <code>year_month_weekday</code> is incremented or
-decremented appropriately as <code>month</code> addition/subtraction wraps from
-<code>dec</code> to <code>jan</code> or from  <code>jan</code> to <code>dec</code>.
+<i>Returns:</i> <code>(ymwd.year() / ymwd.month() + dm) / ymwd.weekday_indexed()</code>.
 </p>
 <p>
 <i>Postconditions:</i> The resultant <code>year_month_weekday</code> will return
@@ -4521,12 +4590,14 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_weekda
 
 <p>
 <code>year_month_weekday_last</code> represents a specific <code>year</code>,
-<code>month</code>, and last <code>weekday</code> of the <code>month</code>.  One can
-observe each field. <code>year_month_weekday_last</code> supports <code>years</code> and
-<code>months</code> oriented arithmetic, but not <code>days</code> oriented arithmetic. 
-For the latter, there is a conversion to <code>day_point</code> which efficiently supports
-<code>days</code> oriented arithmetic.  <code>year_month_weekday_last</code> is equality
-comparable.
+<code>month</code>, and last <code>weekday</code> of the <code>month</code>.
+<code>year_month_weekday_last</code> is a field-based time point with a resolution of
+<code>days</code>, except that it is restricted to pointing to the last weekday of a year
+and month.  One can observe each field. <code>year_month_weekday_last</code> supports
+<code>years</code> and <code>months</code> oriented arithmetic, but not <code>days</code>
+oriented arithmetic. For the latter, there is a conversion to <code>day_point</code> which
+efficiently supports <code>days</code> oriented arithmetic.
+<code>year_month_weekday_last</code> is equality comparable.
 </p>
 
 <p><b>Specification</b></p>
@@ -4685,11 +4756,7 @@ constexpr year_month_weekday_last operator+(const year_month_weekday_last&amp; y
 <i>Requires:</i> <code>ymwdl.ok()</code> is <code>true</code>.
 </p>
 <p>
-<i>Returns:</i> A <code>year_month_weekday_last</code> which has been advanced by
-<code>dm months</code>.  Negative values for <code>dm</code> will result in prior dates.
-The <code>year</code> of the resulting <code>year_month_weekday_last</code> is incremented or
-decremented appropriately as <code>month</code> addition/subtraction wraps from
-<code>dec</code> to <code>jan</code> or from  <code>jan</code> to <code>dec</code>.
+<i>Returns:</i> <code>(ymwdl.year() / ymwdl.month() + dm) / ymwdl.weekday_last()</code>.
 </p>
 <p>
 <i>Postconditions:</i> The resultant <code>year_month_weekday_last</code> will return
@@ -4773,6 +4840,73 @@ shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</c
 
 <blockquote>
 
+<p>
+To understand this API it is not necessary for you to memorize each of these operators.
+Indeed, that would be detrimental to understanding this API.  Instead it is sufficient
+to known that this collection of operators implement constructions in 3 orders:
+</p>
+
+<ol>
+<li><code>y/m/d</code></li>
+<li><code>m/d/y</code></li>
+<li><code>d/m/y</code></li>
+</ol>
+
+<p>
+The first component in each order must be properly typed, the following components may
+be specified with the proper type or an <code>int</code>.
+</p>
+
+<p>
+Anywhere a "day" is required one can also specify one of:
+</p>
+
+<ul>
+<li><code>last</code></li>
+<li><code>weekday[i]</code></li>
+<li><code>weekday[last]</code></li>
+</ul>
+
+<p>
+Sub-field-types such as <code>year_month</code> and <code>month_day</code> can be created
+by simply not applying the second division operator for any of the three orders.  For
+example:
+</p>
+
+<blockquote><pre>
+year_month ym = 2015_y/apr;
+month_day md1 = apr/4;
+month_day md2 = 4_d/apr;
+</pre></blockquote>
+
+<p>
+Everything not intended as above is caught as a compile-time error, with the notable
+exception of an expression that consists of nothing but <code>int</code>, which of course
+has type <code>int</code>.
+</p>
+
+<blockquote><pre>
+auto a = 2015/4/4;       // a == int(125)
+auto b = 2015_y/4/4;     // b == year_month_day{year(2015), month(4), day(4)}
+auto c = 2015_y/4_d/apr; // error: invalid operands to binary expression ('date::year' and 'date::day')
+auto d = 2015/apr/4;     // error: invalid operands to binary expression ('int' and 'const date::month')
+</pre></blockquote>
+
+<p>
+The last example may be clear to a human reader.  But the compiler doesn't know if
+<code>2015</code> refers to a <code>year</code> or a <code>day</code>.  Instead of
+guessing, the compiler flags it as an error.
+</p>
+
+<p>
+In short, you will either write unambiguous and readable code, or you will get a
+compile-time error.
+</p>
+
+<hr>
+
+<p><b><code>year_month</code>:</b></p>
+
 <a name="_1"></a><pre>
 constexpr year_month operator/(const year&amp; y, const month&amp; m) noexcept;
 </pre>
@@ -4790,6 +4924,8 @@ constexpr year_month operator/(const year&amp; y, int   m) noexcept;
 </blockquote>
 
 <p>&nbsp;</p>
+
+<p><b><code>month_day</code>:</b></p>
 
 <a name="_3"></a><pre>
 constexpr month_day operator/(const month&amp; m, const day&amp; d) noexcept;
@@ -4833,6 +4969,8 @@ constexpr month_day operator/(const day&amp; d, int m) noexcept;
 
 <p>&nbsp;</p>
 
+<p><b><code>month_day_last</code>:</b></p>
+
 <a name="_8"></a><pre>
 constexpr month_day_last operator/(const month&amp; m, last_spec) noexcept;
 </pre>
@@ -4866,6 +5004,8 @@ constexpr month_day_last operator/(last_spec, int m) noexcept;
 </blockquote>
 
 <p>&nbsp;</p>
+
+<p><b><code>month_weekday</code>:</b></p>
 
 <a name="_12"></a><pre>
 constexpr month_weekday operator/(const month&amp; m, const weekday_indexed&amp; wdi) noexcept;
@@ -4901,6 +5041,8 @@ constexpr month_weekday operator/(const weekday_indexed&amp; wdi, int m) noexcep
 
 <p>&nbsp;</p>
 
+<p><b><code>month_weekday_last</code>:</b></p>
+
 <a name="_16"></a><pre>
 constexpr month_weekday_last operator/(const month&amp; m, const weekday_last&amp; wdl) noexcept;
 </pre>
@@ -4934,6 +5076,8 @@ constexpr month_weekday_last operator/(const weekday_last&amp; wdl, int m) noexc
 </blockquote>
 
 <p>&nbsp;</p>
+
+<p><b><code>year_month_day</code>:</b></p>
 
 <a name="_20"></a><pre>
 constexpr year_month_day operator/(const year_month&amp; ym, const day&amp; d) noexcept;
@@ -4985,6 +5129,8 @@ constexpr year_month_day operator/(const month_day&amp; md, int y) noexcept;
 
 <p>&nbsp;</p>
 
+<p><b><code>year_month_day_last</code>:</b></p>
+
 <a name="_26"></a><pre>
 constexpr year_month_day_last operator/(const year_month&amp; ym, last_spec) noexcept;
 </pre>
@@ -5027,6 +5173,8 @@ constexpr year_month_day_last operator/(const month_day_last&amp; mdl, int y) no
 
 <p>&nbsp;</p>
 
+<p><b><code>year_month_weekday</code>:</b></p>
+
 <a name="_31"></a><pre>
 constexpr year_month_weekday operator/(const year_month&amp; ym, const weekday_indexed&amp; wdi) noexcept;
 </pre>
@@ -5068,6 +5216,8 @@ constexpr year_month_weekday operator/(const month_weekday&amp; mwd, int y) noex
 </blockquote>
 
 <p>&nbsp;</p>
+
+<p><b><code>year_month_weekday_last</code>:</b></p>
 
 <a name="_36"></a><pre>
 constexpr year_month_weekday_last operator/(const year_month&amp; ym, const weekday_last&amp; wdl) noexcept;

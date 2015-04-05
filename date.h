@@ -374,10 +374,13 @@ constexpr bool operator> (const year_month& x, const year_month& y) noexcept;
 constexpr bool operator<=(const year_month& x, const year_month& y) noexcept;
 constexpr bool operator>=(const year_month& x, const year_month& y) noexcept;
 
-constexpr year_month operator+(const year_month& x, const months& y) noexcept;
-constexpr year_month operator+(const months& x, const year_month& y) noexcept;
-constexpr year_month operator-(const year_month& x, const months& y) noexcept;
+constexpr year_month operator+(const year_month& ym, const months& dm) noexcept;
+constexpr year_month operator+(const months& dm, const year_month& ym) noexcept;
+constexpr year_month operator-(const year_month& ym, const months& dm) noexcept;
 constexpr months operator-(const year_month& x, const year_month& y) noexcept;
+constexpr year_month operator+(const year_month& ym, const years& dy) noexcept;
+constexpr year_month operator+(const years& dy, const year_month& ym) noexcept;
+constexpr year_month operator-(const year_month& ym, const years& dy) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const year_month& ym);
 
@@ -1428,27 +1431,28 @@ operator>=(const year_month& x, const year_month& y) noexcept
 constexpr
 inline
 year_month
-operator+(const year_month& x, const months& y) noexcept
+operator+(const year_month& ym, const months& dm) noexcept
 {
-    auto const mu = static_cast<long long>(static_cast<unsigned>(x.month())) - 1 + y.count();
-    auto const yr = (mu >= 0 ? mu : mu-11) / 12;
-    return (x.year() + years(yr)) / month{static_cast<unsigned>(mu - yr * 12 + 1)};
+    auto dmi = static_cast<int>(static_cast<unsigned>(ym.month())) - 1 + dm.count();
+    auto dy = (dmi >= 0 ? dmi : dmi-11) / 12;
+    dmi = dmi - dy * 12 + 1;
+    return (ym.year() + years(dy)) / month(dmi);
 }
 
 constexpr
 inline
 year_month
-operator+(const months& x, const year_month& y) noexcept
+operator+(const months& dm, const year_month& ym) noexcept
 {
-    return y + x;
+    return ym + dm;
 }
 
 constexpr
 inline
 year_month
-operator-(const year_month& x, const months& y) noexcept
+operator-(const year_month& ym, const months& dm) noexcept
 {
-    return x + -y;
+    return ym + -dm;
 }
 
 constexpr
@@ -1458,6 +1462,30 @@ operator-(const year_month& x, const year_month& y) noexcept
 {
     return (x.year() - y.year()) +
             months(static_cast<unsigned>(x.month()) - static_cast<unsigned>(y.month()));
+}
+
+constexpr
+inline
+year_month
+operator+(const year_month& ym, const years& dy) noexcept
+{
+    return (ym.year() + dy) / ym.month();
+}
+
+constexpr
+inline
+year_month
+operator+(const years& dy, const year_month& ym) noexcept
+{
+    return ym + dy;
+}
+
+constexpr
+inline
+year_month
+operator-(const year_month& ym, const years& dy) noexcept
+{
+    return ym + -dy;
 }
 
 inline
@@ -1821,11 +1849,7 @@ inline
 year_month_day_last
 operator+(const year_month_day_last& ymdl, const months& dm) noexcept
 {
-    auto dmi = static_cast<months::rep>(static_cast<unsigned>(ymdl.month()) - 1)
-               + dm.count();
-    auto dy = (dmi >= 0 ? dmi : dmi-11) / 12;
-    dmi = dmi - dy * 12 + 1;
-    return {ymdl.year()+years{dy}, month(dmi)};
+    return (ymdl.year() / ymdl.month() + dm) / last;
 }
 
 constexpr
@@ -2062,10 +2086,7 @@ inline
 year_month_day
 operator+(const year_month_day& ymd, const months& dm) noexcept
 {
-    auto dmi = static_cast<int>(static_cast<unsigned>(ymd.month()) - 1) + dm.count();
-    auto dy = (dmi >= 0 ? dmi : dmi-11) / 12;
-    dmi = dmi - dy * 12 + 1;
-    return {ymd.year()+years(dy), month(dmi), ymd.day()};
+    return (ymd.year() / ymd.month() + dm) / ymd.day();
 }
 
 constexpr
@@ -2089,7 +2110,7 @@ inline
 year_month_day
 operator+(const year_month_day& ymd, const years& dy) noexcept
 {
-    return {ymd.year()+dy, ymd.month(), ymd.day()};
+    return (ymd.year() + dy) / ymd.month() / ymd.day();
 }
 
 constexpr
@@ -2230,10 +2251,7 @@ inline
 year_month_weekday
 operator+(const year_month_weekday& ymwd, const months& dm) noexcept
 {
-    auto dmi = static_cast<int>(static_cast<unsigned>(ymwd.month()) - 1) + dm.count();
-    auto dy = (dmi >= 0 ? dmi : dmi-11) / 12;
-    dmi = dmi - dy * 12 + 1;
-    return {ymwd.year()+years(dy), month(dmi), ymwd.weekday_indexed()};
+    return (ymwd.year() / ymwd.month() + dm) / ymwd.weekday_indexed();
 }
 
 constexpr
@@ -2376,10 +2394,7 @@ inline
 year_month_weekday_last
 operator+(const year_month_weekday_last& ymwdl, const months& dm) noexcept
 {
-    auto dmi = static_cast<int>(static_cast<unsigned>(ymwdl.month()) - 1) + dm.count();
-    auto dy = (dmi >= 0 ? dmi : dmi-11) / 12;
-    dmi = dmi - dy * 12 + 1;
-    return {ymwdl.year()+years(dy), month(dmi), ymwdl.weekday_last()};
+    return (ymwdl.year() / ymwdl.month() + dm) / ymwdl.weekday_last();
 }
 
 constexpr
