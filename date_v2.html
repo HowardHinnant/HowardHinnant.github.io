@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-04-04<br/>
+2015-04-14<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -151,10 +151,10 @@ If you want detailed explanations of the algorithms, go there.
 </p>
 
 <p>
-It requires C++14, but really only for the <code>constexpr</code> bits.  If
-you are willing to sacrifice <code>constexpr</code> (say by <code>#define</code>'ing it
-out) you could get away with C++11.  Porting to C++98/03 is certainly possible but will
-require more work on your part (not mine).  Go for it.
+It requires C++14, but really only for the <code>constexpr</code> bits.  The code will
+auto-adopt to C++11, sacrificing several <code>constexpr</code> declarations.  In C++11,
+this will effectively transfer some computations that should be done at compile-time to
+run-time.  Porting to C++98/03 has not been attempted.
 </p>
 
 <a name="Overview"></a><h2>Overview</h2>
@@ -953,6 +953,8 @@ and predictable.
 <tr><td>&nbsp;</td><td><a href="#year_month_day_last"><code>year_month_day_last</code></a></td></tr>
 <tr><td>&nbsp;</td><td><a href="#year_month_weekday"><code>year_month_weekday</code></a></td></tr>
 <tr><td>&nbsp;</td><td><a href="#year_month_weekday_last"><code>year_month_weekday_last</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#time_of_day"><code>time_of_day</code></a></td></tr>
 
 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 <tr><td>date composition operators</td><td>&nbsp;</td></tr>
@@ -4828,6 +4830,153 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_weekda
 <code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month_weekday_last</code> objects
 shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
 <code>year_month_weekday_last</code> objects shall have distinct text representations.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="time_of_day"></a><h3><code>time_of_day</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class time_of_day
+{
+public:
+    constexpr explicit time_of_day(std::chrono::seconds since_midnight) noexcept;
+    time_of_day(std::chrono::hours h, std::chrono::minutes m, std::chrono::seconds s,
+                std::string const&amp; am_or_pm) noexcept;
+
+    constexpr std::chrono::hours   hours()   const noexcept;
+    constexpr std::chrono::minutes minutes() const noexcept;
+    constexpr std::chrono::seconds seconds() const noexcept;
+
+    void make24() noexcept;
+    void make12() noexcept;
+};
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const time_of_day&amp; t);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>time_of_day</code> is for taking seconds-since-midnight and converting it to a
+human-readable format, either in a 24-hour format, or a 12-hour format.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>time_of_day</code> is a trivially copyable class type.</br>
+<code>time_of_day</code> is a standard-layout class type.</br>
+<code>time_of_day</code> is a literal class type.</br>
+</p>
+
+<pre>
+constexpr explicit time_of_day::time_of_day(std::chrono::seconds since_midnight) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>time_of_day</code> in 24-hour format
+corresponding to <code>since_midnight</code> seconds after 00:00:00.
+</p>
+<p>
+<i>Postconditions:</i> <code>hours()</code> returns the integral number of hours
+<code>since_midnight</code> is after 00:00:00. <code>minutes()</code> returns the integral
+number of minutes <code>since_midnight</code> is after 00:00:00 + <code>hours()</code>.
+<code>seconds()</code> returns the integral number of seconds <code>since_midnight</code>
+is after 00:00:00 + <code>hours()</code> + <code>minutes()</code>.
+</p>
+</blockquote>
+
+<pre>
+time_of_day::time_of_day(std::chrono::hours h, std::chrono::minutes m,
+                         std::chrono::seconds s, std::string const&amp; am_or_pm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>time_of_day</code> in 12-hour format
+(if possible) corresponding to <code>since_midnight</code> seconds after 00:00:00.
+</p>
+<p>
+<i>Postconditions:</i> <code>hours()</code> returns <code>h</code>. <code>minutes()</code>
+returns <code>m</code>. <code>seconds()</code> returns <code>s</code>. If
+<code>am_or_pm</code> is equal to "am", <code>hours()</code> represents a time prior to
+noon. If <code>am_or_pm</code> is equal to "pm", <code>hours()</code> represents a time
+prior equal to or after noon. Otherwise, <code>*this</code> represents an error in time.
+</p>
+</blockquote>
+
+<pre>
+constexpr std::chrono::hours time_of_day::hours() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> The stored hour of <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr std::chrono::minutes time_of_day::minutes() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> The stored minute of <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr std::chrono::seconds time_of_day::seconds() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> The stored second of <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+void make24() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> If <code>*this</code> is a valid 12-hour time, converts to a 24-hour time.
+Otherwise, no effects.
+</p>
+</blockquote>
+
+<pre>
+void make12() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> If <code>*this</code> is a valid 24-hour time, converts to a 12-hour time.
+Otherwise, no effects.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const time_of_day&amp; t);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> If <code>t</code> is a valid 24-hour time, outputs to <code>os</code>
+according to the <code>strftime</code> format: "%H:%M:%S".
+Else if <code>t</code> is a valid 12-hour time, outputs to <code>os</code>
+according to the <code>strftime</code> format: "%I:%M:%S%p" according to the C locale.
+Otherwise outputs a string indicating an error in time.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
