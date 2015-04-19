@@ -6,6 +6,9 @@
 // http://creativecommons.org/licenses/by/4.0/
 
 #include <chrono>
+#if !(__cplusplus >= 201305)
+#  include <cmath>
+#endif
 #include <limits>
 #include <ostream>
 #include <ratio>
@@ -69,8 +72,6 @@ class year_month_day;
 class year_month_day_last;
 class year_month_weekday;
 class year_month_weekday_last;
-
-class time_of_day;
 
 // date composition operators
 
@@ -714,30 +715,6 @@ year_month_weekday_last
 operator-(const year_month_weekday_last& ymwdl, const years& dy) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const year_month_weekday_last& ymwdl);
-
-class time_of_day
-{
-    enum {is24hr, am, pm, error};
-    unsigned char mode_;
-    std::chrono::hours   h_;
-    std::chrono::minutes m_;
-    std::chrono::seconds s_;
-public:
-    constexpr explicit time_of_day(std::chrono::seconds since_midnight) noexcept;
-    time_of_day(std::chrono::hours h, std::chrono::minutes m, std::chrono::seconds s,
-                std::string const& am_or_pm) noexcept;
-
-    constexpr std::chrono::hours hours() const noexcept;
-    constexpr std::chrono::minutes minutes() const noexcept;
-    constexpr std::chrono::seconds seconds() const noexcept;
-
-    void make24() noexcept;
-    void make12() noexcept;
-
-    friend
-    std::ostream&
-    operator<<(std::ostream& os, const time_of_day& t);
-};
 
 //----------------+
 // Implementation |
@@ -2803,48 +2780,81 @@ operator/(const month_weekday_last& mwdl, int y) noexcept
 
 // time_of_day
 
-constexpr
-inline
-time_of_day::time_of_day(std::chrono::seconds since_midnight) noexcept
-    : mode_(is24hr)
-    , h_(std::chrono::duration_cast<std::chrono::hours>(since_midnight))
-    , m_(std::chrono::duration_cast<std::chrono::minutes>(since_midnight - h_))
-    , s_(since_midnight - h_ - m_)
-    {}
+enum {am = 1, pm};
 
-time_of_day::time_of_day(std::chrono::hours h, std::chrono::minutes m,
-                         std::chrono::seconds s, std::string const& am_or_pm) noexcept
-    : mode_(am_or_pm == "am" ? am : am_or_pm == "pm" ? pm : error)
-    , h_(h)
-    , m_(m)
-    , s_(s)
-    {}
-
-constexpr std::chrono::hours   time_of_day::hours() const noexcept {return h_;}
-constexpr std::chrono::minutes time_of_day::minutes() const noexcept {return m_;}
-constexpr std::chrono::seconds time_of_day::seconds() const noexcept {return s_;}
-
-inline
-void
-time_of_day::make24() noexcept
+namespace detail
 {
+
+enum class classify
+{
+    hour,
+    minute,
+    second,
+    subsecond
+};
+
+template <class Duration>
+struct classify_duration
+{
+    static constexpr classify value = 
+        Duration{1} >= std::chrono::hours{1}   ? classify::hour :
+        Duration{1} >= std::chrono::minutes{1} ? classify::minute :
+        Duration{1} >= std::chrono::seconds{1} ? classify::second :
+                                                 classify::subsecond;
+};
+
+class time_of_day_base
+{
+protected:
+    unsigned char mode_;
+    std::chrono::hours   h_;
+
+    enum {is24hr};
+
+    constexpr time_of_day_base(std::chrono::hours h, unsigned char m) noexcept
+        : mode_(m)
+        , h_(h)
+        {}
+
+public:
+    void make24() noexcept;
+    void make12() noexcept;
+
+protected:
+    CONSTEXPR std::chrono::hours to24hr() const;
+};
+
+CONSTEXPR
+inline
+std::chrono::hours
+time_of_day_base::to24hr() const
+{
+    auto h = h_;
     if (mode_ == am || mode_ == pm)
     {
         constexpr auto h12 = std::chrono::hours(12);
         if (mode_ == pm)
         {
-            if (h_ != h12)
-                h_ += h12;
+            if (h != h12)
+                h += h12;
         }
-        else if (h_ == h12)
-            h_ = std::chrono::hours(0);
-        mode_ = is24hr;
+        else if (h == h12)
+            h = std::chrono::hours(0);
     }
+    return h;
 }
 
 inline
 void
-time_of_day::make12() noexcept
+time_of_day_base::make24() noexcept
+{
+    h_ = to24hr();
+    mode_ = is24hr;
+}
+
+inline
+void
+time_of_day_base::make12() noexcept
 {
     if (mode_ == is24hr)
     {
@@ -2864,33 +2874,363 @@ time_of_day::make12() noexcept
     }
 }
 
-inline
-std::ostream&
-operator<<(std::ostream& os, const time_of_day& t)
+template <class Duration, detail::classify = detail::classify_duration<Duration>::value>
+class time_of_day_storage;
+
+template <class Rep, class Period>
+class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::hour>
+    : public detail::time_of_day_base
 {
-    using namespace std;
-    save_stream _(os);
-    os.fill('0');
-    os.flags(std::ios::dec | std::ios::right);
-    os.width(2);
-    os << t.h_.count() << ':';
-    os.width(2);
-    os << t.m_.count() << ':';
-    os.width(2);
-    os << t.s_.count();
-    switch (t.mode_)
+    using base = detail::time_of_day_base;
+
+public:
+    using precision = std::chrono::hours;
+
+    constexpr explicit time_of_day_storage(std::chrono::hours since_midnight) noexcept
+        : base(since_midnight, is24hr)
+        {}
+
+    constexpr explicit time_of_day_storage(std::chrono::hours h, unsigned md) noexcept
+        : base(h, md)
+        {}
+
+    constexpr std::chrono::hours hours() const noexcept {return h_;}
+    constexpr unsigned mode() const noexcept {return mode_;}
+
+    CONSTEXPR explicit operator precision() const noexcept
     {
-    case time_of_day::am:
-        os << "am";
-        break;
-    case time_of_day::pm:
-        os << "pm";
-        break;
-    case time_of_day::error:
-        os << "[am/pm in error]";
-        break;
+        return to24hr();
     }
-    return os;
+
+    friend
+    std::ostream&
+    operator<<(std::ostream& os, const time_of_day_storage& t)
+    {
+        using namespace std;
+        save_stream _(os);
+        os.fill('0');
+        os.flags(std::ios::dec | std::ios::right);
+        if (t.mode_ != am && t.mode_ != pm)
+            os.width(2);
+        os << t.h_.count();
+        switch (t.mode_)
+        {
+        case time_of_day_storage::is24hr:
+            os << "00";
+            break;
+        case am:
+            os << "am";
+            break;
+        case pm:
+            os << "pm";
+            break;
+        }
+        return os;
+    }
+};
+
+template <class Rep, class Period>
+class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::minute>
+    : public detail::time_of_day_base
+{
+    using base = detail::time_of_day_base;
+
+    std::chrono::minutes m_;
+
+public:
+   using precision = std::chrono::minutes;
+
+   constexpr explicit time_of_day_storage(std::chrono::minutes since_midnight) noexcept
+        : base(std::chrono::duration_cast<std::chrono::hours>(since_midnight), is24hr)
+        , m_(since_midnight - h_)
+        {}
+
+    constexpr explicit time_of_day_storage(std::chrono::hours h, std::chrono::minutes m,
+                                           unsigned md) noexcept
+        : base(h, md)
+        , m_(m)
+        {}
+
+    constexpr std::chrono::hours hours() const noexcept {return h_;}
+    constexpr std::chrono::minutes minutes() const noexcept {return m_;}
+    constexpr unsigned mode() const noexcept {return mode_;}
+
+    CONSTEXPR explicit operator precision() const noexcept
+    {
+        return to24hr() + m_;
+    }
+
+    friend
+    std::ostream&
+    operator<<(std::ostream& os, const time_of_day_storage& t)
+    {
+        using namespace std;
+        save_stream _(os);
+        os.fill('0');
+        os.flags(std::ios::dec | std::ios::right);
+        if (t.mode_ != am && t.mode_ != pm)
+            os.width(2);
+        os << t.h_.count() << ':';
+        os.width(2);
+        os << t.m_.count();
+        switch (t.mode_)
+        {
+        case am:
+            os << "am";
+            break;
+        case pm:
+            os << "pm";
+            break;
+        }
+        return os;
+    }
+};
+
+template <class Rep, class Period>
+class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::second>
+    : public detail::time_of_day_base
+{
+    using base = detail::time_of_day_base;
+
+    std::chrono::minutes m_;
+    std::chrono::seconds s_;
+
+public:
+    using precision = std::chrono::seconds;
+
+    constexpr explicit time_of_day_storage(std::chrono::seconds since_midnight) noexcept
+        : base(std::chrono::duration_cast<std::chrono::hours>(since_midnight), is24hr)
+        , m_(std::chrono::duration_cast<std::chrono::minutes>(since_midnight - h_))
+        , s_(since_midnight - h_ - m_)
+        {}
+
+    constexpr explicit time_of_day_storage(std::chrono::hours h, std::chrono::minutes m,
+                                           std::chrono::seconds s, unsigned md) noexcept
+        : base(h, md)
+        , m_(m)
+        , s_(s)
+        {}
+
+    constexpr std::chrono::hours hours() const noexcept {return h_;}
+    constexpr std::chrono::minutes minutes() const noexcept {return m_;}
+    constexpr std::chrono::seconds seconds() const noexcept {return s_;}
+    constexpr unsigned mode() const noexcept {return mode_;}
+
+    CONSTEXPR explicit operator precision() const noexcept
+    {
+        return to24hr() + m_ + s_;
+    }
+
+    friend
+    std::ostream&
+    operator<<(std::ostream& os, const time_of_day_storage& t)
+    {
+        using namespace std;
+        save_stream _(os);
+        os.fill('0');
+        os.flags(std::ios::dec | std::ios::right);
+        if (t.mode_ != am && t.mode_ != pm)
+            os.width(2);
+        os << t.h_.count() << ':';
+        os.width(2);
+        os << t.m_.count() << ':';
+        os.width(2);
+        os << t.s_.count();
+        switch (t.mode_)
+        {
+        case am:
+            os << "am";
+            break;
+        case pm:
+            os << "pm";
+            break;
+        }
+        return os;
+    }
+};
+
+template <class Rep, class Period>
+class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::subsecond>
+    : public detail::time_of_day_base
+{
+public:
+    using precision = std::chrono::duration<Rep, Period>;
+
+private:
+    using base = detail::time_of_day_base;
+
+    std::chrono::minutes m_;
+    std::chrono::seconds s_;
+    precision            sub_s_;
+
+public:
+    constexpr explicit time_of_day_storage(precision since_midnight) noexcept
+        : base(std::chrono::duration_cast<std::chrono::hours>(since_midnight), is24hr)
+        , m_(std::chrono::duration_cast<std::chrono::minutes>(since_midnight - h_))
+        , s_(std::chrono::duration_cast<std::chrono::seconds>(since_midnight - h_ - m_))
+        , sub_s_(since_midnight - h_ - m_ - s_)
+        {}
+
+    constexpr explicit time_of_day_storage(std::chrono::hours h, std::chrono::minutes m,
+                                           std::chrono::seconds s, precision sub_s,
+                                           unsigned md) noexcept
+        : base(h, md)
+        , m_(m)
+        , s_(s)
+        , sub_s_(sub_s)
+        {}
+
+    constexpr std::chrono::hours hours() const noexcept {return h_;}
+    constexpr std::chrono::minutes minutes() const noexcept {return m_;}
+    constexpr std::chrono::seconds seconds() const noexcept {return s_;}
+    constexpr precision subseconds() const noexcept {return sub_s_;}
+    constexpr unsigned mode() const noexcept {return mode_;}
+
+    CONSTEXPR explicit operator precision() const noexcept
+    {
+        return to24hr() + m_ + s_ + sub_s_;
+    }
+
+    friend
+    std::ostream&
+    operator<<(std::ostream& os, const time_of_day_storage& t)
+    {
+        using namespace std;
+        save_stream _(os);
+        os.fill('0');
+        os.flags(std::ios::dec | std::ios::right);
+        if (t.mode_ != am && t.mode_ != pm)
+            os.width(2);
+        os << t.h_.count() << ':';
+        os.width(2);
+        os << t.m_.count() << ':';
+        os.width(2);
+        os << t.s_.count() << '.';
+#if __cplusplus >= 201305
+        constexpr auto cl10 = ceil_log10(Period::den);
+        using scale = std::ratio_multiply<Period, std::ratio<pow10(cl10)>>;
+        os.width(cl10);
+        os << t.sub_s_.count() * scale::num / scale::den;
+#else  // __cplusplus >= 201305
+        // inefficient sub-optimal run-time mess, but gets the job done
+        const unsigned long long cl10 = std::ceil(log10(Period::den));
+        const auto p10 = std::pow(10., cl10);
+        os.width(cl10);
+        os << static_cast<unsigned long long>(t.sub_s_.count()
+                                              * Period::num * p10 / Period::den);
+#endif  // __cplusplus >= 201305
+        switch (t.mode_)
+        {
+        case am:
+            os << "am";
+            break;
+        case pm:
+            os << "pm";
+            break;
+        }
+        return os;
+    }
+
+private:
+#if __cplusplus >= 201305
+    constexpr static int ceil_log10(unsigned long long i) noexcept
+    {
+        --i;
+        int n = 0;
+        if (i >= 10000000000000000) {i /= 10000000000000000; n += 16;}
+        if (i >= 100000000) {i /= 100000000; n += 8;}
+        if (i >= 10000) {i /= 10000; n += 4;}
+        if (i >= 100) {i /= 100; n += 2;}
+        if (i >= 10) {i /= 10; n += 1;}
+        if (i >= 1) {i /= 10; n += 1;}
+        return n;
+    }
+
+    constexpr static unsigned long long pow10(unsigned y) noexcept
+    {
+        constexpr unsigned long long p10[] =
+        {
+            1ull,
+            10ull,
+            100ull,
+            1000ull,
+            10000ull,
+            100000ull,
+            1000000ull,
+            10000000ull,
+            100000000ull,
+            1000000000ull,
+            10000000000ull,
+            100000000000ull,
+            1000000000000ull,
+            10000000000000ull,
+            100000000000000ull,
+            1000000000000000ull,
+            10000000000000000ull,
+            100000000000000000ull,
+            1000000000000000000ull,
+            10000000000000000000ull
+        };
+        return p10[y];
+    }
+#endif  // __cplusplus >= 201305
+};
+
+}  // namespace detail
+
+template <class Duration>
+class time_of_day
+    : public detail::time_of_day_storage<Duration>
+{
+    using base = detail::time_of_day_storage<Duration>;
+public:
+    using base::base;
+};
+
+template <class Rep, class Period>
+constexpr
+inline
+time_of_day<std::chrono::duration<Rep, Period>>
+make_time(std::chrono::duration<Rep, Period> d) noexcept
+{
+    return time_of_day<std::chrono::duration<Rep, Period>>(d);
+}
+
+constexpr
+inline
+time_of_day<std::chrono::hours>
+make_time(std::chrono::hours h, unsigned md) noexcept
+{
+    return time_of_day<std::chrono::hours>(h, md);
+}
+
+constexpr
+inline
+time_of_day<std::chrono::minutes>
+make_time(std::chrono::hours h, std::chrono::minutes m, unsigned md) noexcept
+{
+    return time_of_day<std::chrono::minutes>(h, m, md);
+}
+
+constexpr
+inline
+time_of_day<std::chrono::seconds>
+make_time(std::chrono::hours h, std::chrono::minutes m, std::chrono::seconds s,
+          unsigned md) noexcept
+{
+    return time_of_day<std::chrono::seconds>(h, m, s, md);
+}
+
+template <class Rep, class Period,
+          class = typename std::enable_if<std::ratio_less<Period,
+                                                          std::ratio<1>>::value>::type>
+constexpr
+inline
+time_of_day<std::chrono::duration<Rep, Period>>
+make_time(std::chrono::hours h, std::chrono::minutes m, std::chrono::seconds s,
+          std::chrono::duration<Rep, Period> sub_s, unsigned md) noexcept
+{
+    return time_of_day<std::chrono::duration<Rep, Period>>(h, m, s, sub_s, md);
 }
 
 }  // namespace date
