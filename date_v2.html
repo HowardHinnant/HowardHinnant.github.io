@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-04-18<br/>
+2015-04-19<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -151,10 +151,10 @@ If you want detailed explanations of the algorithms, go there.
 </p>
 
 <p>
-It requires C++14, but really only for the <code>constexpr</code> bits.  The code will
-auto-adopt to C++11, sacrificing several <code>constexpr</code> declarations.  In C++11,
-this will effectively transfer some computations that should be done at compile-time to
-run-time.  Porting to C++98/03 has not been attempted.
+It performs best with C++14, which has vastly improved <code>constexpr</code> rules. 
+However, the library will auto-adopt to C++11, sacrificing several <code>constexpr</code>
+declarations.  In C++11, this will effectively transfer some computations that should be
+done at compile-time to run-time.  Porting to C++98/03 has not been attempted.
 </p>
 
 <a name="Overview"></a><h2>Overview</h2>
@@ -311,7 +311,8 @@ constexpr auto x3 = 22_d/mar/2015;
 <p>
 <code>x1</code>, <code>x2</code> and <code>x3</code> all have the type
 <code>year_month_day</code> and are all equal to one another.  Any other order, or any
-ambiguity is caught at compile time.
+ambiguity is caught at compile time.  These three orders were chosen because these are the
+<a href="http://en.wikipedia.org/wiki/Date_format_by_country">three orders that people actually use</a>.
 </p>
 
 <p>
@@ -870,69 +871,128 @@ where you perform the epoch shift in the reverse direction).
 <p>
 You already have a good one. It is called
 <code>std::chrono::system_clock::time_point</code>. And it is completely interoperable
-with <code>day_point</code>.  
-</p>
-
-<p>
-<code>day_point</code> is nothing but a <code>std::chrono::system_clock::time_point</code>
-with much longer tick periods.  Thus one can view a <code>day_point</code> as referring
-to an entire day, or blink your eyes and it is a precise pointer to the very beginning
-of a day:  00:00:00 UTC.
-</p>
-
-<p>
-For example here is a <code>std::chrono::time_point</code> referring to 2015-03-22
-18:30:00 UTC:
+with this library.  <code>std::chrono::system_clock::time_point</code> is a pointer to
+a particular instant of time, with high precision (that precision is specified differently
+on each platform).  As we saw earlier, one can get a high-precision <code>time_point</code>
+representing <i>now</i> with:
 </p>
 
 <blockquote><pre>
-auto tp = day_point(mar/22/2015) + 18h + 30min;
+auto tp = system_clock::now();
 </pre></blockquote>
 
 <p>
-And here is how long ago <code>tp</code> was:
+Then one can turn that into a <code>time_point</code> with the precision of a a day with:
 </p>
 
 <blockquote><pre>
-auto diff = system_clock::now() - tp;
+auto dp = time_point_cast&lt;days&gt;(tp);
 </pre></blockquote>
 
 <p>
-To turn <code>tp</code> back into a year, month, day, hour, minute (say for human
-readable output), do this:
+And one can convert that day-oriented <code>time_point</code> into a
+<code>{year, month, day}</code> field type with:
 </p>
 
 <blockquote><pre>
-auto dp = time_point_cast&lt;days&gt;(tp);  // truncate off days
-auto ymd = year_month_day(dp);        // turn days-based time_point into year_month_day
-auto time = make_time(tp-dp);         // subtract the two to get a duration which represents time of day
-                                      // and break that down into hours:minutes
+auto ymd = year_month_day(dp);
+</pre></blockquote>
+
+<p>
+This section explains how to extract the <i>time of day</i> from the above information.
+<code>dp</code> can also be though of as a <code>time_point</code> to the beginning of the
+current day (in the UTC timezone).  And so one can get the time <code>duration</code>
+since midnight by subtracting the day-precision <code>time_point</code> from the high
+precision <code>time_point</code>: <code>tp-dp</code>.  This results in a high precision
+<code>std::chrono::duration</code> representing the time since midnight.
+</p>
+
+<p>
+This high precision <code>duration</code> can be broken down into hours, minutes, seconds,
+and fractions of a second with a <code>time_of_day</code> object, which is most easily
+created by using the <code>make_time</code> factory function:
+</p>
+
+<blockquote><pre>
+auto time = make_time(tp-dp);
+</pre></blockquote>
+
+<p>
+Now both <code>ymd</code> and <code>time</code> can simply be printed out:
+</p>
+
+<blockquote><pre>
 std::cout &lt;&lt; ymd &lt;&lt; ' ' &lt;&lt; time &lt;&lt; '\n';
 </pre></blockquote>
 
 <p>
-Which outputs:
+Which will result in something like:
 </p>
 
 <blockquote><pre>
-2015-03-22 18:30
+2015-04-19 18:24:42.770911
 </pre></blockquote>
 
 <p>
-Insert <code>time.make12();</code> to format as a 12-hour time and it will instead output:
+The above is the current date and time in the UTC timezone with microsecond precision.
+On the platform I'm writing this, <code>system_clock::time_point</code> counts
+microseconds.  When you run this code on your platform, the library will automatically
+adapt to the precision supported by your platform's implementation of
+<code>system_clock::time_point</code>.
+</p>
+
+<p>
+If you prefer output in a local time zone, you will need to discover your current UTC
+offset and add that to <code>tp</code> prior to applying the <code>time_point_cast</code>.
+Your current UTC offset is a function of both your UTC time point <code>tp</code>, and
+your location.  This functionality is not offered by this library, but could easily be
+built on top of it.  Here, for example, is code that assumes an Eastern US location and
+daylight savings rules currently in effect:
 </p>
 
 <blockquote><pre>
-2015-03-22 6:30pm
+std::chrono::hours
+utc_offset_Eastern_US(std::chrono::system_clock::time_point tp)
+{
+    using namespace date;
+    using namespace std::chrono;
+    constexpr auto EST = -5h;
+    constexpr auto EDT = -4h;
+    const auto y = year_month_day(time_point_cast&lt;days&gt;(tp)).year();
+    const auto begin = day_point(sun[2]/mar/y) + 2h - EST; // EDT begins at this UTC time
+    const auto end   = day_point(sun[1]/nov/y) + 2h - EDT; // EST begins at this UTC time
+    if (tp &lt; begin || end &lt;= tp)
+        return EST;
+    return EDT;
+}
+...
+auto tp = system_clock::now();
+tp += utc_offset_Eastern_US(tp);                // tp now in Eastern US timezone
+const auto dp = time_point_cast&lt;days&gt;(tp);
+const auto ymd = year_month_day(dp);
+const auto time = make_time(tp-dp);             // microseconds since midnight
+std::cout &lt;&lt; ymd &lt;&lt; ' ' &lt;&lt; time &lt;&lt; '\n';
+
+2015-04-19 14:24:42.770911
 </pre></blockquote>
 
 <p>
-Need to traffic in your local time zone instead of UTC?  This library, at this time, does
-not provide a packaged system for discovering your current UTC offset.  However this
-would be a good foundational library for writing such a utility.  Daylight savings time
-often triggers on events such as the second Sunday in March (e.g. <code>sun[2]/mar</code>),
-or the last Sunday in March (e.g. <code>sun[last]/mar</code>).
+And if you prefer your output in a 12-hour format with a precision of only minutes, that
+is also easily accomplished:
 </p>
+
+<blockquote><pre>
+auto tp = system_clock::now();
+tp += utc_offset_Eastern_US(tp);
+const auto tpm = time_point_cast&lt;minutes&gt;(tp);  // truncate to minutes precision
+const auto dp = time_point_cast&lt;days&gt;(tpm);
+const auto ymd = year_month_day(dp);
+auto time = make_time(tpm-dp);                  // minutes since midnight
+time.make12();                                  // change to 12-hour format
+std::cout &lt;&lt; ymd &lt;&lt; ' ' &lt;&lt; time &lt;&lt; '\n';
+
+2015-04-19 2:24pm
+</pre></blockquote>
 
 <a name="Reference"></a><h2>Reference</h2>
 
