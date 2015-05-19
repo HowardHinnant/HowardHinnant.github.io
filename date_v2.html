@@ -2,7 +2,7 @@
         "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
-	<title>date v2</title>
+	<title>date</title>
 
 	<style>
 	p {text-align:justify}
@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-04-19<br/>
+2015-05-18<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -34,107 +34,22 @@ under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Crea
 Commons Attribution 4.0 International License</a>.
 </address>
 <hr/>
-<h1 align=center><code>date</code> v2</h1>
+<h1 align=center><code>date</code></h1>
 
 <h2>Contents</h2>
 
 <ul>
-<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#Implementation">Introduction</a></li>
 <li><a href="#Implementation">Implementation</a></li>
 <li><a href="#Overview">Overview</a></li>
 <li><a href="#Reference">Reference</a></li>
 </ul>
 
-<a name="Introduction"></a><h2>Introduction</h2>
+<a name="Implementation"></a><h2>Introduction</h2>
 
 <p>
-Whoa, I think I missed version 1...
+This paper fully documents a date and time library for use with C++11 and C++14.
 </p>
-
-<p>
-Version 1 is documented <a href="http://howardhinnant.github.io/date.html">here</a>.  It
-was never an official standards proposal, though I did take the liberty of presenting it
-to the LWG in <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2011/n3244.pdf">
-Bloomington, IN in Aug. of 2011</a>.  That proposal was met with several strong objections
-including:
-</p>
-
-<ul>
-<li>
-Efficiency concerns
-<ul>
-<li>Excessive checking for date validity</li>
-<li>Use of operator overloading to construct dates -- excessive copying</li>
-</ul>
-</li>
-<li>The use of <code>operator/()</code> is too cute.</li>
-<li>The runtime state of the date is mysterious.</li>
-</ul>
-
-<p>
-Additionally a criticism I have developed of v1 is that there was no recognized need for
-separate data structures representing <code>{year, month, day}</code> and
-<code>{sequential count of days}</code>.  Recognition of this fact is crucial in
-establishing performance expectations.  Just as you would never routinely randomly access
-a <code>std::list</code>, or insert on the front of a <code>std::vector</code>, one should
-also recognize the basic performance differences between <code>{year, month, day}</code>
-and <code>{sequential count of days}</code>.
-</p>
-
-<p>
-For example:
-</p>
-
-<ul>
-<li><p>
-One can very efficiently return <code>year</code>, <code>month</code> and <code>day</code>
-from a <code>{year, month, day}</code> data structure.  However significant computation is
-required to return this information from a <code>{sequential count of days}</code> data
-structure.
-</p></li>
-
-<li><p>
-One can very efficiently return <code>day of week</code>, from a
-<code>{sequential count of days}</code> data structure.  However significant computation
-is required to return this information from a <code>{year, month, day}</code> data
-structure.
-</p></li>
-
-<li><p>
-One can very efficiently return the number of days between two
-<code>{sequential count of days}</code> data structures.  But it requires significant
-computation to return the number of days between two <code>{year, month, day}</code> data
-structures.
-</p></li>
-</ul>
-
-<p>
-Each data structure (<code>{year, month, day}</code> and
-<code>{sequential count of days}</code>) has strengths and weaknesses.  Neither is always
-superior to the other. Just like <code>std::list</code> and <code>std::vector</code>, it
-is beneficial to offer both data structures, and give the client the ability to chose the
-correct data structure for his task.  Obviously this should include the ability to convert
-between <code>{year, month, day}</code> and <code>{sequential count of days}</code>.  Such
-conversions will mark significant computational expenses as demonstrated in
-<a href="http://howardhinnant.github.io/date_algorithms.html#days_from_civil"><code> days_from_civil</code></a>
-and
-<a href="http://howardhinnant.github.io/date_algorithms.html#civil_from_days"><code> civil_from_days</code></a>.
-</p>
-
-<p>
-The design presented herein has been strongly influenced by two language features, which
-were not used in version 1:
-</p>
-
-<ul>
-<li><code>auto</code>:  The design herein has a plethora of types. However with
-<code>auto</code> one often doesn't have to bother to spell a type.  The compiler
-knows what type it is.  And the syntax of the code shows what the type is supposed
-to do.</li>
-<li><code>constexpr</code>:  In C++14 many things can be made <code>constexpr</code>,
-and thus much less attention is paid to clever template meta programming tricks.
-<code>constexpr</code> code is simpler to read and write.</li>
-</ul>
 
 <a name="Implementation"></a><h2>Implementation</h2>
 
@@ -158,22 +73,6 @@ done at compile-time to run-time.  Porting to C++98/03 has not been attempted.
 </p>
 
 <a name="Overview"></a><h2>Overview</h2>
-
-<p>
-The entire library is in namespace <code>date</code>.  It is interoperable with the
-<code>std::chrono</code> library.  Indeed it even builds major components out of
-<code>std::chrono</code> <code>duration</code> and <code>time_point</code>.  The examples
-in this overview assume:
-</p>
-
-<blockquote><pre>
-using namespace date;
-using namespace std::chrono;
-</pre></blockquote>
-
-<p>
-in order to cut down on the verbosity.
-</p>
 
 <h3>Major Concepts</h3>
 
@@ -226,6 +125,179 @@ time point with a resolution of one month.  This time point implements month-bas
 arithmetic, which other field-based time points can reuse.
 </li>
 </ol>
+
+<h3>Examples</h3>
+
+<p>
+The entire library is in namespace <code>date</code>. The examples in this
+overview assume:
+</p>
+
+<blockquote><pre>
+using namespace date;
+using namespace std::chrono;
+</pre></blockquote>
+
+<p>
+in order to cut down on the verbosity.
+</p>
+
+<h3>Example: Constructing dates</h3>
+
+<b><code>year_month_day</code></b>
+
+<p>
+<code>constexpr</code> dates can be constructed from literals in any one of 3 orders:
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/mar/22;
+constexpr auto x2 = mar/22/2015;
+constexpr auto x3 = 22_d/mar/2015;
+</pre></blockquote>
+
+<p>
+<code>x1</code>, <code>x2</code> and <code>x3</code> all have the type:
+<code>year_month_day</code>, and are all equal to one another.  Any other order,
+or any ambiguity is caught at compile time.  These three orders were chosen
+because these are the
+<a href="http://en.wikipedia.org/wiki/Date_format_by_country">three orders that people actually use</a>.
+</p>
+
+<p>
+Integral types can be converted to <code>year</code>, <code>month</code>, or
+<code>day</code> to create run time values:
+</p>
+
+<blockquote><pre>
+int y = 2015;
+int m = 3;
+int d = 22;
+auto x1 = year(y)/m/d;
+auto x2 = month(m)/d/y;
+auto x3 = day(d)/m/y;
+</pre></blockquote>
+
+<p>
+As long as the type of the first date component is known, the following components become
+unambiguous and can be formed either with the proper type, or with an <code>int</code>
+expression. And since there is only one order with <code>day</code> in the middle, that
+order need only properly type the <code>day</code> to remain unambiguous:
+</p>
+
+<blockquote><pre>
+auto x = m/day(d)/y;
+</pre></blockquote>
+
+<p>
+No matter the order of the <code>year</code>, <code>month</code> and
+<code>day</code> specifiers, and no matter whether some of the fields implicitly
+convert from <code>int</code>, the type of these expressions is
+<code>year_month_day</code>. However because of <code>auto</code>, it is very
+often unimportant how to spell the somewhat verbose type name
+<code>year_month_day</code>.  The compiler knows how to spell the type, and the
+meaning is clear to the human reader without an explicit type.
+</p>
+
+<p>
+If there is <i>any</i> ambiguity, the code <b>will not compile</b>.  If the code
+does compile, it will be unambiguous and quite readable.
+</p>
+
+<b><code>year_month_day_last</code></b>
+
+<p>
+Anywhere you can specify a <code>day</code> you can instead specify <code>last</code>
+to indicate the last day of the month for that year:
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/feb/last;
+constexpr auto x2 = feb/last/2015;
+constexpr auto x3 = last/feb/2015;
+</pre></blockquote>
+
+<p>
+Instead of constructing a <code>year_month_day</code>, these expressions construct a
+<code>year_month_day_last</code>.  This type always represents the last day of a
+<code>year</code> and <code>month</code>.  <code>year_month_day_last</code> will
+implicitly convert to <code>year_month_day</code>.  Note though that because of
+<code>auto</code> both the reader and the writer of the code can very often remain
+blissfully ignorant of the spelling of <code>year_month_day_last</code>.  The API of
+<code>year_month_day</code> and <code>year_month_day_last</code> are virtually identical
+so that the learning curve is shallow, and generic code usually does not need to know
+which type it is operating on.
+</p>
+
+<b><code>year_month_weekday</code></b>
+
+<p>
+Anywhere you can specify a <code>day</code> you can instead specify an <i>indexed</i>
+<code>weekday</code> to indicate the nth weekday of the month for that year:
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/mar/sun[4];
+constexpr auto x2 = mar/sun[4]/2015;
+constexpr auto x3 = sun[4]/mar/2015;
+</pre></blockquote>
+
+<p>
+The type constructed is <code>year_month_weekday</code> which will implicitly convert to
+and from a <code>day_point</code>.  If you want to convert to a
+<code>year_month_day</code> you can do so explicitly, which will implicitly convert to
+<code>day_point</code> and back:
+</p>
+
+<blockquote><pre>
+constexpr auto x4 = year_month_day(x3);
+</pre></blockquote>
+
+<b><code>year_month_weekday_last</code></b>
+
+<p>
+<code>weekday</code>'s can be indexed with <code>last</code> and used as above:
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/mar/sun[last];
+constexpr auto x2 = mar/sun[last]/2015;
+constexpr auto x3 = sun[last]/mar/2015;
+constexpr auto x4 = year_month_day(x3);
+cout &lt;&lt; x3 &lt;&lt; '\n';
+cout &lt;&lt; x4 &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+This creates an object of type <code>year_month_weekday_last</code>.  The above code
+outputs:
+</p>
+
+<blockquote><pre>
+2015/Mar/Sun[last]
+2015-03-29
+</pre></blockquote>
+
+<b>Escape hatch from the cute syntax</b>
+
+<p>
+If you hate the cute syntax, don't use it.  Every type has a descriptive name,
+and public type-safe constructors to do the same job.  The "cute syntax" is a
+non-friended and <i>zero-abstraction-penalty</i> layer on top of a complete lower-level
+API.
+</p>
+
+<blockquote><pre>
+constexpr auto x1 = 2015_y/mar/sun[last];
+constexpr auto x2 = year_month_weekday_last(year(2015), month(3), weekday_last(weekday(0)));
+static_assert(x1 == x2,                                   "No matter the API, x1 and x2 have the same value ...");
+static_assert(is_same&lt;decltype(x1), decltype(x2)&gt;::value, "... and are the same type");
+cout &lt;&lt; x1 &lt;&lt; '\n';
+cout &lt;&lt; x2 &lt;&lt; '\n';
+
+2015/Mar/Sun[last]
+2015/Mar/Sun[last]
+</pre></blockquote>
 
 <h3>Example: Today</h3>
 
@@ -296,130 +368,6 @@ Currently this outputs for me:
 This indicates that today (2015-03-22) is the fourth Sunday of Mar., 2015.
 </p>
 
-<h3>Example: Constructing dates</h3>
-
-<p>
-<code>constexpr</code> dates can be constructed from literals in one of 3 orders:
-</p>
-
-<blockquote><pre>
-constexpr auto x1 = 2015_y/mar/22;
-constexpr auto x2 = mar/22/2015;
-constexpr auto x3 = 22_d/mar/2015;
-</pre></blockquote>
-
-<p>
-<code>x1</code>, <code>x2</code> and <code>x3</code> all have the type
-<code>year_month_day</code> and are all equal to one another.  Any other order, or any
-ambiguity is caught at compile time.  These three orders were chosen because these are the
-<a href="http://en.wikipedia.org/wiki/Date_format_by_country">three orders that people actually use</a>.
-</p>
-
-<p>
-Integral types can be converted to <code>year</code>, <code>month</code>, or
-<code>day</code> to create run time values:
-</p>
-
-<blockquote><pre>
-int y = 2015;
-int m = 3;
-int d = 22;
-auto x1 = year(y)/m/d;
-auto x2 = month(m)/d/y;
-auto x3 = day(d)/m/y;
-</pre></blockquote>
-
-<p>
-As long as the type of the first date component is known, the following components become
-unambiguous and can be formed either with the proper type, or with an <code>int</code>
-expression. And since there is only one order with <code>day</code> in the middle, that
-order need only properly type the <code>day</code> to remain unambiguous:
-</p>
-
-<blockquote><pre>
-auto x = m/day(d)/y;
-</pre></blockquote>
-
-<p>
-Anywhere you can specify a <code>day</code> you can instead specify <code>last</code>
-to indicate the last day of the month for that year:
-</p>
-
-<blockquote><pre>
-constexpr auto x1 = 2015_y/feb/last;
-constexpr auto x2 = feb/last/2015;
-constexpr auto x3 = last/feb/2015;
-</pre></blockquote>
-
-<p>
-Instead of constructing a <code>year_month_day</code>, these expressions construct a
-<code>year_month_day_last</code>.  This type always represents the last day of a
-<code>year</code> and <code>month</code>.  <code>year_month_day_last</code> will
-implicitly convert to <code>year_month_day</code>.
-</p>
-
-<p>
-Anywhere you can specify a <code>day</code> you can instead specify an <i>indexed</i>
-<code>weekday</code> to indicate the nth weekday of the month for that year:
-</p>
-
-<blockquote><pre>
-constexpr auto x1 = 2015_y/mar/sun[4];
-constexpr auto x2 = mar/sun[4]/2015;
-constexpr auto x3 = sun[4]/mar/2015;
-</pre></blockquote>
-
-<p>
-The type constructed is <code>year_month_weekday</code> which will implicitly convert to
-and from a <code>day_point</code>.  If you want to convert to a
-<code>year_month_day</code> you can do so explicitly, which will implicitly convert to
-<code>day_point</code> and back:
-</p>
-
-<blockquote><pre>
-constexpr auto x4 = year_month_day(x3);
-</pre></blockquote>
-
-<p>
-<code>weekday</code>'s can be indexed with <code>last</code> and used as above:
-</p>
-
-<blockquote><pre>
-constexpr auto x1 = 2015_y/mar/sun[last];
-constexpr auto x2 = mar/sun[last]/2015;
-constexpr auto x3 = sun[last]/mar/2015;
-constexpr auto x4 = year_month_day(x3);
-cout &lt;&lt; x3 &lt;&lt; '\n';
-cout &lt;&lt; x4 &lt;&lt; '\n';
-</pre></blockquote>
-
-<p>
-This creates an object of type <code>year_month_weekday_last</code>.  The above code
-outputs:
-</p>
-
-<blockquote><pre>
-2015/Mar/Sun[last]
-2015-03-29
-</pre></blockquote>
-
-<p>
-If you hate the cute syntax, don't use it.  Every type has a descriptive name, and public
-type-safe constructors to do the same job:
-</p>
-
-<blockquote><pre>
-constexpr auto x1 = 2015_y/mar/sun[last];
-constexpr auto x2 = year_month_weekday_last(year(2015), month(3), weekday_last(weekday(0)));
-static_assert(x1 == x2, "");
-static_assert(is_same&lt;decltype(x1), decltype(x2)&gt;::value, "");
-cout &lt;&lt; x1 &lt;&lt; '\n';
-cout &lt;&lt; x2 &lt;&lt; '\n';
-
-2015/Mar/Sun[last]
-2015/Mar/Sun[last]
-</pre></blockquote>
-
 <h3>Errors</h3>
 
 <p>
@@ -453,19 +401,26 @@ main()
 </pre></blockquote>
 
 <p>
-There is a relatively expensive (expense is relative here) conversion from
-<code>year_month_weekday</code> to <code>year_month_day</code> at the top of the loop to
-find the first Friday of the month.  This computation can never fail. And after that it is
-dirt cheap to find the 3rd Friday &mdash; you just have to add 2 weeks to the day field. 
-This computation also can never fail.  And it is similarly cheap to find the 5th Friday of
-each month &mdash; with one exception.  Not every month has a fifth Friday.  But
+There is a relatively expensive (expense is relative here &mdash; maybe as much as 100ns)
+conversion from <code>year_month_weekday</code> to <code>year_month_day</code> at the top
+of the loop to find the first Friday of the month.  This computation can never fail. And
+after that it is dirt cheap to find the 3rd Friday &mdash; you just have to add 2 weeks to
+the day field. This computation also can never fail.  And it is similarly cheap to find
+the 5th Friday of each month.  However, not every month has a fifth Friday.  But
 nevertheless it is ok to form such a <code>year_month_day</code>. The computation can
 never fail, though it may render an invalid date.  Afterwards one can simply ask: Did I
 create a valid date?  If so, print it out, otherwise just continue on.
 </p>
 
 <p>
-Subsequently, this entire library is liberally sprinkled with <code>noexcept</code>.
+This program is easy to read, easy to write, will fail to compile if any careless errors
+are made, and extremely high performance.  The date computations are dwarfed by the run
+time costs of the I/O.
+</p>
+
+<p>
+Because practically nothing throws exceptions, this entire library is liberally sprinkled
+with <code>noexcept</code>.
 </p>
 
 <p>
@@ -477,9 +432,11 @@ is checkable with <code>ok()</code>.
 
 <p>
 This library catches many errors (especially ambiguity errors) at compile time.  What's
-left over is left up to <code>ok()</code>.  Sometimes this will represent an error, and
-other times it will simply represent something innocuous that can be ignored.  That
-decision is made by the client of this library.
+left over is left up to <code>ok()</code>.  Sometimes <code>!ok()</code> will represent an
+error, and other times it will simply represent something innocuous that can be ignored
+(such as in the example above).  If <code>!ok()</code> actually represents an error that
+must be dealt with, the choice of whether to assert or throw is made by the client of
+this library.
 </p>
 
 <h3>Efficiency</h3>
@@ -946,8 +903,9 @@ If you prefer output in a local time zone, you will need to discover your curren
 offset and add that to <code>tp</code> prior to applying the <code>time_point_cast</code>.
 Your current UTC offset is a function of both your UTC time point <code>tp</code>, and
 your location.  This functionality is not offered by this library, but could easily be
-built on top of it.  Here, for example, is code that assumes an Eastern US location and
-daylight savings rules currently in effect:
+built on top of it (and such a full-featured open-sourced library is in
+development and nearing release). But as a simplistic example, here is code that assumes
+an Eastern US location and daylight savings rules currently in effect:
 </p>
 
 <blockquote><pre>
