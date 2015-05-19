@@ -330,8 +330,8 @@ std::ostream& operator<<(std::ostream& os, const weekday& wd);
 
 class weekday_indexed
 {
-    date::weekday    wd_;
-    unsigned char    index_;
+    unsigned char wd_    : 4;
+    unsigned char index_ : 4;
 
 public:
     constexpr weekday_indexed(const date::weekday& wd, unsigned index) noexcept;
@@ -1308,7 +1308,14 @@ constexpr weekday sat{6};
 
 // weekday_indexed
 
-constexpr inline weekday weekday_indexed::weekday() const noexcept {return wd_;}
+constexpr
+inline
+weekday
+weekday_indexed::weekday() const noexcept
+{
+    return date::weekday{wd_};
+}
+
 constexpr inline unsigned weekday_indexed::index() const noexcept {return index_;}
 
 constexpr
@@ -1316,13 +1323,13 @@ inline
 bool
 weekday_indexed::ok() const noexcept
 {
-    return wd_.ok() && 1 <= index_ && index_ <= 5;
+    return weekday().ok() && 1 <= index_ && index_ <= 5;
 }
 
 constexpr
 inline
 weekday_indexed::weekday_indexed(const date::weekday& wd, unsigned index) noexcept
-    : wd_(wd)
+    : wd_(static_cast<unsigned>(wd))
     , index_(index)
     {}
 
@@ -2376,7 +2383,7 @@ CONSTEXPR
 inline
 year_month_weekday_last::operator day_point() const noexcept
 {
-    auto d = day_point(y_/m_/last);
+    auto const d = day_point(y_/m_/last);
     return d - (weekday{d} - wdl_.weekday());
 }
 
@@ -2836,7 +2843,7 @@ time_of_day_base::to24hr() const
         if (mode_ == pm)
         {
             if (h != h12)
-                h += h12;
+                h = h + h12;
         }
         else if (h == h12)
             h = std::chrono::hours(0);
