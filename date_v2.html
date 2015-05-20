@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-05-18<br/>
+2015-05-19<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -951,6 +951,221 @@ std::cout &lt;&lt; ymd &lt;&lt; ' ' &lt;&lt; time &lt;&lt; '\n';
 
 2015-04-19 2:24pm
 </pre></blockquote>
+
+<h3>Extensibility</h3>
+
+<p>
+The hub of this library is <code>day_point</code>.  This is a <i>serial-based</i> time
+point which simply counts the days since (or before) <code>jan/1/1970</code>.  And
+ironically this all important hub is nothing but a type alias to a std-defined type.  That
+is, the central theme this library is built around is nothing more than this:
+</p>
+
+<blockquote><pre>
+using day_point = std::chrono::time_point&lt;std::chrono::system_clock, days&gt;;
+</pre></blockquote>
+
+<p>
+Types such as <code>year_month_day</code> and <code>year_month_weekday</code> provide
+implicit conversions to and from <code>day_point</code>, and because of this, the C++
+language provides explicit conversions between <code>year_month_day</code> and
+<code>year_month_weekday</code>.
+</p>
+
+<p>
+You can easily build your own types that implicitly convert to and from
+<code>day_point</code>, and when you do, you automatically gain explicit convertibility to
+and from every other type which ties into <code>day_point</code>.  For example, here is
+how you could create a custom type that models the ISO week-based calendar:
+</p>
+
+<blockquote><pre>
+class iso_week
+{
+    date::year    y_;
+    date::weeks   w_;
+    date::weekday wd_;
+
+public:
+    constexpr iso_week(date::day_point dp) noexcept
+        : iso_week(iso_week_from_day_point(dp))
+        {}
+
+    constexpr iso_week(date::year y, date::weeks w, date::weekday wd) noexcept
+        : y_(y)
+        , w_(w)
+        , wd_(wd)
+        {}
+
+    constexpr operator date::day_point() const noexcept
+    {
+        using namespace date;
+        return iso_week_start(y_) + w_ - weeks{1} + (wd_ - mon);
+    }
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const iso_week&amp; x)
+    {
+        return os &lt;&lt; x.y_ &lt;&lt; "-W(" &lt;&lt; x.w_.count() &lt;&lt; ")-" &lt;&lt; x.wd_;
+    }
+
+private:
+    static
+    constexpr
+    date::day_point
+    iso_week_start(date::year y) noexcept
+    {
+        using namespace date;
+        return day_point(thu[1]/jan/y) - (thu-mon);
+    }
+
+    static
+    constexpr
+    iso_week
+    iso_week_from_day_point(date::day_point dp) noexcept
+    {
+        using namespace date;
+        using namespace std::chrono;
+        auto y = year_month_day(dp).year();
+        auto start = iso_week_start(y);
+        if (dp &lt; start)
+        {
+            --y;
+            start = iso_week_start(y);
+        }
+        else
+        {
+            auto const next_start = iso_week_start(y+years{1});
+            if (dp &gt;= next_start)
+            {
+                ++y;
+                start = next_start;
+            }
+        }
+        return {y, duration_cast&lt;weeks&gt;(dp - start) + weeks{1}, weekday{dp}};
+    }
+};
+</pre></blockquote>
+
+<p>
+The rules for the ISO week-based calendar are fairly simple:
+</p>
+
+<ol>
+<li>Weeks begin with Monday and end on Sunday.</li>
+<li>The year begins on the Monday prior to the first Thursday in January.</li>
+<li>A date is specified by the week number [1 - 53], day of the week [Mon - Sun], and year
+number.</li>
+<li>The year number is the same as the civil year number for the Thursday that follows the
+start of the week-based year.</li>
+</ol>
+
+<p>
+With that in mind, one can easily create a <i>field-based</i> data structure that holds
+a <code>year</code>, a week number, and a day of the week, and then provides conversions
+to and from <code>day_point</code>.
+</p>
+
+<p>
+The key points of this class (for interoperability) are the constructor
+<code>iso_week(date::day_point dp)</code> and the <code>operator date::day_point()</code>.
+</p>
+
+<p>
+To aid in these computations a private helper function is created to compute the
+<code>day_point</code> corresponding to the first day of the week-based year.  And according
+to rule 2,  this can be elegantly coded as:
+</p>
+
+<blockquote><pre>
+return day_point(thu[1]/jan/y) - (thu-mon);
+</pre></blockquote>
+
+<p>
+That is, first find the first Thursday in January for year <code>y</code>, and then subtract
+the number of days required to find the Monday before this day.  This could have been done
+with <code>days{3}</code>.   But I chose to code this as <code>(thu-mon)</code>.
+Computationally and performance wise, these two choices are identical: they both subtract
+the literal 3.  I chose the latter because I believe it to be more readable. 
+"<code>3</code>" is just a magic constant.  But "<code>(thu-mon)</code>" is the number of
+days Thursday is past Monday.
+</p>
+
+<p>
+The constructor <code>iso_week(date::day_point dp)</code> has to first discover which
+ISO week-based year the <code>day_point dp</code> falls into.  Most often this is the
+same as the civil (<code>year_month_day</code>) year number associated <code>dp</code>.
+But because the week-based year may start a few days earlier or later than
+<code>jan/1</code>, the week-based year number may be one less or one greater than the
+civil year number associated <code>dp</code>. Once the proper start of the week-based year
+is nailed down (in <code>start</code>), the translation to the field-based
+<code>iso_week</code> is trivial:
+</p>
+
+<blockquote><pre>
+return {y, duration_cast&lt;weeks&gt;(dp - start) + weeks{1}, weekday{dp}};
+</pre></blockquote>
+
+<p>
+The conversion from <code>iso_week</code> to <code>day_point</code> is even easier:
+</p>
+
+<blockquote><pre>
+return iso_week_start(y_) + w_ - weeks{1} + (wd_ - mon);
+</pre></blockquote>
+
+<p>
+It is the the start of the week-based year, plus the number of weeks (minus one since this
+count is 1-based), plus the number of days the <code>weekday</code> is past Monday. Note
+that because <code>weekday</code> subtraction is treated as a circular range (always
+results in a number of days in the range [0, 6]), the logic at this level is simplified.
+That is, Sunday is 6 days past Monday, not one day before it (and Monday is still one day
+past Sunday).  So the encoding used for <code>weekday</code> is irrelevant; safely
+encapsulated within <code>weekday</code>.  Said differently, <code>weekday</code>
+arithmetic is unsigned, modulo 7.
+</p>
+
+<p>
+With the above code, one can now write programs such as the one below which demonstrates
+easy convertibility among the <code>date</code> <i>field-types</i> and your custom
+<i>field-type</i>.
+</p>
+
+<blockquote><pre>
+int
+main()
+{
+    using namespace date;
+    using namespace std;
+    using namespace std::chrono;
+    auto dp = time_point_cast&lt;days&gt;(system_clock::now());
+    auto ymd = year_month_day(dp);
+    cout &lt;&lt; ymd &lt;&lt; '\n';
+    <b>auto iso = iso_week(ymd);</b>
+    cout &lt;&lt; iso &lt;&lt; '\n';
+    <b>auto ymwd = year_month_weekday(iso);</b>
+    cout &lt;&lt; ymwd &lt;&lt; '\n';
+    <b>assert(year_month_day(iso) == ymd);</b>
+}
+</pre></blockquote>
+
+<p>
+Which will output something like:
+</p>
+
+<blockquote><pre>
+2015-05-20
+2015-W(21)-Wed
+2015/May/Wed[3]
+</pre></blockquote>
+
+<p>
+As long as you can relate your custom <i>field-based</i> structure (be it the Julian
+calendar, the Hindu calendar, or the Maya calendar) to the number of days before and after
+civil 1970-01-01, you can achieve interoperability with every other <i>field-based</i>
+structure that does so.  And obviously you can then also convert your custom calendar to
+UTC (<code>std::chrono::system_clock::time_point</code>).  <i>This is the Rosetta Stone of
+time keeping.</i>
+</p>
 
 <a name="Reference"></a><h2>Reference</h2>
 
