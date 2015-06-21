@@ -305,7 +305,7 @@ public:
     constexpr weekday_last    operator[](last_spec)      const noexcept;
 
 private:
-    static constexpr unsigned weekday_from_days(int z) noexcept;
+    static constexpr unsigned char weekday_from_days(int z) noexcept;
 };
 
 constexpr bool operator==(const weekday& x, const weekday& y) noexcept;
@@ -745,9 +745,110 @@ public:
         {}
 };
 
+// truncate towards zero
+template <class To, class Rep, class Period>
+constexpr
+inline
+To
+truncate(const std::chrono::duration<Rep, Period>& d)
+{
+    return std::chrono::duration_cast<To>(d);
+}
+
+// round down
+template <class To, class Rep, class Period>
+constexpr
+inline
+To
+floor(const std::chrono::duration<Rep, Period>& d)
+{
+    To t = std::chrono::duration_cast<To>(d);
+    if (t > d)
+        t = t - To{1};
+    return t;
+}
+
+// round to nearest, to even on tie
+template <class To, class Rep, class Period>
+constexpr
+inline
+To
+round(const std::chrono::duration<Rep, Period>& d)
+{
+    To t0 = std::chrono::duration_cast<To>(d);
+    To t1 = t0 + To{1};
+    auto diff0 = d - t0;
+    auto diff1 = t1 - d;
+    if (diff0 == diff1)
+    {
+        if (t0.count() & 1)
+            return t1;
+        return t0;
+    }
+    else if (diff0 < diff1)
+        return t0;
+    return t1;
+}
+
+// round up
+template <class To, class Rep, class Period>
+constexpr
+inline
+To
+ceil(const std::chrono::duration<Rep, Period>& d)
+{
+    To t = std::chrono::duration_cast<To>(d);
+    if (t < d)
+        t = t + To{1};
+    return t;
+}
+
+// truncate towards zero
+template <class To, class Clock, class FromDuration>
+constexpr
+inline
+std::chrono::time_point<Clock, To>
+truncate(const std::chrono::time_point<Clock, FromDuration>& tp)
+{
+    return std::chrono::time_point_cast<To>(tp);
+}
+
+// round down
+template <class To, class Clock, class FromDuration>
+constexpr
+inline
+std::chrono::time_point<Clock, To>
+floor(const std::chrono::time_point<Clock, FromDuration>& tp)
+{
+    using std::chrono::time_point;
+    return time_point<Clock, To>{floor<To>(tp.time_since_epoch())};
+}
+
+// round to nearest, to even on tie
+template <class To, class Clock, class FromDuration>
+constexpr
+inline
+std::chrono::time_point<Clock, To>
+round(const std::chrono::time_point<Clock, FromDuration>& tp)
+{
+    using std::chrono::time_point;
+    return time_point<Clock, To>{round<To>(tp.time_since_epoch())};
+}
+
+// round up
+template <class To, class Clock, class FromDuration>
+constexpr
+inline
+std::chrono::time_point<Clock, To>
+ceil(const std::chrono::time_point<Clock, FromDuration>& tp)
+{
+    using std::chrono::time_point;
+    return time_point<Clock, To>{ceil<To>(tp.time_since_epoch())};
+}
+
 // day
 
-constexpr inline day::day(unsigned d) noexcept : d_(d) {}
+constexpr inline day::day(unsigned d) noexcept : d_(static_cast<unsigned char>(d)) {}
 inline day& day::operator++() noexcept {++d_; return *this;}
 inline day day::operator++(int) noexcept {auto tmp(*this); ++(*this); return tmp;}
 inline day& day::operator--() noexcept {--d_; return *this;}
@@ -819,7 +920,7 @@ inline
 day
 operator+(const day& x, const days& y) noexcept
 {
-    return day{static_cast<unsigned>(x) + y.count()};
+    return day{static_cast<unsigned>(x) + static_cast<unsigned>(y.count())};
 }
 
 constexpr
@@ -860,7 +961,7 @@ operator "" _d(unsigned long long d) noexcept
 
 // month
 
-constexpr inline month::month(unsigned m) noexcept : m_(m) {}
+constexpr inline month::month(unsigned m) noexcept : m_(static_cast<decltype(m_)>(m)) {}
 inline month& month::operator++() noexcept {if (++m_ == 13) m_ = 1; return *this;}
 inline month month::operator++(int) noexcept {auto tmp(*this); ++(*this); return tmp;}
 inline month& month::operator--() noexcept {if (--m_ == 0) m_ = 12; return *this;}
@@ -1032,7 +1133,7 @@ operator<<(std::ostream& os, const month& m)
 
 // year
 
-constexpr inline year::year(int y) noexcept : y_(y) {}
+constexpr inline year::year(int y) noexcept : y_(static_cast<decltype(y_)>(y)) {}
 inline year& year::operator++() noexcept {++y_; return *this;}
 inline year year::operator++(int) noexcept {auto tmp(*this); ++(*this); return tmp;}
 inline year& year::operator--() noexcept {--y_; return *this;}
@@ -1164,22 +1265,29 @@ inline
 year
 operator "" _y(unsigned long long y) noexcept
 {
-    return year(y);
+    return year(static_cast<int>(y));
 }
 
 // weekday
 
 constexpr
 inline
-unsigned
+unsigned char
 weekday::weekday_from_days(int z) noexcept
 {
-    return static_cast<unsigned>(z >= -4 ? (z+4) % 7 : (z+5) % 7 + 6);
+    return static_cast<unsigned char>(static_cast<unsigned>(
+        z >= -4 ? (z+4) % 7 : (z+5) % 7 + 6));
 }
 
-constexpr inline weekday::weekday(unsigned wd) noexcept : wd_(wd) {}
+constexpr
+inline
+weekday::weekday(unsigned wd) noexcept
+    : wd_(static_cast<decltype(wd_)>(wd))
+    {}
 
-constexpr inline weekday::weekday(const day_point& dp) noexcept
+constexpr
+inline
+weekday::weekday(const day_point& dp) noexcept
     : wd_(weekday_from_days(dp.time_since_epoch().count()))
     {}
 
@@ -1329,8 +1437,8 @@ weekday_indexed::ok() const noexcept
 constexpr
 inline
 weekday_indexed::weekday_indexed(const date::weekday& wd, unsigned index) noexcept
-    : wd_(static_cast<unsigned>(wd))
-    , index_(index)
+    : wd_(static_cast<decltype(wd_)>(static_cast<unsigned>(wd)))
+    , index_(static_cast<decltype(index_)>(index))
     {}
 
 inline
@@ -1472,7 +1580,7 @@ operator+(const year_month& ym, const months& dm) noexcept
     auto dmi = static_cast<int>(static_cast<unsigned>(ym.month())) - 1 + dm.count();
     auto dy = (dmi >= 0 ? dmi : dmi-11) / 12;
     dmi = dmi - dy * 12 + 1;
-    return (ym.year() + years(dy)) / month(dmi);
+    return (ym.year() + years(dy)) / month(static_cast<unsigned>(dmi));
 }
 
 CONSTEXPR
@@ -2001,10 +2109,10 @@ year_month_day::operator day_point() const noexcept
     auto const m = static_cast<unsigned>(m_);
     auto const d = static_cast<unsigned>(d_);
     auto const era = (y >= 0 ? y : y-399) / 400;
-    auto const yoe = static_cast<unsigned>(y - era * 400);      // [0, 399]
-    auto const doy = (153*(m + (m > 2 ? -3 : 9)) + 2)/5 + d-1;  // [0, 365]
-    auto const doe = yoe * 365 + yoe/4 - yoe/100 + doy;         // [0, 146096]
-    return day_point{days{era * 146097 + doe - 719468}};
+    auto const yoe = static_cast<unsigned>(y - era * 400);       // [0, 399]
+    auto const doy = (153*(m + (m > 2 ? -3u : 9)) + 2)/5 + d-1;  // [0, 365]
+    auto const doe = yoe * 365 + yoe/4 - yoe/100 + doy;          // [0, 146096]
+    return day_point{days{era * 146097 + static_cast<int>(doe) - 719468}};
 }
 
 CONSTEXPR
@@ -2107,7 +2215,7 @@ year_month_day::from_day_point(const day_point& dp) noexcept
     auto const doy = doe - (365*yoe + yoe/4 - yoe/100);                // [0, 365]
     auto const mp = (5*doy + 2)/153;                                   // [0, 11]
     auto const d = doy - (153*mp+2)/5 + 1;                             // [1, 31]
-    auto const m = mp + (mp < 10 ? 3 : -9);                            // [1, 12]
+    auto const m = mp + (mp < 10 ? 3 : -9u);                           // [1, 12]
     return year_month_day{date::year{y + (m <= 2)}, date::month(m), date::day(d)};
 }
 
@@ -2482,7 +2590,7 @@ inline
 year_month
 operator/(const year& y, int   m) noexcept
 {
-    return y / month(m);
+    return y / month(static_cast<unsigned>(m));
 }
 
 // month_day from operator/()
@@ -2503,9 +2611,23 @@ operator/(const day& d, const month& m) noexcept
     return m / d;
 }
 
-constexpr inline month_day operator/(const month& m, int d) noexcept {return m / day(d);}
-constexpr inline month_day operator/(int m, const day& d) noexcept {return month(m) / d;}
-constexpr inline month_day operator/(const day& d, int m) noexcept {return month(m) / d;}
+constexpr
+inline
+month_day
+operator/(const month& m, int d) noexcept
+{
+    return m / day(static_cast<unsigned>(d));
+}
+
+constexpr
+inline
+month_day
+operator/(int m, const day& d) noexcept
+{
+    return month(static_cast<unsigned>(m)) / d;
+}
+
+constexpr inline month_day operator/(const day& d, int m) noexcept {return m / d;}
 
 // month_day_last from operator/()
 
@@ -2530,7 +2652,7 @@ inline
 month_day_last
 operator/(int m, last_spec) noexcept
 {
-    return month(m)/last;
+    return month(static_cast<unsigned>(m))/last;
 }
 
 constexpr
@@ -2538,7 +2660,7 @@ inline
 month_day_last
 operator/(last_spec, int m) noexcept
 {
-    return month(m)/last;
+    return m/last;
 }
 
 // month_weekday from operator/()
@@ -2564,7 +2686,7 @@ inline
 month_weekday
 operator/(int m, const weekday_indexed& wdi) noexcept
 {
-    return month(m) / wdi;
+    return month(static_cast<unsigned>(m)) / wdi;
 }
 
 constexpr
@@ -2572,7 +2694,7 @@ inline
 month_weekday
 operator/(const weekday_indexed& wdi, int m) noexcept
 {
-    return month(m) / wdi;
+    return m / wdi;
 }
 
 // month_weekday_last from operator/()
@@ -2598,7 +2720,7 @@ inline
 month_weekday_last
 operator/(int m, const weekday_last& wdl) noexcept
 {
-    return month(m) / wdl;
+    return month(static_cast<unsigned>(m)) / wdl;
 }
 
 constexpr
@@ -2606,7 +2728,7 @@ inline
 month_weekday_last
 operator/(const weekday_last& wdl, int m) noexcept
 {
-    return month(m) / wdl;
+    return m / wdl;
 }
 
 // year_month_day from operator/()
@@ -2624,7 +2746,7 @@ inline
 year_month_day
 operator/(const year_month& ym, int d)  noexcept
 {
-    return ym / day(d);
+    return ym / day(static_cast<unsigned>(d));
 }
 
 constexpr
@@ -2813,14 +2935,14 @@ struct classify_duration
 class time_of_day_base
 {
 protected:
-    unsigned char mode_;
     std::chrono::hours   h_;
+    unsigned char mode_;
 
     enum {is24hr};
 
-    constexpr time_of_day_base(std::chrono::hours h, unsigned char m) noexcept
-        : mode_(m)
-        , h_(h)
+    constexpr time_of_day_base(std::chrono::hours h, unsigned m) noexcept
+        : h_(h)
+        , mode_(static_cast<decltype(mode_)>(m))
         {}
 
 public:
