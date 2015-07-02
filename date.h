@@ -757,7 +757,7 @@ truncate(const std::chrono::duration<Rep, Period>& d)
 
 // round down
 template <class To, class Rep, class Period>
-constexpr
+CONSTEXPR
 inline
 To
 floor(const std::chrono::duration<Rep, Period>& d)
@@ -770,7 +770,7 @@ floor(const std::chrono::duration<Rep, Period>& d)
 
 // round to nearest, to even on tie
 template <class To, class Rep, class Period>
-constexpr
+CONSTEXPR
 inline
 To
 round(const std::chrono::duration<Rep, Period>& d)
@@ -792,7 +792,7 @@ round(const std::chrono::duration<Rep, Period>& d)
 
 // round up
 template <class To, class Rep, class Period>
-constexpr
+CONSTEXPR
 inline
 To
 ceil(const std::chrono::duration<Rep, Period>& d)
@@ -3095,13 +3095,15 @@ public:
     {
         using namespace std;
         save_stream _(os);
+        if (t.h_ < std::chrono::hours{0})
+            os << '-';
         os.fill('0');
         os.flags(std::ios::dec | std::ios::right);
         if (t.mode_ != am && t.mode_ != pm)
             os.width(2);
-        os << t.h_.count() << ':';
+        os << abs(t.h_.count()) << ':';
         os.width(2);
-        os << t.m_.count();
+        os << abs(t.m_.count());
         switch (t.mode_)
         {
         case am:
@@ -3156,15 +3158,17 @@ public:
     {
         using namespace std;
         save_stream _(os);
+        if (t.h_ < std::chrono::hours{0})
+            os << '-';
         os.fill('0');
         os.flags(std::ios::dec | std::ios::right);
         if (t.mode_ != am && t.mode_ != pm)
             os.width(2);
-        os << t.h_.count() << ':';
+        os << abs(t.h_.count()) << ':';
         os.width(2);
-        os << t.m_.count() << ':';
+        os << abs(t.m_.count()) << ':';
         os.width(2);
-        os << t.s_.count();
+        os << abs(t.s_.count());
         switch (t.mode_)
         {
         case am:
@@ -3226,26 +3230,28 @@ public:
     {
         using namespace std;
         save_stream _(os);
+        if (t.h_ < std::chrono::hours{0})
+            os << '-';
         os.fill('0');
         os.flags(std::ios::dec | std::ios::right);
         if (t.mode_ != am && t.mode_ != pm)
             os.width(2);
-        os << t.h_.count() << ':';
+        os << abs(t.h_.count()) << ':';
         os.width(2);
-        os << t.m_.count() << ':';
+        os << abs(t.m_.count()) << ':';
         os.width(2);
-        os << t.s_.count() << '.';
+        os << abs(t.s_.count()) << '.';
 #if __cplusplus >= 201305
         constexpr auto cl10 = ceil_log10(Period::den);
         using scale = std::ratio_multiply<Period, std::ratio<pow10(cl10)>>;
         os.width(cl10);
-        os << t.sub_s_.count() * scale::num / scale::den;
+        os << abs(t.sub_s_.count()) * scale::num / scale::den;
 #else  // __cplusplus >= 201305
         // inefficient sub-optimal run-time mess, but gets the job done
         const unsigned long long cl10 = std::ceil(log10(Period::den));
         const auto p10 = std::pow(10., cl10);
         os.width(cl10);
-        os << static_cast<unsigned long long>(t.sub_s_.count()
+        os << static_cast<unsigned long long>(abs(t.sub_s_.count())
                                               * Period::num * p10 / Period::den);
 #endif  // __cplusplus >= 201305
         switch (t.mode_)
