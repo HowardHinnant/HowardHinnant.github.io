@@ -3835,9 +3835,9 @@ public:
 constexpr bool operator==(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
 constexpr bool operator!=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
 constexpr bool operator&lt; (const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
-constexpr bool operator&lt; (const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+constexpr bool operator&gt; (const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
 constexpr bool operator&lt;=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
-constexpr bool operator&lt;=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
+constexpr bool operator&gt;=(const year_month_day&amp; x, const year_month_day&amp; y) noexcept;
 
 constexpr year_month_day operator+(const year_month_day&amp; ymd, const months&amp; dm) noexcept;
 constexpr year_month_day operator+(const months&amp; dm, const year_month_day&amp; ymd) noexcept;

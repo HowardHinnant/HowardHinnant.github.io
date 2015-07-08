@@ -6,7 +6,7 @@
 // http://creativecommons.org/licenses/by/4.0/
 
 #include <chrono>
-#if !(__cplusplus >= 201305)
+#if !(__cplusplus >= 201402)
 #  include <cmath>
 #endif
 #include <limits>
@@ -21,10 +21,14 @@ namespace date
 // Configuration |
 //---------------+
 
-#if __cplusplus >= 201305
-#  define CONSTEXPR constexpr
+#if __cplusplus >= 201402
+#  define CONSTDATA constexpr
+#  define CONSTCD11 constexpr
+#  define CONSTCD14 constexpr
 #else
-#  define CONSTEXPR
+#  define CONSTDATA constexpr
+#  define CONSTCD11 constexpr
+#  define CONSTCD14
 #endif
 
 //-----------+
@@ -51,7 +55,7 @@ using day_point = std::chrono::time_point<std::chrono::system_clock, days>;
 
 // types
 
-constexpr struct last_spec {} last{};
+CONSTDATA struct last_spec {} last{};
 
 class day;
 class month;
@@ -75,85 +79,85 @@ class year_month_weekday_last;
 
 // date composition operators
 
-constexpr year_month operator/(const year& y, const month& m) noexcept;
-constexpr year_month operator/(const year& y, int          m) noexcept;
+CONSTCD11 year_month operator/(const year& y, const month& m) noexcept;
+CONSTCD11 year_month operator/(const year& y, int          m) noexcept;
 
-constexpr month_day operator/(const day& d, const month& m) noexcept;
-constexpr month_day operator/(const day& d, int          m) noexcept;
-constexpr month_day operator/(const month& m, const day& d) noexcept;
-constexpr month_day operator/(const month& m, int        d) noexcept;
-constexpr month_day operator/(int          m, const day& d) noexcept;
+CONSTCD11 month_day operator/(const day& d, const month& m) noexcept;
+CONSTCD11 month_day operator/(const day& d, int          m) noexcept;
+CONSTCD11 month_day operator/(const month& m, const day& d) noexcept;
+CONSTCD11 month_day operator/(const month& m, int        d) noexcept;
+CONSTCD11 month_day operator/(int          m, const day& d) noexcept;
 
-constexpr month_day_last operator/(const month& m, last_spec) noexcept;
-constexpr month_day_last operator/(int          m, last_spec) noexcept;
-constexpr month_day_last operator/(last_spec, const month& m) noexcept;
-constexpr month_day_last operator/(last_spec, int          m) noexcept;
+CONSTCD11 month_day_last operator/(const month& m, last_spec) noexcept;
+CONSTCD11 month_day_last operator/(int          m, last_spec) noexcept;
+CONSTCD11 month_day_last operator/(last_spec, const month& m) noexcept;
+CONSTCD11 month_day_last operator/(last_spec, int          m) noexcept;
 
-constexpr month_weekday operator/(const month& m, const weekday_indexed& wdi) noexcept;
-constexpr month_weekday operator/(int          m, const weekday_indexed& wdi) noexcept;
-constexpr month_weekday operator/(const weekday_indexed& wdi, const month& m) noexcept;
-constexpr month_weekday operator/(const weekday_indexed& wdi, int          m) noexcept;
+CONSTCD11 month_weekday operator/(const month& m, const weekday_indexed& wdi) noexcept;
+CONSTCD11 month_weekday operator/(int          m, const weekday_indexed& wdi) noexcept;
+CONSTCD11 month_weekday operator/(const weekday_indexed& wdi, const month& m) noexcept;
+CONSTCD11 month_weekday operator/(const weekday_indexed& wdi, int          m) noexcept;
 
-constexpr month_weekday_last operator/(const month& m, const weekday_last& wdl) noexcept;
-constexpr month_weekday_last operator/(int          m, const weekday_last& wdl) noexcept;
-constexpr month_weekday_last operator/(const weekday_last& wdl, const month& m) noexcept;
-constexpr month_weekday_last operator/(const weekday_last& wdl, int          m) noexcept;
+CONSTCD11 month_weekday_last operator/(const month& m, const weekday_last& wdl) noexcept;
+CONSTCD11 month_weekday_last operator/(int          m, const weekday_last& wdl) noexcept;
+CONSTCD11 month_weekday_last operator/(const weekday_last& wdl, const month& m) noexcept;
+CONSTCD11 month_weekday_last operator/(const weekday_last& wdl, int          m) noexcept;
 
-constexpr year_month_day operator/(const year_month& ym, const day& d) noexcept;
-constexpr year_month_day operator/(const year_month& ym, int        d) noexcept;
-constexpr year_month_day operator/(const year& y, const month_day& md) noexcept;
-constexpr year_month_day operator/(int         y, const month_day& md) noexcept;
-constexpr year_month_day operator/(const month_day& md, const year& y) noexcept;
-constexpr year_month_day operator/(const month_day& md, int         y) noexcept;
+CONSTCD11 year_month_day operator/(const year_month& ym, const day& d) noexcept;
+CONSTCD11 year_month_day operator/(const year_month& ym, int        d) noexcept;
+CONSTCD11 year_month_day operator/(const year& y, const month_day& md) noexcept;
+CONSTCD11 year_month_day operator/(int         y, const month_day& md) noexcept;
+CONSTCD11 year_month_day operator/(const month_day& md, const year& y) noexcept;
+CONSTCD11 year_month_day operator/(const month_day& md, int         y) noexcept;
 
-constexpr
+CONSTCD11
     year_month_day_last operator/(const year_month& ym,   last_spec) noexcept;
-constexpr
+CONSTCD11
     year_month_day_last operator/(const year& y, const month_day_last& mdl) noexcept;
-constexpr
+CONSTCD11
     year_month_day_last operator/(int         y, const month_day_last& mdl) noexcept;
-constexpr
+CONSTCD11
     year_month_day_last operator/(const month_day_last& mdl, const year& y) noexcept;
-constexpr
+CONSTCD11
     year_month_day_last operator/(const month_day_last& mdl, int         y) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday
 operator/(const year_month& ym, const weekday_indexed& wdi) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday
 operator/(const year&        y, const month_weekday&   mwd) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday
 operator/(int                y, const month_weekday&   mwd) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday
 operator/(const month_weekday& mwd, const year&          y) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday
 operator/(const month_weekday& mwd, int                  y) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday_last
 operator/(const year_month& ym, const weekday_last& wdl) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday_last
 operator/(const year& y, const month_weekday_last& mwdl) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday_last
 operator/(int         y, const month_weekday_last& mwdl) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday_last
 operator/(const month_weekday_last& mwdl, const year& y) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday_last
 operator/(const month_weekday_last& mwdl, int         y) noexcept;
 
@@ -165,7 +169,7 @@ class day
 {
     unsigned char d_;
 public:
-    explicit constexpr day(unsigned d) noexcept;
+    explicit CONSTCD11 day(unsigned d) noexcept;
 
     day& operator++()    noexcept;
     day  operator++(int) noexcept;
@@ -175,23 +179,23 @@ public:
     day& operator+=(const days& d) noexcept;
     day& operator-=(const days& d) noexcept;
 
-    constexpr explicit operator unsigned() const noexcept;
-    constexpr bool ok() const noexcept;
+    CONSTCD11 explicit operator unsigned() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr bool operator==(const day& x, const day& y) noexcept;
-constexpr bool operator!=(const day& x, const day& y) noexcept;
-constexpr bool operator< (const day& x, const day& y) noexcept;
-constexpr bool operator> (const day& x, const day& y) noexcept;
-constexpr bool operator<=(const day& x, const day& y) noexcept;
-constexpr bool operator>=(const day& x, const day& y) noexcept;
+CONSTCD11 bool operator==(const day& x, const day& y) noexcept;
+CONSTCD11 bool operator!=(const day& x, const day& y) noexcept;
+CONSTCD11 bool operator< (const day& x, const day& y) noexcept;
+CONSTCD11 bool operator> (const day& x, const day& y) noexcept;
+CONSTCD11 bool operator<=(const day& x, const day& y) noexcept;
+CONSTCD11 bool operator>=(const day& x, const day& y) noexcept;
 
-constexpr day  operator+(const day&  x, const days& y) noexcept;
-constexpr day  operator+(const days& x, const day&  y) noexcept;
-constexpr day  operator-(const day&  x, const days& y) noexcept;
-constexpr days operator-(const day&  x, const day&  y) noexcept;
+CONSTCD11 day  operator+(const day&  x, const days& y) noexcept;
+CONSTCD11 day  operator+(const days& x, const day&  y) noexcept;
+CONSTCD11 day  operator-(const day&  x, const days& y) noexcept;
+CONSTCD11 days operator-(const day&  x, const day&  y) noexcept;
 
-constexpr day operator "" _d(unsigned long long d) noexcept;
+CONSTCD11 day operator "" _d(unsigned long long d) noexcept;
 std::ostream& operator<<(std::ostream& os, const day& d);
 
 // month
@@ -200,7 +204,7 @@ class month
 {
     unsigned char m_;
 public:
-    explicit constexpr month(unsigned m) noexcept;
+    explicit CONSTCD11 month(unsigned m) noexcept;
 
     month& operator++()    noexcept;
     month  operator++(int) noexcept;
@@ -210,21 +214,21 @@ public:
     month& operator+=(const months& m) noexcept;
     month& operator-=(const months& m) noexcept;
 
-    constexpr explicit operator unsigned() const noexcept;
-    constexpr bool ok() const noexcept;
+    CONSTCD11 explicit operator unsigned() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr bool operator==(const month& x, const month& y) noexcept;
-constexpr bool operator!=(const month& x, const month& y) noexcept;
-constexpr bool operator< (const month& x, const month& y) noexcept;
-constexpr bool operator> (const month& x, const month& y) noexcept;
-constexpr bool operator<=(const month& x, const month& y) noexcept;
-constexpr bool operator>=(const month& x, const month& y) noexcept;
+CONSTCD11 bool operator==(const month& x, const month& y) noexcept;
+CONSTCD11 bool operator!=(const month& x, const month& y) noexcept;
+CONSTCD11 bool operator< (const month& x, const month& y) noexcept;
+CONSTCD11 bool operator> (const month& x, const month& y) noexcept;
+CONSTCD11 bool operator<=(const month& x, const month& y) noexcept;
+CONSTCD11 bool operator>=(const month& x, const month& y) noexcept;
 
-CONSTEXPR month  operator+(const month&  x, const months& y) noexcept;
-CONSTEXPR month  operator+(const months& x,  const month& y) noexcept;
-CONSTEXPR month  operator-(const month&  x, const months& y) noexcept;
-CONSTEXPR months operator-(const month&  x,  const month& y) noexcept;
+CONSTCD14 month  operator+(const month&  x, const months& y) noexcept;
+CONSTCD14 month  operator+(const months& x,  const month& y) noexcept;
+CONSTCD14 month  operator-(const month&  x, const months& y) noexcept;
+CONSTCD14 months operator-(const month&  x,  const month& y) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const month& m);
 
@@ -247,7 +251,7 @@ class year
 {
     short y_;
 public:
-    explicit constexpr year(int y) noexcept;
+    explicit CONSTCD11 year(int y) noexcept;
 
     year& operator++()    noexcept;
     year  operator++(int) noexcept;
@@ -257,28 +261,28 @@ public:
     year& operator+=(const years& y) noexcept;
     year& operator-=(const years& y) noexcept;
 
-    constexpr bool is_leap() const noexcept;
+    CONSTCD11 bool is_leap() const noexcept;
 
-    constexpr explicit operator int() const noexcept;
-    constexpr bool ok() const noexcept;
+    CONSTCD11 explicit operator int() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 
-    static constexpr year min() noexcept;
-    static constexpr year max() noexcept;
+    static CONSTCD11 year min() noexcept;
+    static CONSTCD11 year max() noexcept;
 };
 
-constexpr bool operator==(const year& x, const year& y) noexcept;
-constexpr bool operator!=(const year& x, const year& y) noexcept;
-constexpr bool operator< (const year& x, const year& y) noexcept;
-constexpr bool operator> (const year& x, const year& y) noexcept;
-constexpr bool operator<=(const year& x, const year& y) noexcept;
-constexpr bool operator>=(const year& x, const year& y) noexcept;
+CONSTCD11 bool operator==(const year& x, const year& y) noexcept;
+CONSTCD11 bool operator!=(const year& x, const year& y) noexcept;
+CONSTCD11 bool operator< (const year& x, const year& y) noexcept;
+CONSTCD11 bool operator> (const year& x, const year& y) noexcept;
+CONSTCD11 bool operator<=(const year& x, const year& y) noexcept;
+CONSTCD11 bool operator>=(const year& x, const year& y) noexcept;
 
-constexpr year  operator+(const year&  x, const years& y) noexcept;
-constexpr year  operator+(const years& x, const year&  y) noexcept;
-constexpr year  operator-(const year&  x, const years& y) noexcept;
-constexpr years operator-(const year&  x, const year&  y) noexcept;
+CONSTCD11 year  operator+(const year&  x, const years& y) noexcept;
+CONSTCD11 year  operator+(const years& x, const year&  y) noexcept;
+CONSTCD11 year  operator-(const year&  x, const years& y) noexcept;
+CONSTCD11 years operator-(const year&  x, const year&  y) noexcept;
 
-constexpr year operator "" _y(unsigned long long y) noexcept;
+CONSTCD11 year operator "" _y(unsigned long long y) noexcept;
 std::ostream& operator<<(std::ostream& os, const year& y);
 
 // weekday
@@ -287,8 +291,8 @@ class weekday
 {
     unsigned char wd_;
 public:
-    explicit constexpr weekday(unsigned wd) noexcept;
-    constexpr weekday(const day_point& dp) noexcept;
+    explicit CONSTCD11 weekday(unsigned wd) noexcept;
+    CONSTCD11 weekday(const day_point& dp) noexcept;
 
     weekday& operator++()    noexcept;
     weekday  operator++(int) noexcept;
@@ -298,23 +302,23 @@ public:
     weekday& operator+=(const days& d) noexcept;
     weekday& operator-=(const days& d) noexcept;
 
-    constexpr explicit operator unsigned() const noexcept;
-    constexpr bool ok() const noexcept;
+    CONSTCD11 explicit operator unsigned() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 
-    constexpr weekday_indexed operator[](unsigned index) const noexcept;
-    constexpr weekday_last    operator[](last_spec)      const noexcept;
+    CONSTCD11 weekday_indexed operator[](unsigned index) const noexcept;
+    CONSTCD11 weekday_last    operator[](last_spec)      const noexcept;
 
 private:
-    static constexpr unsigned char weekday_from_days(int z) noexcept;
+    static CONSTCD11 unsigned char weekday_from_days(int z) noexcept;
 };
 
-constexpr bool operator==(const weekday& x, const weekday& y) noexcept;
-constexpr bool operator!=(const weekday& x, const weekday& y) noexcept;
+CONSTCD11 bool operator==(const weekday& x, const weekday& y) noexcept;
+CONSTCD11 bool operator!=(const weekday& x, const weekday& y) noexcept;
 
-CONSTEXPR weekday operator+(const weekday& x, const days&    y) noexcept;
-CONSTEXPR weekday operator+(const days&    x, const weekday& y) noexcept;
-CONSTEXPR weekday operator-(const weekday& x, const days&    y) noexcept;
-CONSTEXPR days    operator-(const weekday& x, const weekday& y) noexcept;
+CONSTCD14 weekday operator+(const weekday& x, const days&    y) noexcept;
+CONSTCD14 weekday operator+(const days&    x, const weekday& y) noexcept;
+CONSTCD14 weekday operator-(const weekday& x, const days&    y) noexcept;
+CONSTCD14 days    operator-(const weekday& x, const weekday& y) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const weekday& wd);
 
@@ -334,15 +338,15 @@ class weekday_indexed
     unsigned char index_ : 4;
 
 public:
-    constexpr weekday_indexed(const date::weekday& wd, unsigned index) noexcept;
+    CONSTCD11 weekday_indexed(const date::weekday& wd, unsigned index) noexcept;
 
-    constexpr date::weekday weekday() const noexcept;
-    constexpr unsigned index() const noexcept;
-    constexpr bool ok() const noexcept;
+    CONSTCD11 date::weekday weekday() const noexcept;
+    CONSTCD11 unsigned index() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr bool operator==(const weekday_indexed& x, const weekday_indexed& y) noexcept;
-constexpr bool operator!=(const weekday_indexed& x, const weekday_indexed& y) noexcept;
+CONSTCD11 bool operator==(const weekday_indexed& x, const weekday_indexed& y) noexcept;
+CONSTCD11 bool operator!=(const weekday_indexed& x, const weekday_indexed& y) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const weekday_indexed& wdi);
 
@@ -353,14 +357,14 @@ class weekday_last
     date::weekday wd_;
 
 public:
-    explicit constexpr weekday_last(const date::weekday& wd) noexcept;
+    explicit CONSTCD11 weekday_last(const date::weekday& wd) noexcept;
 
-    constexpr date::weekday weekday() const noexcept;
-    constexpr bool ok() const noexcept;
+    CONSTCD11 date::weekday weekday() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr bool operator==(const weekday_last& x, const weekday_last& y) noexcept;
-constexpr bool operator!=(const weekday_last& x, const weekday_last& y) noexcept;
+CONSTCD11 bool operator==(const weekday_last& x, const weekday_last& y) noexcept;
+CONSTCD11 bool operator!=(const weekday_last& x, const weekday_last& y) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const weekday_last& wdl);
 
@@ -372,29 +376,29 @@ class year_month
     date::month m_;
 
 public:
-    constexpr year_month(const date::year& y, const date::month& m) noexcept;
+    CONSTCD11 year_month(const date::year& y, const date::month& m) noexcept;
 
-    constexpr date::year  year()  const noexcept;
-    constexpr date::month month() const noexcept;
+    CONSTCD11 date::year  year()  const noexcept;
+    CONSTCD11 date::month month() const noexcept;
 
-    constexpr bool ok() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr bool operator==(const year_month& x, const year_month& y) noexcept;
-constexpr bool operator!=(const year_month& x, const year_month& y) noexcept;
-constexpr bool operator< (const year_month& x, const year_month& y) noexcept;
-constexpr bool operator> (const year_month& x, const year_month& y) noexcept;
-constexpr bool operator<=(const year_month& x, const year_month& y) noexcept;
-constexpr bool operator>=(const year_month& x, const year_month& y) noexcept;
+CONSTCD11 bool operator==(const year_month& x, const year_month& y) noexcept;
+CONSTCD11 bool operator!=(const year_month& x, const year_month& y) noexcept;
+CONSTCD11 bool operator< (const year_month& x, const year_month& y) noexcept;
+CONSTCD11 bool operator> (const year_month& x, const year_month& y) noexcept;
+CONSTCD11 bool operator<=(const year_month& x, const year_month& y) noexcept;
+CONSTCD11 bool operator>=(const year_month& x, const year_month& y) noexcept;
 
-CONSTEXPR year_month operator+(const year_month& ym, const months& dm) noexcept;
-CONSTEXPR year_month operator+(const months& dm, const year_month& ym) noexcept;
-CONSTEXPR year_month operator-(const year_month& ym, const months& dm) noexcept;
+CONSTCD14 year_month operator+(const year_month& ym, const months& dm) noexcept;
+CONSTCD14 year_month operator+(const months& dm, const year_month& ym) noexcept;
+CONSTCD14 year_month operator-(const year_month& ym, const months& dm) noexcept;
 
-constexpr months operator-(const year_month& x, const year_month& y) noexcept;
-constexpr year_month operator+(const year_month& ym, const years& dy) noexcept;
-constexpr year_month operator+(const years& dy, const year_month& ym) noexcept;
-constexpr year_month operator-(const year_month& ym, const years& dy) noexcept;
+CONSTCD11 months operator-(const year_month& x, const year_month& y) noexcept;
+CONSTCD11 year_month operator+(const year_month& ym, const years& dy) noexcept;
+CONSTCD11 year_month operator+(const years& dy, const year_month& ym) noexcept;
+CONSTCD11 year_month operator-(const year_month& ym, const years& dy) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const year_month& ym);
 
@@ -406,20 +410,20 @@ class month_day
     date::day   d_;
 
 public:
-    constexpr month_day(const date::month& m, const date::day& d) noexcept;
+    CONSTCD11 month_day(const date::month& m, const date::day& d) noexcept;
 
-    constexpr date::month month() const noexcept;
-    constexpr date::day   day() const noexcept;
+    CONSTCD11 date::month month() const noexcept;
+    CONSTCD11 date::day   day() const noexcept;
 
-    CONSTEXPR bool ok() const noexcept;
+    CONSTCD14 bool ok() const noexcept;
 };
 
-constexpr bool operator==(const month_day& x, const month_day& y) noexcept;
-constexpr bool operator!=(const month_day& x, const month_day& y) noexcept;
-constexpr bool operator< (const month_day& x, const month_day& y) noexcept;
-constexpr bool operator> (const month_day& x, const month_day& y) noexcept;
-constexpr bool operator<=(const month_day& x, const month_day& y) noexcept;
-constexpr bool operator>=(const month_day& x, const month_day& y) noexcept;
+CONSTCD11 bool operator==(const month_day& x, const month_day& y) noexcept;
+CONSTCD11 bool operator!=(const month_day& x, const month_day& y) noexcept;
+CONSTCD11 bool operator< (const month_day& x, const month_day& y) noexcept;
+CONSTCD11 bool operator> (const month_day& x, const month_day& y) noexcept;
+CONSTCD11 bool operator<=(const month_day& x, const month_day& y) noexcept;
+CONSTCD11 bool operator>=(const month_day& x, const month_day& y) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const month_day& md);
 
@@ -430,18 +434,18 @@ class month_day_last
     date::month m_;
 
 public:
-    constexpr explicit month_day_last(const date::month& m) noexcept;
+    CONSTCD11 explicit month_day_last(const date::month& m) noexcept;
 
-    constexpr date::month month() const noexcept;
-    constexpr bool ok() const noexcept;
+    CONSTCD11 date::month month() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr bool operator==(const month_day_last& x, const month_day_last& y) noexcept;
-constexpr bool operator!=(const month_day_last& x, const month_day_last& y) noexcept;
-constexpr bool operator< (const month_day_last& x, const month_day_last& y) noexcept;
-constexpr bool operator> (const month_day_last& x, const month_day_last& y) noexcept;
-constexpr bool operator<=(const month_day_last& x, const month_day_last& y) noexcept;
-constexpr bool operator>=(const month_day_last& x, const month_day_last& y) noexcept;
+CONSTCD11 bool operator==(const month_day_last& x, const month_day_last& y) noexcept;
+CONSTCD11 bool operator!=(const month_day_last& x, const month_day_last& y) noexcept;
+CONSTCD11 bool operator< (const month_day_last& x, const month_day_last& y) noexcept;
+CONSTCD11 bool operator> (const month_day_last& x, const month_day_last& y) noexcept;
+CONSTCD11 bool operator<=(const month_day_last& x, const month_day_last& y) noexcept;
+CONSTCD11 bool operator>=(const month_day_last& x, const month_day_last& y) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const month_day_last& mdl);
 
@@ -452,17 +456,17 @@ class month_weekday
     date::month           m_;
     date::weekday_indexed wdi_;
 public:
-    constexpr month_weekday(const date::month& m,
-                            const date::weekday_indexed& wdi) noexcept;
+    CONSTCD11 month_weekday(const date::month& m,
+                              const date::weekday_indexed& wdi) noexcept;
 
-    constexpr date::month           month()           const noexcept;
-    constexpr date::weekday_indexed weekday_indexed() const noexcept;
+    CONSTCD11 date::month           month()           const noexcept;
+    CONSTCD11 date::weekday_indexed weekday_indexed() const noexcept;
 
-    constexpr bool ok() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr bool operator==(const month_weekday& x, const month_weekday& y) noexcept;
-constexpr bool operator!=(const month_weekday& x, const month_weekday& y) noexcept;
+CONSTCD11 bool operator==(const month_weekday& x, const month_weekday& y) noexcept;
+CONSTCD11 bool operator!=(const month_weekday& x, const month_weekday& y) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const month_weekday& mwd);
 
@@ -474,17 +478,17 @@ class month_weekday_last
     date::weekday wd_;
 
 public:
-    constexpr month_weekday_last(const date::month& m, const date::weekday& wd) noexcept;
+    CONSTCD11 month_weekday_last(const date::month& m, const date::weekday& wd) noexcept;
 
-    constexpr date::month   month()   const noexcept;
-    constexpr date::weekday weekday() const noexcept;
+    CONSTCD11 date::month   month()   const noexcept;
+    CONSTCD11 date::weekday weekday() const noexcept;
 
-    constexpr bool ok() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr
+CONSTCD11
     bool operator==(const month_weekday_last& x, const month_weekday_last& y) noexcept;
-constexpr
+CONSTCD11
     bool operator!=(const month_weekday_last& x, const month_weekday_last& y) noexcept;
 
 std::ostream& operator<<(std::ostream& os, const month_weekday_last& mwdl);
@@ -498,40 +502,40 @@ class year_month_day
     date::day   d_;
 
 public:
-    constexpr year_month_day(const date::year& y, const date::month& m,
-                             const date::day& d) noexcept;
-    CONSTEXPR year_month_day(const year_month_day_last& ymdl) noexcept;
-    CONSTEXPR year_month_day(const day_point& dp) noexcept;
+    CONSTCD11 year_month_day(const date::year& y, const date::month& m,
+                               const date::day& d) noexcept;
+    CONSTCD14 year_month_day(const year_month_day_last& ymdl) noexcept;
+    CONSTCD14 year_month_day(const day_point& dp) noexcept;
 
     year_month_day& operator+=(const months& m) noexcept;
     year_month_day& operator-=(const months& m) noexcept;
     year_month_day& operator+=(const years& y)  noexcept;
     year_month_day& operator-=(const years& y)  noexcept;
 
-    constexpr date::year  year()  const noexcept;
-    constexpr date::month month() const noexcept;
-    constexpr date::day   day()   const noexcept;
+    CONSTCD11 date::year  year()  const noexcept;
+    CONSTCD11 date::month month() const noexcept;
+    CONSTCD11 date::day   day()   const noexcept;
 
-    CONSTEXPR operator day_point() const noexcept;
-    CONSTEXPR bool ok() const noexcept;
+    CONSTCD14 operator day_point() const noexcept;
+    CONSTCD14 bool ok() const noexcept;
 
 private:
-    static CONSTEXPR year_month_day from_day_point(const day_point& dp) noexcept;
+    static CONSTCD14 year_month_day from_day_point(const day_point& dp) noexcept;
 };
 
-constexpr bool operator==(const year_month_day& x, const year_month_day& y) noexcept;
-constexpr bool operator!=(const year_month_day& x, const year_month_day& y) noexcept;
-constexpr bool operator< (const year_month_day& x, const year_month_day& y) noexcept;
-constexpr bool operator> (const year_month_day& x, const year_month_day& y) noexcept;
-constexpr bool operator<=(const year_month_day& x, const year_month_day& y) noexcept;
-constexpr bool operator>=(const year_month_day& x, const year_month_day& y) noexcept;
+CONSTCD11 bool operator==(const year_month_day& x, const year_month_day& y) noexcept;
+CONSTCD11 bool operator!=(const year_month_day& x, const year_month_day& y) noexcept;
+CONSTCD11 bool operator< (const year_month_day& x, const year_month_day& y) noexcept;
+CONSTCD11 bool operator> (const year_month_day& x, const year_month_day& y) noexcept;
+CONSTCD11 bool operator<=(const year_month_day& x, const year_month_day& y) noexcept;
+CONSTCD11 bool operator>=(const year_month_day& x, const year_month_day& y) noexcept;
 
-CONSTEXPR year_month_day operator+(const year_month_day& ymd, const months& dm) noexcept;
-CONSTEXPR year_month_day operator+(const months& dm, const year_month_day& ymd) noexcept;
-CONSTEXPR year_month_day operator-(const year_month_day& ymd, const months& dm) noexcept;
-constexpr year_month_day operator+(const year_month_day& ymd, const years& dy)  noexcept;
-constexpr year_month_day operator+(const years& dy, const year_month_day& ymd)  noexcept;
-constexpr year_month_day operator-(const year_month_day& ymd, const years& dy)  noexcept;
+CONSTCD14 year_month_day operator+(const year_month_day& ymd, const months& dm) noexcept;
+CONSTCD14 year_month_day operator+(const months& dm, const year_month_day& ymd) noexcept;
+CONSTCD14 year_month_day operator-(const year_month_day& ymd, const months& dm) noexcept;
+CONSTCD11 year_month_day operator+(const year_month_day& ymd, const years& dy)  noexcept;
+CONSTCD11 year_month_day operator+(const years& dy, const year_month_day& ymd)  noexcept;
+CONSTCD11 year_month_day operator-(const year_month_day& ymd, const years& dy)  noexcept;
 
 std::ostream& operator<<(std::ostream& os, const year_month_day& ymd);
 
@@ -543,55 +547,55 @@ class year_month_day_last
     date::month m_;
 
 public:
-    constexpr year_month_day_last(const date::year& y, const date::month& m) noexcept;
+    CONSTCD11 year_month_day_last(const date::year& y, const date::month& m) noexcept;
 
     year_month_day_last& operator+=(const months& m) noexcept;
     year_month_day_last& operator-=(const months& m) noexcept;
     year_month_day_last& operator+=(const years& y)  noexcept;
     year_month_day_last& operator-=(const years& y)  noexcept;
 
-    constexpr date::year  year()  const noexcept;
-    constexpr date::month month() const noexcept;
-    CONSTEXPR date::day   day()   const noexcept;
+    CONSTCD11 date::year  year()  const noexcept;
+    CONSTCD11 date::month month() const noexcept;
+    CONSTCD14 date::day   day()   const noexcept;
 
-    CONSTEXPR operator day_point() const noexcept;
-    constexpr bool ok() const noexcept;
+    CONSTCD14 operator day_point() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr
+CONSTCD11
     bool operator==(const year_month_day_last& x, const year_month_day_last& y) noexcept;
-constexpr
+CONSTCD11
     bool operator!=(const year_month_day_last& x, const year_month_day_last& y) noexcept;
-constexpr
+CONSTCD11
     bool operator< (const year_month_day_last& x, const year_month_day_last& y) noexcept;
-constexpr
+CONSTCD11
     bool operator> (const year_month_day_last& x, const year_month_day_last& y) noexcept;
-constexpr
+CONSTCD11
     bool operator<=(const year_month_day_last& x, const year_month_day_last& y) noexcept;
-constexpr
+CONSTCD11
     bool operator>=(const year_month_day_last& x, const year_month_day_last& y) noexcept;
 
-CONSTEXPR
+CONSTCD14
 year_month_day_last
 operator+(const year_month_day_last& ymdl, const months& dm) noexcept;
 
-CONSTEXPR
+CONSTCD14
 year_month_day_last
 operator+(const months& dm, const year_month_day_last& ymdl) noexcept;
 
-constexpr
+CONSTCD11
 year_month_day_last
 operator+(const year_month_day_last& ymdl, const years& dy) noexcept;
 
-constexpr
+CONSTCD11
 year_month_day_last
 operator+(const years& dy, const year_month_day_last& ymdl) noexcept;
 
-CONSTEXPR
+CONSTCD14
 year_month_day_last
 operator-(const year_month_day_last& ymdl, const months& dm) noexcept;
 
-constexpr
+CONSTCD11
 year_month_day_last
 operator-(const year_month_day_last& ymdl, const years& dy) noexcept;
 
@@ -606,52 +610,52 @@ class year_month_weekday
     date::weekday_indexed wdi_;
 
 public:
-    constexpr year_month_weekday(const date::year& y, const date::month& m,
-                                 const date::weekday_indexed& wdi) noexcept;
-    CONSTEXPR year_month_weekday(const day_point& dp) noexcept;
+    CONSTCD11 year_month_weekday(const date::year& y, const date::month& m,
+                                   const date::weekday_indexed& wdi) noexcept;
+    CONSTCD14 year_month_weekday(const day_point& dp) noexcept;
 
     year_month_weekday& operator+=(const months& m) noexcept;
     year_month_weekday& operator-=(const months& m) noexcept;
     year_month_weekday& operator+=(const years& y)  noexcept;
     year_month_weekday& operator-=(const years& y)  noexcept;
 
-    constexpr date::year year() const noexcept;
-    constexpr date::month month() const noexcept;
-    constexpr date::weekday_indexed weekday_indexed() const noexcept;
+    CONSTCD11 date::year year() const noexcept;
+    CONSTCD11 date::month month() const noexcept;
+    CONSTCD11 date::weekday_indexed weekday_indexed() const noexcept;
 
-    CONSTEXPR operator day_point() const noexcept;
-    CONSTEXPR bool ok() const noexcept;
+    CONSTCD14 operator day_point() const noexcept;
+    CONSTCD14 bool ok() const noexcept;
 
 private:
-    static CONSTEXPR year_month_weekday from_day_point(const day_point& dp) noexcept;
+    static CONSTCD14 year_month_weekday from_day_point(const day_point& dp) noexcept;
 };
 
-constexpr
+CONSTCD11
     bool operator==(const year_month_weekday& x, const year_month_weekday& y) noexcept;
-constexpr
+CONSTCD11
     bool operator!=(const year_month_weekday& x, const year_month_weekday& y) noexcept;
 
-CONSTEXPR
+CONSTCD14
 year_month_weekday
 operator+(const year_month_weekday& ymwd, const months& dm) noexcept;
 
-CONSTEXPR
+CONSTCD14
 year_month_weekday
 operator+(const months& dm, const year_month_weekday& ymwd) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday
 operator+(const year_month_weekday& ymwd, const years& dy) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday
 operator+(const years& dy, const year_month_weekday& ymwd) noexcept;
 
-CONSTEXPR
+CONSTCD14
 year_month_weekday
 operator-(const year_month_weekday& ymwd, const months& dm) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday
 operator-(const year_month_weekday& ymwd, const years& dy) noexcept;
 
@@ -666,51 +670,51 @@ class year_month_weekday_last
     date::weekday_last wdl_;
 
 public:
-    constexpr year_month_weekday_last(const date::year& y, const date::month& m,
-                                      const date::weekday_last& wdl) noexcept;
+    CONSTCD11 year_month_weekday_last(const date::year& y, const date::month& m,
+                                        const date::weekday_last& wdl) noexcept;
 
     year_month_weekday_last& operator+=(const months& m) noexcept;
     year_month_weekday_last& operator-=(const months& m) noexcept;
     year_month_weekday_last& operator+=(const years& y) noexcept;
     year_month_weekday_last& operator-=(const years& y) noexcept;
 
-    constexpr date::year year() const noexcept;
-    constexpr date::month month() const noexcept;
-    constexpr date::weekday_last weekday_last() const noexcept;
+    CONSTCD11 date::year year() const noexcept;
+    CONSTCD11 date::month month() const noexcept;
+    CONSTCD11 date::weekday_last weekday_last() const noexcept;
 
-    CONSTEXPR operator day_point() const noexcept;
-    constexpr bool ok() const noexcept;
+    CONSTCD14 operator day_point() const noexcept;
+    CONSTCD11 bool ok() const noexcept;
 };
 
-constexpr
+CONSTCD11
 bool
 operator==(const year_month_weekday_last& x, const year_month_weekday_last& y) noexcept;
 
-constexpr
+CONSTCD11
 bool
 operator!=(const year_month_weekday_last& x, const year_month_weekday_last& y) noexcept;
 
-CONSTEXPR
+CONSTCD14
 year_month_weekday_last
 operator+(const year_month_weekday_last& ymwdl, const months& dm) noexcept;
 
-CONSTEXPR
+CONSTCD14
 year_month_weekday_last
 operator+(const months& dm, const year_month_weekday_last& ymwdl) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday_last
 operator+(const year_month_weekday_last& ymwdl, const years& dy) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday_last
 operator+(const years& dy, const year_month_weekday_last& ymwdl) noexcept;
 
-CONSTEXPR
+CONSTCD14
 year_month_weekday_last
 operator-(const year_month_weekday_last& ymwdl, const months& dm) noexcept;
 
-constexpr
+CONSTCD11
 year_month_weekday_last
 operator-(const year_month_weekday_last& ymwdl, const years& dy) noexcept;
 
@@ -747,7 +751,7 @@ public:
 
 // truncate towards zero
 template <class To, class Rep, class Period>
-constexpr
+CONSTCD11
 inline
 To
 truncate(const std::chrono::duration<Rep, Period>& d)
@@ -757,7 +761,7 @@ truncate(const std::chrono::duration<Rep, Period>& d)
 
 // round down
 template <class To, class Rep, class Period>
-CONSTEXPR
+CONSTCD14
 inline
 To
 floor(const std::chrono::duration<Rep, Period>& d)
@@ -770,7 +774,7 @@ floor(const std::chrono::duration<Rep, Period>& d)
 
 // round to nearest, to even on tie
 template <class To, class Rep, class Period>
-CONSTEXPR
+CONSTCD14
 inline
 To
 round(const std::chrono::duration<Rep, Period>& d)
@@ -792,7 +796,7 @@ round(const std::chrono::duration<Rep, Period>& d)
 
 // round up
 template <class To, class Rep, class Period>
-CONSTEXPR
+CONSTCD14
 inline
 To
 ceil(const std::chrono::duration<Rep, Period>& d)
@@ -805,7 +809,7 @@ ceil(const std::chrono::duration<Rep, Period>& d)
 
 // truncate towards zero
 template <class To, class Clock, class FromDuration>
-constexpr
+CONSTCD11
 inline
 std::chrono::time_point<Clock, To>
 truncate(const std::chrono::time_point<Clock, FromDuration>& tp)
@@ -815,7 +819,7 @@ truncate(const std::chrono::time_point<Clock, FromDuration>& tp)
 
 // round down
 template <class To, class Clock, class FromDuration>
-constexpr
+CONSTCD11
 inline
 std::chrono::time_point<Clock, To>
 floor(const std::chrono::time_point<Clock, FromDuration>& tp)
@@ -826,7 +830,7 @@ floor(const std::chrono::time_point<Clock, FromDuration>& tp)
 
 // round to nearest, to even on tie
 template <class To, class Clock, class FromDuration>
-constexpr
+CONSTCD11
 inline
 std::chrono::time_point<Clock, To>
 round(const std::chrono::time_point<Clock, FromDuration>& tp)
@@ -837,7 +841,7 @@ round(const std::chrono::time_point<Clock, FromDuration>& tp)
 
 // round up
 template <class To, class Clock, class FromDuration>
-constexpr
+CONSTCD11
 inline
 std::chrono::time_point<Clock, To>
 ceil(const std::chrono::time_point<Clock, FromDuration>& tp)
@@ -848,17 +852,17 @@ ceil(const std::chrono::time_point<Clock, FromDuration>& tp)
 
 // day
 
-constexpr inline day::day(unsigned d) noexcept : d_(static_cast<unsigned char>(d)) {}
+CONSTCD11 inline day::day(unsigned d) noexcept : d_(static_cast<unsigned char>(d)) {}
 inline day& day::operator++() noexcept {++d_; return *this;}
 inline day day::operator++(int) noexcept {auto tmp(*this); ++(*this); return tmp;}
 inline day& day::operator--() noexcept {--d_; return *this;}
 inline day day::operator--(int) noexcept {auto tmp(*this); --(*this); return tmp;}
 inline day& day::operator+=(const days& d) noexcept {*this = *this + d; return *this;}
 inline day& day::operator-=(const days& d) noexcept {*this = *this - d; return *this;}
-constexpr inline day::operator unsigned() const noexcept {return d_;}
-constexpr inline bool day::ok() const noexcept {return 1 <= d_ && d_ <= 31;}
+CONSTCD11 inline day::operator unsigned() const noexcept {return d_;}
+CONSTCD11 inline bool day::ok() const noexcept {return 1 <= d_ && d_ <= 31;}
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const day& x, const day& y) noexcept
@@ -866,7 +870,7 @@ operator==(const day& x, const day& y) noexcept
     return static_cast<unsigned>(x) == static_cast<unsigned>(y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const day& x, const day& y) noexcept
@@ -874,7 +878,7 @@ operator!=(const day& x, const day& y) noexcept
     return !(x == y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<(const day& x, const day& y) noexcept
@@ -882,7 +886,7 @@ operator<(const day& x, const day& y) noexcept
     return static_cast<unsigned>(x) < static_cast<unsigned>(y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>(const day& x, const day& y) noexcept
@@ -890,7 +894,7 @@ operator>(const day& x, const day& y) noexcept
     return y < x;
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<=(const day& x, const day& y) noexcept
@@ -898,7 +902,7 @@ operator<=(const day& x, const day& y) noexcept
     return !(y < x);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>=(const day& x, const day& y) noexcept
@@ -906,7 +910,7 @@ operator>=(const day& x, const day& y) noexcept
     return !(x < y);
 }
 
-constexpr
+CONSTCD11
 inline
 days
 operator-(const day& x, const day& y) noexcept
@@ -915,7 +919,7 @@ operator-(const day& x, const day& y) noexcept
                                      - static_cast<unsigned>(y))};
 }
 
-constexpr
+CONSTCD11
 inline
 day
 operator+(const day& x, const days& y) noexcept
@@ -923,7 +927,7 @@ operator+(const day& x, const days& y) noexcept
     return day{static_cast<unsigned>(x) + static_cast<unsigned>(y.count())};
 }
 
-constexpr
+CONSTCD11
 inline
 day
 operator+(const days& x, const day& y) noexcept
@@ -931,7 +935,7 @@ operator+(const days& x, const day& y) noexcept
     return y + x;
 }
 
-constexpr
+CONSTCD11
 inline
 day
 operator-(const day& x, const days& y) noexcept
@@ -951,7 +955,7 @@ operator<<(std::ostream& os, const day& d)
     return os;
 }
 
-constexpr
+CONSTCD11
 inline
 day
 operator "" _d(unsigned long long d) noexcept
@@ -961,7 +965,7 @@ operator "" _d(unsigned long long d) noexcept
 
 // month
 
-constexpr inline month::month(unsigned m) noexcept : m_(static_cast<decltype(m_)>(m)) {}
+CONSTCD11 inline month::month(unsigned m) noexcept : m_(static_cast<decltype(m_)>(m)) {}
 inline month& month::operator++() noexcept {if (++m_ == 13) m_ = 1; return *this;}
 inline month month::operator++(int) noexcept {auto tmp(*this); ++(*this); return tmp;}
 inline month& month::operator--() noexcept {if (--m_ == 0) m_ = 12; return *this;}
@@ -983,10 +987,10 @@ month::operator-=(const months& m) noexcept
     return *this;
 }
 
-constexpr inline month::operator unsigned() const noexcept {return m_;}
-constexpr inline bool month::ok() const noexcept {return 1 <= m_ && m_ <= 12;}
+CONSTCD11 inline month::operator unsigned() const noexcept {return m_;}
+CONSTCD11 inline bool month::ok() const noexcept {return 1 <= m_ && m_ <= 12;}
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const month& x, const month& y) noexcept
@@ -994,7 +998,7 @@ operator==(const month& x, const month& y) noexcept
     return static_cast<unsigned>(x) == static_cast<unsigned>(y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const month& x, const month& y) noexcept
@@ -1002,7 +1006,7 @@ operator!=(const month& x, const month& y) noexcept
     return !(x == y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<(const month& x, const month& y) noexcept
@@ -1010,7 +1014,7 @@ operator<(const month& x, const month& y) noexcept
     return static_cast<unsigned>(x) < static_cast<unsigned>(y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>(const month& x, const month& y) noexcept
@@ -1018,7 +1022,7 @@ operator>(const month& x, const month& y) noexcept
     return y < x;
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<=(const month& x, const month& y) noexcept
@@ -1026,7 +1030,7 @@ operator<=(const month& x, const month& y) noexcept
     return !(y < x);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>=(const month& x, const month& y) noexcept
@@ -1034,7 +1038,7 @@ operator>=(const month& x, const month& y) noexcept
     return !(x < y);
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 months
 operator-(const month& x, const month& y) noexcept
@@ -1043,7 +1047,7 @@ operator-(const month& x, const month& y) noexcept
     return months(d <= 11 ? d : d + 12);
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 month
 operator+(const month& x, const months& y) noexcept
@@ -1053,7 +1057,7 @@ operator+(const month& x, const months& y) noexcept
     return month{static_cast<unsigned>(mu - yr * 12 + 1)};
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 month
 operator+(const months& x, const month& y) noexcept
@@ -1061,7 +1065,7 @@ operator+(const months& x, const month& y) noexcept
     return y + x;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 month
 operator-(const month& x, const months& y) noexcept
@@ -1069,18 +1073,18 @@ operator-(const month& x, const months& y) noexcept
     return x + -y;
 }
 
-constexpr month jan{1};
-constexpr month feb{2};
-constexpr month mar{3};
-constexpr month apr{4};
-constexpr month may{5};
-constexpr month jun{6};
-constexpr month jul{7};
-constexpr month aug{8};
-constexpr month sep{9};
-constexpr month oct{10};
-constexpr month nov{11};
-constexpr month dec{12};
+CONSTDATA month jan{1};
+CONSTDATA month feb{2};
+CONSTDATA month mar{3};
+CONSTDATA month apr{4};
+CONSTDATA month may{5};
+CONSTDATA month jun{6};
+CONSTDATA month jul{7};
+CONSTDATA month aug{8};
+CONSTDATA month sep{9};
+CONSTDATA month oct{10};
+CONSTDATA month nov{11};
+CONSTDATA month dec{12};
 
 inline
 std::ostream&
@@ -1133,7 +1137,7 @@ operator<<(std::ostream& os, const month& m)
 
 // year
 
-constexpr inline year::year(int y) noexcept : y_(static_cast<decltype(y_)>(y)) {}
+CONSTCD11 inline year::year(int y) noexcept : y_(static_cast<decltype(y_)>(y)) {}
 inline year& year::operator++() noexcept {++y_; return *this;}
 inline year year::operator++(int) noexcept {auto tmp(*this); ++(*this); return tmp;}
 inline year& year::operator--() noexcept {--y_; return *this;}
@@ -1141,7 +1145,7 @@ inline year year::operator--(int) noexcept {auto tmp(*this); --(*this); return t
 inline year& year::operator+=(const years& y) noexcept {*this = *this + y; return *this;}
 inline year& year::operator-=(const years& y) noexcept {*this = *this - y; return *this;}
 
-constexpr
+CONSTCD11
 inline
 bool
 year::is_leap() const noexcept
@@ -1149,10 +1153,10 @@ year::is_leap() const noexcept
     return y_ % 4 == 0 && (y_ % 100 != 0 || y_ % 400 == 0);
 }
 
-constexpr inline year::operator int() const noexcept {return y_;}
-constexpr inline bool year::ok() const noexcept {return true;}
+CONSTCD11 inline year::operator int() const noexcept {return y_;}
+CONSTCD11 inline bool year::ok() const noexcept {return true;}
 
-constexpr
+CONSTCD11
 inline
 year
 year::min() noexcept
@@ -1160,7 +1164,7 @@ year::min() noexcept
     return year{std::numeric_limits<short>::min()};
 }
 
-constexpr
+CONSTCD11
 inline
 year
 year::max() noexcept
@@ -1168,7 +1172,7 @@ year::max() noexcept
     return year{std::numeric_limits<short>::max()};
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const year& x, const year& y) noexcept
@@ -1176,7 +1180,7 @@ operator==(const year& x, const year& y) noexcept
     return static_cast<int>(x) == static_cast<int>(y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const year& x, const year& y) noexcept
@@ -1184,7 +1188,7 @@ operator!=(const year& x, const year& y) noexcept
     return !(x == y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<(const year& x, const year& y) noexcept
@@ -1192,7 +1196,7 @@ operator<(const year& x, const year& y) noexcept
     return static_cast<int>(x) < static_cast<int>(y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>(const year& x, const year& y) noexcept
@@ -1200,7 +1204,7 @@ operator>(const year& x, const year& y) noexcept
     return y < x;
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<=(const year& x, const year& y) noexcept
@@ -1208,7 +1212,7 @@ operator<=(const year& x, const year& y) noexcept
     return !(y < x);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>=(const year& x, const year& y) noexcept
@@ -1216,7 +1220,7 @@ operator>=(const year& x, const year& y) noexcept
     return !(x < y);
 }
 
-constexpr
+CONSTCD11
 inline
 years
 operator-(const year& x, const year& y) noexcept
@@ -1224,7 +1228,7 @@ operator-(const year& x, const year& y) noexcept
     return years{static_cast<int>(x) - static_cast<int>(y)};
 }
 
-constexpr
+CONSTCD11
 inline
 year
 operator+(const year& x, const years& y) noexcept
@@ -1232,7 +1236,7 @@ operator+(const year& x, const years& y) noexcept
     return year{static_cast<int>(x) + y.count()};
 }
 
-constexpr
+CONSTCD11
 inline
 year
 operator+(const years& x, const year& y) noexcept
@@ -1240,7 +1244,7 @@ operator+(const years& x, const year& y) noexcept
     return y + x;
 }
 
-constexpr
+CONSTCD11
 inline
 year
 operator-(const year& x, const years& y) noexcept
@@ -1260,7 +1264,7 @@ operator<<(std::ostream& os, const year& y)
     return os;
 }
 
-constexpr
+CONSTCD11
 inline
 year
 operator "" _y(unsigned long long y) noexcept
@@ -1270,7 +1274,7 @@ operator "" _y(unsigned long long y) noexcept
 
 // weekday
 
-constexpr
+CONSTCD11
 inline
 unsigned char
 weekday::weekday_from_days(int z) noexcept
@@ -1279,13 +1283,13 @@ weekday::weekday_from_days(int z) noexcept
         z >= -4 ? (z+4) % 7 : (z+5) % 7 + 6));
 }
 
-constexpr
+CONSTCD11
 inline
 weekday::weekday(unsigned wd) noexcept
     : wd_(static_cast<decltype(wd_)>(wd))
     {}
 
-constexpr
+CONSTCD11
 inline
 weekday::weekday(const day_point& dp) noexcept
     : wd_(weekday_from_days(dp.time_since_epoch().count()))
@@ -1312,16 +1316,16 @@ weekday::operator-=(const days& d) noexcept
     return *this;
 }
 
-constexpr
+CONSTCD11
 inline
 weekday::operator unsigned() const noexcept
 {
     return static_cast<unsigned>(wd_);
 }
 
-constexpr inline bool weekday::ok() const noexcept {return wd_ <= 6;}
+CONSTCD11 inline bool weekday::ok() const noexcept {return wd_ <= 6;}
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const weekday& x, const weekday& y) noexcept
@@ -1329,7 +1333,7 @@ operator==(const weekday& x, const weekday& y) noexcept
     return static_cast<unsigned>(x) == static_cast<unsigned>(y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const weekday& x, const weekday& y) noexcept
@@ -1337,7 +1341,7 @@ operator!=(const weekday& x, const weekday& y) noexcept
     return !(x == y);
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 days
 operator-(const weekday& x, const weekday& y) noexcept
@@ -1346,7 +1350,7 @@ operator-(const weekday& x, const weekday& y) noexcept
     return days{diff <= 6 ? diff : diff + 7};
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 weekday
 operator+(const weekday& x, const days& y) noexcept
@@ -1356,7 +1360,7 @@ operator+(const weekday& x, const days& y) noexcept
     return weekday{static_cast<unsigned>(wdu - wk * 7)};
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 weekday
 operator+(const days& x, const weekday& y) noexcept
@@ -1364,7 +1368,7 @@ operator+(const days& x, const weekday& y) noexcept
     return y + x;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 weekday
 operator-(const weekday& x, const days& y) noexcept
@@ -1406,17 +1410,17 @@ operator<<(std::ostream& os, const weekday& wd)
     return os;
 }
 
-constexpr weekday sun{0};
-constexpr weekday mon{1};
-constexpr weekday tue{2};
-constexpr weekday wed{3};
-constexpr weekday thu{4};
-constexpr weekday fri{5};
-constexpr weekday sat{6};
+CONSTDATA weekday sun{0};
+CONSTDATA weekday mon{1};
+CONSTDATA weekday tue{2};
+CONSTDATA weekday wed{3};
+CONSTDATA weekday thu{4};
+CONSTDATA weekday fri{5};
+CONSTDATA weekday sat{6};
 
 // weekday_indexed
 
-constexpr
+CONSTCD11
 inline
 weekday
 weekday_indexed::weekday() const noexcept
@@ -1424,9 +1428,9 @@ weekday_indexed::weekday() const noexcept
     return date::weekday{wd_};
 }
 
-constexpr inline unsigned weekday_indexed::index() const noexcept {return index_;}
+CONSTCD11 inline unsigned weekday_indexed::index() const noexcept {return index_;}
 
-constexpr
+CONSTCD11
 inline
 bool
 weekday_indexed::ok() const noexcept
@@ -1434,7 +1438,7 @@ weekday_indexed::ok() const noexcept
     return weekday().ok() && 1 <= index_ && index_ <= 5;
 }
 
-constexpr
+CONSTCD11
 inline
 weekday_indexed::weekday_indexed(const date::weekday& wd, unsigned index) noexcept
     : wd_(static_cast<decltype(wd_)>(static_cast<unsigned>(wd)))
@@ -1448,7 +1452,7 @@ operator<<(std::ostream& os, const weekday_indexed& wdi)
     return os << wdi.weekday() << '[' << wdi.index() << ']';
 }
 
-constexpr
+CONSTCD11
 inline
 weekday_indexed
 weekday::operator[](unsigned index) const noexcept
@@ -1456,7 +1460,7 @@ weekday::operator[](unsigned index) const noexcept
     return {*this, index};
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const weekday_indexed& x, const weekday_indexed& y) noexcept
@@ -1464,7 +1468,7 @@ operator==(const weekday_indexed& x, const weekday_indexed& y) noexcept
     return x.weekday() == y.weekday() && x.index() == y.index();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const weekday_indexed& x, const weekday_indexed& y) noexcept
@@ -1474,11 +1478,11 @@ operator!=(const weekday_indexed& x, const weekday_indexed& y) noexcept
 
 // weekday_last
 
-constexpr inline date::weekday weekday_last::weekday() const noexcept {return wd_;}
-constexpr inline bool weekday_last::ok() const noexcept {return wd_.ok();}
-constexpr inline weekday_last::weekday_last(const date::weekday& wd) noexcept : wd_(wd) {}
+CONSTCD11 inline date::weekday weekday_last::weekday() const noexcept {return wd_;}
+CONSTCD11 inline bool weekday_last::ok() const noexcept {return wd_.ok();}
+CONSTCD11 inline weekday_last::weekday_last(const date::weekday& wd) noexcept : wd_(wd) {}
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const weekday_last& x, const weekday_last& y) noexcept
@@ -1486,7 +1490,7 @@ operator==(const weekday_last& x, const weekday_last& y) noexcept
     return x.weekday() == y.weekday();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const weekday_last& x, const weekday_last& y) noexcept
@@ -1501,7 +1505,7 @@ operator<<(std::ostream& os, const weekday_last& wdl)
     return os << wdl.weekday() << "[last]";
 }
 
-constexpr
+CONSTCD11
 inline
 weekday_last
 weekday::operator[](last_spec) const noexcept
@@ -1511,18 +1515,18 @@ weekday::operator[](last_spec) const noexcept
 
 // year_month
 
-constexpr
+CONSTCD11
 inline
 year_month::year_month(const date::year& y, const date::month& m) noexcept
     : y_(y)
     , m_(m)
     {}
 
-constexpr inline year year_month::year() const noexcept {return y_;}
-constexpr inline month year_month::month() const noexcept {return m_;}
-constexpr inline bool year_month::ok() const noexcept {return y_.ok() && m_.ok();}
+CONSTCD11 inline year year_month::year() const noexcept {return y_;}
+CONSTCD11 inline month year_month::month() const noexcept {return m_;}
+CONSTCD11 inline bool year_month::ok() const noexcept {return y_.ok() && m_.ok();}
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const year_month& x, const year_month& y) noexcept
@@ -1530,7 +1534,7 @@ operator==(const year_month& x, const year_month& y) noexcept
     return x.year() == y.year() && x.month() == y.month();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const year_month& x, const year_month& y) noexcept
@@ -1538,7 +1542,7 @@ operator!=(const year_month& x, const year_month& y) noexcept
     return !(x == y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<(const year_month& x, const year_month& y) noexcept
@@ -1548,7 +1552,7 @@ operator<(const year_month& x, const year_month& y) noexcept
         : (x.month() < y.month()));
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>(const year_month& x, const year_month& y) noexcept
@@ -1556,7 +1560,7 @@ operator>(const year_month& x, const year_month& y) noexcept
     return y < x;
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<=(const year_month& x, const year_month& y) noexcept
@@ -1564,7 +1568,7 @@ operator<=(const year_month& x, const year_month& y) noexcept
     return !(y < x);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>=(const year_month& x, const year_month& y) noexcept
@@ -1572,7 +1576,7 @@ operator>=(const year_month& x, const year_month& y) noexcept
     return !(x < y);
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month
 operator+(const year_month& ym, const months& dm) noexcept
@@ -1583,7 +1587,7 @@ operator+(const year_month& ym, const months& dm) noexcept
     return (ym.year() + years(dy)) / month(static_cast<unsigned>(dmi));
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month
 operator+(const months& dm, const year_month& ym) noexcept
@@ -1591,7 +1595,7 @@ operator+(const months& dm, const year_month& ym) noexcept
     return ym + dm;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month
 operator-(const year_month& ym, const months& dm) noexcept
@@ -1599,7 +1603,7 @@ operator-(const year_month& ym, const months& dm) noexcept
     return ym + -dm;
 }
 
-constexpr
+CONSTCD11
 inline
 months
 operator-(const year_month& x, const year_month& y) noexcept
@@ -1608,7 +1612,7 @@ operator-(const year_month& x, const year_month& y) noexcept
             months(static_cast<unsigned>(x.month()) - static_cast<unsigned>(y.month()));
 }
 
-constexpr
+CONSTCD11
 inline
 year_month
 operator+(const year_month& ym, const years& dy) noexcept
@@ -1616,7 +1620,7 @@ operator+(const year_month& ym, const years& dy) noexcept
     return (ym.year() + dy) / ym.month();
 }
 
-constexpr
+CONSTCD11
 inline
 year_month
 operator+(const years& dy, const year_month& ym) noexcept
@@ -1624,7 +1628,7 @@ operator+(const years& dy, const year_month& ym) noexcept
     return ym + dy;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month
 operator-(const year_month& ym, const years& dy) noexcept
@@ -1641,27 +1645,27 @@ operator<<(std::ostream& os, const year_month& ym)
 
 // month_day
 
-constexpr
+CONSTCD11
 inline
 month_day::month_day(const date::month& m, const date::day& d) noexcept
     : m_(m)
     , d_(d)
     {}
 
-constexpr inline date::month month_day::month() const noexcept {return m_;}
-constexpr inline date::day month_day::day() const noexcept {return d_;}
+CONSTCD11 inline date::month month_day::month() const noexcept {return m_;}
+CONSTCD11 inline date::day month_day::day() const noexcept {return d_;}
 
-CONSTEXPR
+CONSTCD14
 inline
 bool
 month_day::ok() const noexcept
 {
-    constexpr date::day d[] =
+    CONSTDATA date::day d[] =
         {31_d, 29_d, 31_d, 30_d, 31_d, 30_d, 31_d, 31_d, 30_d, 31_d, 30_d, 31_d};
     return m_.ok() && 1_d <= d_ && d_ <= d[static_cast<unsigned>(m_)-1];
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const month_day& x, const month_day& y) noexcept
@@ -1669,7 +1673,7 @@ operator==(const month_day& x, const month_day& y) noexcept
     return x.month() == y.month() && x.day() == y.day();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const month_day& x, const month_day& y) noexcept
@@ -1677,7 +1681,7 @@ operator!=(const month_day& x, const month_day& y) noexcept
     return !(x == y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<(const month_day& x, const month_day& y) noexcept
@@ -1687,7 +1691,7 @@ operator<(const month_day& x, const month_day& y) noexcept
         : (x.day() < y.day()));
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>(const month_day& x, const month_day& y) noexcept
@@ -1695,7 +1699,7 @@ operator>(const month_day& x, const month_day& y) noexcept
     return y < x;
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<=(const month_day& x, const month_day& y) noexcept
@@ -1703,7 +1707,7 @@ operator<=(const month_day& x, const month_day& y) noexcept
     return !(y < x);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>=(const month_day& x, const month_day& y) noexcept
@@ -1720,11 +1724,11 @@ operator<<(std::ostream& os, const month_day& md)
 
 // month_day_last
 
-constexpr inline month month_day_last::month() const noexcept {return m_;}
-constexpr inline bool month_day_last::ok() const noexcept {return m_.ok();}
-constexpr inline month_day_last::month_day_last(const date::month& m) noexcept : m_(m) {}
+CONSTCD11 inline month month_day_last::month() const noexcept {return m_;}
+CONSTCD11 inline bool month_day_last::ok() const noexcept {return m_.ok();}
+CONSTCD11 inline month_day_last::month_day_last(const date::month& m) noexcept : m_(m) {}
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const month_day_last& x, const month_day_last& y) noexcept
@@ -1732,7 +1736,7 @@ operator==(const month_day_last& x, const month_day_last& y) noexcept
     return x.month() == y.month();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const month_day_last& x, const month_day_last& y) noexcept
@@ -1740,7 +1744,7 @@ operator!=(const month_day_last& x, const month_day_last& y) noexcept
     return !(x == y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<(const month_day_last& x, const month_day_last& y) noexcept
@@ -1748,7 +1752,7 @@ operator<(const month_day_last& x, const month_day_last& y) noexcept
     return x.month() < y.month();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>(const month_day_last& x, const month_day_last& y) noexcept
@@ -1756,7 +1760,7 @@ operator>(const month_day_last& x, const month_day_last& y) noexcept
     return y < x;
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<=(const month_day_last& x, const month_day_last& y) noexcept
@@ -1764,7 +1768,7 @@ operator<=(const month_day_last& x, const month_day_last& y) noexcept
     return !(y < x);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>=(const month_day_last& x, const month_day_last& y) noexcept
@@ -1781,7 +1785,7 @@ operator<<(std::ostream& os, const month_day_last& mdl)
 
 // month_weekday
 
-constexpr
+CONSTCD11
 inline
 month_weekday::month_weekday(const date::month& m,
                              const date::weekday_indexed& wdi) noexcept
@@ -1789,9 +1793,9 @@ month_weekday::month_weekday(const date::month& m,
     , wdi_(wdi)
     {}
 
-constexpr inline month month_weekday::month() const noexcept {return m_;}
+CONSTCD11 inline month month_weekday::month() const noexcept {return m_;}
 
-constexpr
+CONSTCD11
 inline
 weekday_indexed
 month_weekday::weekday_indexed() const noexcept
@@ -1799,7 +1803,7 @@ month_weekday::weekday_indexed() const noexcept
     return wdi_;
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 month_weekday::ok() const noexcept
@@ -1807,7 +1811,7 @@ month_weekday::ok() const noexcept
     return m_.ok() && wdi_.ok();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const month_weekday& x, const month_weekday& y) noexcept
@@ -1815,7 +1819,7 @@ operator==(const month_weekday& x, const month_weekday& y) noexcept
     return x.month() == y.month() && x.weekday_indexed() == y.weekday_indexed();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const month_weekday& x, const month_weekday& y) noexcept
@@ -1832,7 +1836,7 @@ operator<<(std::ostream& os, const month_weekday& mwd)
 
 // month_weekday_last
 
-constexpr
+CONSTCD11
 inline
 month_weekday_last::month_weekday_last(const date::month& m,
                                        const date::weekday& wd) noexcept
@@ -1840,10 +1844,10 @@ month_weekday_last::month_weekday_last(const date::month& m,
     , wd_(wd)
     {}
 
-constexpr inline month month_weekday_last::month() const noexcept {return m_;}
-constexpr inline weekday month_weekday_last::weekday() const noexcept {return wd_;}
+CONSTCD11 inline month month_weekday_last::month() const noexcept {return m_;}
+CONSTCD11 inline weekday month_weekday_last::weekday() const noexcept {return wd_;}
 
-constexpr
+CONSTCD11
 inline
 bool
 month_weekday_last::ok() const noexcept
@@ -1851,7 +1855,7 @@ month_weekday_last::ok() const noexcept
     return m_.ok() && wd_.ok();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const month_weekday_last& x, const month_weekday_last& y) noexcept
@@ -1859,7 +1863,7 @@ operator==(const month_weekday_last& x, const month_weekday_last& y) noexcept
     return x.month() == y.month() && x.weekday() == y.weekday();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const month_weekday_last& x, const month_weekday_last& y) noexcept
@@ -1876,7 +1880,7 @@ operator<<(std::ostream& os, const month_weekday_last& mwdl)
 
 // year_month_day_last
 
-constexpr
+CONSTCD11
 inline
 year_month_day_last::year_month_day_last(const date::year& y,
                                          const date::month& m) noexcept
@@ -1916,22 +1920,22 @@ year_month_day_last::operator-=(const years& y) noexcept
     return *this;
 }
 
-constexpr inline year year_month_day_last::year() const noexcept {return y_;}
-constexpr inline month year_month_day_last::month() const noexcept {return m_;}
+CONSTCD11 inline year year_month_day_last::year() const noexcept {return y_;}
+CONSTCD11 inline month year_month_day_last::month() const noexcept {return m_;}
 
-CONSTEXPR
+CONSTCD14
 inline
 day
 year_month_day_last::day() const noexcept
 {
-    constexpr date::day d[] =
+    CONSTDATA date::day d[] =
         {31_d, 28_d, 31_d, 30_d, 31_d, 30_d, 31_d, 31_d, 30_d, 31_d, 30_d, 31_d};
     return m_ != feb || !y_.is_leap() ? d[static_cast<unsigned>(m_)-1] : 29_d;
 }
 
-constexpr inline bool year_month_day_last::ok() const noexcept {return m_.ok();}
+CONSTCD11 inline bool year_month_day_last::ok() const noexcept {return m_.ok();}
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const year_month_day_last& x, const year_month_day_last& y) noexcept
@@ -1939,7 +1943,7 @@ operator==(const year_month_day_last& x, const year_month_day_last& y) noexcept
     return x.year() == y.year() && x.month() == y.month();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const year_month_day_last& x, const year_month_day_last& y) noexcept
@@ -1947,7 +1951,7 @@ operator!=(const year_month_day_last& x, const year_month_day_last& y) noexcept
     return !(x == y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<(const year_month_day_last& x, const year_month_day_last& y) noexcept
@@ -1957,7 +1961,7 @@ operator<(const year_month_day_last& x, const year_month_day_last& y) noexcept
         : (x.month() < y.month()));
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>(const year_month_day_last& x, const year_month_day_last& y) noexcept
@@ -1965,7 +1969,7 @@ operator>(const year_month_day_last& x, const year_month_day_last& y) noexcept
     return y < x;
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<=(const year_month_day_last& x, const year_month_day_last& y) noexcept
@@ -1973,7 +1977,7 @@ operator<=(const year_month_day_last& x, const year_month_day_last& y) noexcept
     return !(y < x);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>=(const year_month_day_last& x, const year_month_day_last& y) noexcept
@@ -1988,7 +1992,7 @@ operator<<(std::ostream& os, const year_month_day_last& ymdl)
     return os << ymdl.year() << '/' << ymdl.month() << "/last";
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day_last
 operator+(const year_month_day_last& ymdl, const months& dm) noexcept
@@ -1996,7 +2000,7 @@ operator+(const year_month_day_last& ymdl, const months& dm) noexcept
     return (ymdl.year() / ymdl.month() + dm) / last;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day_last
 operator+(const months& dm, const year_month_day_last& ymdl) noexcept
@@ -2004,7 +2008,7 @@ operator+(const months& dm, const year_month_day_last& ymdl) noexcept
     return ymdl + dm;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day_last
 operator-(const year_month_day_last& ymdl, const months& dm) noexcept
@@ -2012,7 +2016,7 @@ operator-(const year_month_day_last& ymdl, const months& dm) noexcept
     return ymdl + (-dm);
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day_last
 operator+(const year_month_day_last& ymdl, const years& dy) noexcept
@@ -2020,7 +2024,7 @@ operator+(const year_month_day_last& ymdl, const years& dy) noexcept
     return {ymdl.year()+dy, ymdl.month()};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day_last
 operator+(const years& dy, const year_month_day_last& ymdl) noexcept
@@ -2028,7 +2032,7 @@ operator+(const years& dy, const year_month_day_last& ymdl) noexcept
     return ymdl + dy;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day_last
 operator-(const year_month_day_last& ymdl, const years& dy) noexcept
@@ -2038,7 +2042,7 @@ operator-(const year_month_day_last& ymdl, const years& dy) noexcept
 
 // year_month_day
 
-constexpr
+CONSTCD11
 inline
 year_month_day::year_month_day(const date::year& y, const date::month& m,
                                const date::day& d) noexcept
@@ -2047,7 +2051,7 @@ year_month_day::year_month_day(const date::year& y, const date::month& m,
     , d_(d)
     {}
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day::year_month_day(const year_month_day_last& ymdl) noexcept
     : y_(ymdl.year())
@@ -2055,15 +2059,15 @@ year_month_day::year_month_day(const year_month_day_last& ymdl) noexcept
     , d_(ymdl.day())
     {}
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day::year_month_day(const day_point& dp) noexcept
     : year_month_day(from_day_point(dp))
     {}
 
-constexpr inline year year_month_day::year() const noexcept {return y_;}
-constexpr inline month year_month_day::month() const noexcept {return m_;}
-constexpr inline day year_month_day::day() const noexcept {return d_;}
+CONSTCD11 inline year year_month_day::year() const noexcept {return y_;}
+CONSTCD11 inline month year_month_day::month() const noexcept {return m_;}
+CONSTCD11 inline day year_month_day::day() const noexcept {return d_;}
 
 inline
 year_month_day&
@@ -2097,7 +2101,7 @@ year_month_day::operator-=(const years& y) noexcept
     return *this;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day::operator day_point() const noexcept
 {
@@ -2115,14 +2119,14 @@ year_month_day::operator day_point() const noexcept
     return day_point{days{era * 146097 + static_cast<int>(doe) - 719468}};
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day_last::operator day_point() const noexcept
 {
     return day_point(y_/m_/day());
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 bool
 year_month_day::ok() const noexcept
@@ -2132,7 +2136,7 @@ year_month_day::ok() const noexcept
     return 1_d <= d_ && d_ <= (y_/m_/last).day();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const year_month_day& x, const year_month_day& y) noexcept
@@ -2140,7 +2144,7 @@ operator==(const year_month_day& x, const year_month_day& y) noexcept
     return x.year() == y.year() && x.month() == y.month() && x.day() == y.day();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const year_month_day& x, const year_month_day& y) noexcept
@@ -2148,7 +2152,7 @@ operator!=(const year_month_day& x, const year_month_day& y) noexcept
     return !(x == y);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<(const year_month_day& x, const year_month_day& y) noexcept
@@ -2160,7 +2164,7 @@ operator<(const year_month_day& x, const year_month_day& y) noexcept
         : (x.day() < y.day()))));
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>(const year_month_day& x, const year_month_day& y) noexcept
@@ -2168,7 +2172,7 @@ operator>(const year_month_day& x, const year_month_day& y) noexcept
     return y < x;
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator<=(const year_month_day& x, const year_month_day& y) noexcept
@@ -2176,7 +2180,7 @@ operator<=(const year_month_day& x, const year_month_day& y) noexcept
     return !(y < x);
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator>=(const year_month_day& x, const year_month_day& y) noexcept
@@ -2198,7 +2202,7 @@ operator<<(std::ostream& os, const year_month_day& ymd)
     return os;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day
 year_month_day::from_day_point(const day_point& dp) noexcept
@@ -2219,7 +2223,7 @@ year_month_day::from_day_point(const day_point& dp) noexcept
     return year_month_day{date::year{y + (m <= 2)}, date::month(m), date::day(d)};
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day
 operator+(const year_month_day& ymd, const months& dm) noexcept
@@ -2227,7 +2231,7 @@ operator+(const year_month_day& ymd, const months& dm) noexcept
     return (ymd.year() / ymd.month() + dm) / ymd.day();
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day
 operator+(const months& dm, const year_month_day& ymd) noexcept
@@ -2235,7 +2239,7 @@ operator+(const months& dm, const year_month_day& ymd) noexcept
     return ymd + dm;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_day
 operator-(const year_month_day& ymd, const months& dm) noexcept
@@ -2243,7 +2247,7 @@ operator-(const year_month_day& ymd, const months& dm) noexcept
     return ymd + (-dm);
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day
 operator+(const year_month_day& ymd, const years& dy) noexcept
@@ -2251,7 +2255,7 @@ operator+(const year_month_day& ymd, const years& dy) noexcept
     return (ymd.year() + dy) / ymd.month() / ymd.day();
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day
 operator+(const years& dy, const year_month_day& ymd) noexcept
@@ -2259,7 +2263,7 @@ operator+(const years& dy, const year_month_day& ymd) noexcept
     return ymd + dy;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day
 operator-(const year_month_day& ymd, const years& dy) noexcept
@@ -2269,7 +2273,7 @@ operator-(const year_month_day& ymd, const years& dy) noexcept
 
 // year_month_weekday
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday::year_month_weekday(const date::year& y, const date::month& m,
                                        const date::weekday_indexed& wdi)
@@ -2279,7 +2283,7 @@ year_month_weekday::year_month_weekday(const date::year& y, const date::month& m
     , wdi_(wdi)
     {}
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday::year_month_weekday(const day_point& dp) noexcept
     : year_month_weekday(from_day_point(dp))
@@ -2317,10 +2321,10 @@ year_month_weekday::operator-=(const years& y) noexcept
     return *this;
 }
 
-constexpr inline year year_month_weekday::year() const noexcept {return y_;}
-constexpr inline month year_month_weekday::month() const noexcept {return m_;}
+CONSTCD11 inline year year_month_weekday::year() const noexcept {return y_;}
+CONSTCD11 inline month year_month_weekday::month() const noexcept {return m_;}
 
-constexpr
+CONSTCD11
 inline
 weekday_indexed
 year_month_weekday::weekday_indexed() const noexcept
@@ -2328,7 +2332,7 @@ year_month_weekday::weekday_indexed() const noexcept
     return wdi_;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday::operator day_point() const noexcept
 {
@@ -2336,7 +2340,7 @@ year_month_weekday::operator day_point() const noexcept
     return d + (wdi_.weekday() - weekday(d) + days{(wdi_.index()-1)*7});
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 bool
 year_month_weekday::ok() const noexcept
@@ -2349,7 +2353,7 @@ year_month_weekday::ok() const noexcept
     return static_cast<unsigned>(d2.count()) <= static_cast<unsigned>((y_/m_/last).day());
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday
 year_month_weekday::from_day_point(const day_point& dp) noexcept
@@ -2359,7 +2363,7 @@ year_month_weekday::from_day_point(const day_point& dp) noexcept
     return {ymd.year(), ymd.month(), wd[(static_cast<unsigned>(ymd.day())-1)/7+1]};
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const year_month_weekday& x, const year_month_weekday& y) noexcept
@@ -2368,7 +2372,7 @@ operator==(const year_month_weekday& x, const year_month_weekday& y) noexcept
            x.weekday_indexed() == y.weekday_indexed();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const year_month_weekday& x, const year_month_weekday& y) noexcept
@@ -2384,7 +2388,7 @@ operator<<(std::ostream& os, const year_month_weekday& ymwdi)
               << '/' << ymwdi.weekday_indexed();
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday
 operator+(const year_month_weekday& ymwd, const months& dm) noexcept
@@ -2392,7 +2396,7 @@ operator+(const year_month_weekday& ymwd, const months& dm) noexcept
     return (ymwd.year() / ymwd.month() + dm) / ymwd.weekday_indexed();
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday
 operator+(const months& dm, const year_month_weekday& ymwd) noexcept
@@ -2400,7 +2404,7 @@ operator+(const months& dm, const year_month_weekday& ymwd) noexcept
     return ymwd + dm;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday
 operator-(const year_month_weekday& ymwd, const months& dm) noexcept
@@ -2408,7 +2412,7 @@ operator-(const year_month_weekday& ymwd, const months& dm) noexcept
     return ymwd + (-dm);
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday
 operator+(const year_month_weekday& ymwd, const years& dy) noexcept
@@ -2416,7 +2420,7 @@ operator+(const year_month_weekday& ymwd, const years& dy) noexcept
     return {ymwd.year()+dy, ymwd.month(), ymwd.weekday_indexed()};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday
 operator+(const years& dy, const year_month_weekday& ymwd) noexcept
@@ -2424,7 +2428,7 @@ operator+(const years& dy, const year_month_weekday& ymwd) noexcept
     return ymwd + dy;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday
 operator-(const year_month_weekday& ymwd, const years& dy) noexcept
@@ -2434,7 +2438,7 @@ operator-(const year_month_weekday& ymwd, const years& dy) noexcept
 
 // year_month_weekday_last
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday_last::year_month_weekday_last(const date::year& y,
                                                  const date::month& m,
@@ -2476,10 +2480,10 @@ year_month_weekday_last::operator-=(const years& y) noexcept
     return *this;
 }
 
-constexpr inline year year_month_weekday_last::year() const noexcept {return y_;}
-constexpr inline month year_month_weekday_last::month() const noexcept {return m_;}
+CONSTCD11 inline year year_month_weekday_last::year() const noexcept {return y_;}
+CONSTCD11 inline month year_month_weekday_last::month() const noexcept {return m_;}
 
-constexpr
+CONSTCD11
 inline
 weekday_last
 year_month_weekday_last::weekday_last() const noexcept
@@ -2487,7 +2491,7 @@ year_month_weekday_last::weekday_last() const noexcept
     return wdl_;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday_last::operator day_point() const noexcept
 {
@@ -2495,7 +2499,7 @@ year_month_weekday_last::operator day_point() const noexcept
     return d - (weekday{d} - wdl_.weekday());
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 year_month_weekday_last::ok() const noexcept
@@ -2503,7 +2507,7 @@ year_month_weekday_last::ok() const noexcept
     return m_.ok() && wdl_.ok();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator==(const year_month_weekday_last& x, const year_month_weekday_last& y) noexcept
@@ -2512,7 +2516,7 @@ operator==(const year_month_weekday_last& x, const year_month_weekday_last& y) n
            x.weekday_last() == y.weekday_last();
 }
 
-constexpr
+CONSTCD11
 inline
 bool
 operator!=(const year_month_weekday_last& x, const year_month_weekday_last& y) noexcept
@@ -2527,7 +2531,7 @@ operator<<(std::ostream& os, const year_month_weekday_last& ymwdl)
     return os << ymwdl.year() << '/' << ymwdl.month() << '/' << ymwdl.weekday_last();
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday_last
 operator+(const year_month_weekday_last& ymwdl, const months& dm) noexcept
@@ -2535,7 +2539,7 @@ operator+(const year_month_weekday_last& ymwdl, const months& dm) noexcept
     return (ymwdl.year() / ymwdl.month() + dm) / ymwdl.weekday_last();
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday_last
 operator+(const months& dm, const year_month_weekday_last& ymwdl) noexcept
@@ -2543,7 +2547,7 @@ operator+(const months& dm, const year_month_weekday_last& ymwdl) noexcept
     return ymwdl + dm;
 }
 
-CONSTEXPR
+CONSTCD14
 inline
 year_month_weekday_last
 operator-(const year_month_weekday_last& ymwdl, const months& dm) noexcept
@@ -2551,7 +2555,7 @@ operator-(const year_month_weekday_last& ymwdl, const months& dm) noexcept
     return ymwdl + (-dm);
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday_last
 operator+(const year_month_weekday_last& ymwdl, const years& dy) noexcept
@@ -2559,7 +2563,7 @@ operator+(const year_month_weekday_last& ymwdl, const years& dy) noexcept
     return {ymwdl.year()+dy, ymwdl.month(), ymwdl.weekday_last()};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday_last
 operator+(const years& dy, const year_month_weekday_last& ymwdl) noexcept
@@ -2567,7 +2571,7 @@ operator+(const years& dy, const year_month_weekday_last& ymwdl) noexcept
     return ymwdl + dy;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday_last
 operator-(const year_month_weekday_last& ymwdl, const years& dy) noexcept
@@ -2577,7 +2581,7 @@ operator-(const year_month_weekday_last& ymwdl, const years& dy) noexcept
 
 // year_month from operator/()
 
-constexpr
+CONSTCD11
 inline
 year_month
 operator/(const year& y, const month& m) noexcept
@@ -2585,7 +2589,7 @@ operator/(const year& y, const month& m) noexcept
     return {y, m};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month
 operator/(const year& y, int   m) noexcept
@@ -2595,7 +2599,7 @@ operator/(const year& y, int   m) noexcept
 
 // month_day from operator/()
 
-constexpr
+CONSTCD11
 inline
 month_day
 operator/(const month& m, const day& d) noexcept
@@ -2603,7 +2607,7 @@ operator/(const month& m, const day& d) noexcept
     return {m, d};
 }
 
-constexpr
+CONSTCD11
 inline
 month_day
 operator/(const day& d, const month& m) noexcept
@@ -2611,7 +2615,7 @@ operator/(const day& d, const month& m) noexcept
     return m / d;
 }
 
-constexpr
+CONSTCD11
 inline
 month_day
 operator/(const month& m, int d) noexcept
@@ -2619,7 +2623,7 @@ operator/(const month& m, int d) noexcept
     return m / day(static_cast<unsigned>(d));
 }
 
-constexpr
+CONSTCD11
 inline
 month_day
 operator/(int m, const day& d) noexcept
@@ -2627,11 +2631,11 @@ operator/(int m, const day& d) noexcept
     return month(static_cast<unsigned>(m)) / d;
 }
 
-constexpr inline month_day operator/(const day& d, int m) noexcept {return m / d;}
+CONSTCD11 inline month_day operator/(const day& d, int m) noexcept {return m / d;}
 
 // month_day_last from operator/()
 
-constexpr
+CONSTCD11
 inline
 month_day_last
 operator/(const month& m, last_spec) noexcept
@@ -2639,7 +2643,7 @@ operator/(const month& m, last_spec) noexcept
     return month_day_last{m};
 }
 
-constexpr
+CONSTCD11
 inline
 month_day_last
 operator/(last_spec, const month& m) noexcept
@@ -2647,7 +2651,7 @@ operator/(last_spec, const month& m) noexcept
     return m/last;
 }
 
-constexpr
+CONSTCD11
 inline
 month_day_last
 operator/(int m, last_spec) noexcept
@@ -2655,7 +2659,7 @@ operator/(int m, last_spec) noexcept
     return month(static_cast<unsigned>(m))/last;
 }
 
-constexpr
+CONSTCD11
 inline
 month_day_last
 operator/(last_spec, int m) noexcept
@@ -2665,7 +2669,7 @@ operator/(last_spec, int m) noexcept
 
 // month_weekday from operator/()
 
-constexpr
+CONSTCD11
 inline
 month_weekday
 operator/(const month& m, const weekday_indexed& wdi) noexcept
@@ -2673,7 +2677,7 @@ operator/(const month& m, const weekday_indexed& wdi) noexcept
     return {m, wdi};
 }
 
-constexpr
+CONSTCD11
 inline
 month_weekday
 operator/(const weekday_indexed& wdi, const month& m) noexcept
@@ -2681,7 +2685,7 @@ operator/(const weekday_indexed& wdi, const month& m) noexcept
     return m / wdi;
 }
 
-constexpr
+CONSTCD11
 inline
 month_weekday
 operator/(int m, const weekday_indexed& wdi) noexcept
@@ -2689,7 +2693,7 @@ operator/(int m, const weekday_indexed& wdi) noexcept
     return month(static_cast<unsigned>(m)) / wdi;
 }
 
-constexpr
+CONSTCD11
 inline
 month_weekday
 operator/(const weekday_indexed& wdi, int m) noexcept
@@ -2699,7 +2703,7 @@ operator/(const weekday_indexed& wdi, int m) noexcept
 
 // month_weekday_last from operator/()
 
-constexpr
+CONSTCD11
 inline
 month_weekday_last
 operator/(const month& m, const weekday_last& wdl) noexcept
@@ -2707,7 +2711,7 @@ operator/(const month& m, const weekday_last& wdl) noexcept
     return {m, wdl.weekday()};
 }
 
-constexpr
+CONSTCD11
 inline
 month_weekday_last
 operator/(const weekday_last& wdl, const month& m) noexcept
@@ -2715,7 +2719,7 @@ operator/(const weekday_last& wdl, const month& m) noexcept
     return m / wdl;
 }
 
-constexpr
+CONSTCD11
 inline
 month_weekday_last
 operator/(int m, const weekday_last& wdl) noexcept
@@ -2723,7 +2727,7 @@ operator/(int m, const weekday_last& wdl) noexcept
     return month(static_cast<unsigned>(m)) / wdl;
 }
 
-constexpr
+CONSTCD11
 inline
 month_weekday_last
 operator/(const weekday_last& wdl, int m) noexcept
@@ -2733,7 +2737,7 @@ operator/(const weekday_last& wdl, int m) noexcept
 
 // year_month_day from operator/()
 
-constexpr
+CONSTCD11
 inline
 year_month_day
 operator/(const year_month& ym, const day& d) noexcept
@@ -2741,7 +2745,7 @@ operator/(const year_month& ym, const day& d) noexcept
     return {ym.year(), ym.month(), d};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day
 operator/(const year_month& ym, int d)  noexcept
@@ -2749,7 +2753,7 @@ operator/(const year_month& ym, int d)  noexcept
     return ym / day(static_cast<unsigned>(d));
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day
 operator/(const year& y, const month_day& md) noexcept
@@ -2757,7 +2761,7 @@ operator/(const year& y, const month_day& md) noexcept
     return y / md.month() / md.day();
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day
 operator/(int y, const month_day& md) noexcept
@@ -2765,7 +2769,7 @@ operator/(int y, const month_day& md) noexcept
     return year(y) / md;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day
 operator/(const month_day& md, const year& y)  noexcept
@@ -2773,7 +2777,7 @@ operator/(const month_day& md, const year& y)  noexcept
     return y / md;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day
 operator/(const month_day& md, int y) noexcept
@@ -2783,7 +2787,7 @@ operator/(const month_day& md, int y) noexcept
 
 // year_month_day_last from operator/()
 
-constexpr
+CONSTCD11
 inline
 year_month_day_last
 operator/(const year_month& ym, last_spec) noexcept
@@ -2791,7 +2795,7 @@ operator/(const year_month& ym, last_spec) noexcept
     return {ym.year(), ym.month()};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day_last
 operator/(const year& y, const month_day_last& mdl) noexcept
@@ -2799,7 +2803,7 @@ operator/(const year& y, const month_day_last& mdl) noexcept
     return {y, mdl.month()};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day_last
 operator/(int y, const month_day_last& mdl) noexcept
@@ -2807,7 +2811,7 @@ operator/(int y, const month_day_last& mdl) noexcept
     return year(y) / mdl;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day_last
 operator/(const month_day_last& mdl, const year& y) noexcept
@@ -2815,7 +2819,7 @@ operator/(const month_day_last& mdl, const year& y) noexcept
     return y / mdl;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_day_last
 operator/(const month_day_last& mdl, int y) noexcept
@@ -2825,7 +2829,7 @@ operator/(const month_day_last& mdl, int y) noexcept
 
 // year_month_weekday from operator/()
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday
 operator/(const year_month& ym, const weekday_indexed& wdi) noexcept
@@ -2833,7 +2837,7 @@ operator/(const year_month& ym, const weekday_indexed& wdi) noexcept
     return {ym.year(), ym.month(), wdi};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday
 operator/(const year& y, const month_weekday& mwd) noexcept
@@ -2841,7 +2845,7 @@ operator/(const year& y, const month_weekday& mwd) noexcept
     return {y, mwd.month(), mwd.weekday_indexed()};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday
 operator/(int y, const month_weekday& mwd) noexcept
@@ -2849,7 +2853,7 @@ operator/(int y, const month_weekday& mwd) noexcept
     return year(y) / mwd;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday
 operator/(const month_weekday& mwd, const year& y) noexcept
@@ -2857,7 +2861,7 @@ operator/(const month_weekday& mwd, const year& y) noexcept
     return y / mwd;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday
 operator/(const month_weekday& mwd, int y) noexcept
@@ -2867,7 +2871,7 @@ operator/(const month_weekday& mwd, int y) noexcept
 
 // year_month_weekday_last from operator/()
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday_last
 operator/(const year_month& ym, const weekday_last& wdl) noexcept
@@ -2875,7 +2879,7 @@ operator/(const year_month& ym, const weekday_last& wdl) noexcept
     return {ym.year(), ym.month(), wdl};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday_last
 operator/(const year& y, const month_weekday_last& mwdl) noexcept
@@ -2883,7 +2887,7 @@ operator/(const year& y, const month_weekday_last& mwdl) noexcept
     return {y, mwdl.month(), mwdl.weekday()[last]};
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday_last
 operator/(int y, const month_weekday_last& mwdl) noexcept
@@ -2891,7 +2895,7 @@ operator/(int y, const month_weekday_last& mwdl) noexcept
     return year(y) / mwdl;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday_last
 operator/(const month_weekday_last& mwdl, const year& y) noexcept
@@ -2899,7 +2903,7 @@ operator/(const month_weekday_last& mwdl, const year& y) noexcept
     return y / mwdl;
 }
 
-constexpr
+CONSTCD11
 inline
 year_month_weekday_last
 operator/(const month_weekday_last& mwdl, int y) noexcept
@@ -2925,7 +2929,7 @@ enum class classify
 template <class Duration>
 struct classify_duration
 {
-    static constexpr classify value = 
+    static CONSTDATA classify value = 
         Duration{1} >= std::chrono::hours{1}   ? classify::hour :
         Duration{1} >= std::chrono::minutes{1} ? classify::minute :
         Duration{1} >= std::chrono::seconds{1} ? classify::second :
@@ -2940,20 +2944,18 @@ protected:
 
     enum {is24hr};
 
-    constexpr time_of_day_base(std::chrono::hours h, unsigned m) noexcept
+    CONSTCD11 time_of_day_base(std::chrono::hours h, unsigned m) noexcept
         : h_(h)
         , mode_(static_cast<decltype(mode_)>(m))
         {}
 
-public:
-    void make24() noexcept;
-    void make12() noexcept;
+    CONSTCD14 void make24() noexcept;
+    CONSTCD14 void make12() noexcept;
 
-protected:
-    CONSTEXPR std::chrono::hours to24hr() const;
+    CONSTCD14 std::chrono::hours to24hr() const;
 };
 
-CONSTEXPR
+CONSTCD14
 inline
 std::chrono::hours
 time_of_day_base::to24hr() const
@@ -2961,7 +2963,7 @@ time_of_day_base::to24hr() const
     auto h = h_;
     if (mode_ == am || mode_ == pm)
     {
-        constexpr auto h12 = std::chrono::hours(12);
+        CONSTDATA auto h12 = std::chrono::hours(12);
         if (mode_ == pm)
         {
             if (h != h12)
@@ -2973,6 +2975,7 @@ time_of_day_base::to24hr() const
     return h;
 }
 
+CONSTCD14
 inline
 void
 time_of_day_base::make24() noexcept
@@ -2981,17 +2984,18 @@ time_of_day_base::make24() noexcept
     mode_ = is24hr;
 }
 
+CONSTCD14
 inline
 void
 time_of_day_base::make12() noexcept
 {
     if (mode_ == is24hr)
     {
-        constexpr auto h12 = std::chrono::hours(12);
+        CONSTDATA auto h12 = std::chrono::hours(12);
         if (h_ >= h12)
         {
             if (h_ > h12)
-                h_ -= h12;
+                h_ = h_ - h12;
             mode_ = pm;
         }
         else
@@ -3008,28 +3012,31 @@ class time_of_day_storage;
 
 template <class Rep, class Period>
 class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::hour>
-    : public detail::time_of_day_base
+    : private detail::time_of_day_base
 {
     using base = detail::time_of_day_base;
 
 public:
     using precision = std::chrono::hours;
 
-    constexpr explicit time_of_day_storage(std::chrono::hours since_midnight) noexcept
+    CONSTCD11 explicit time_of_day_storage(std::chrono::hours since_midnight) noexcept
         : base(since_midnight, is24hr)
         {}
 
-    constexpr explicit time_of_day_storage(std::chrono::hours h, unsigned md) noexcept
+    CONSTCD11 explicit time_of_day_storage(std::chrono::hours h, unsigned md) noexcept
         : base(h, md)
         {}
 
-    constexpr std::chrono::hours hours() const noexcept {return h_;}
-    constexpr unsigned mode() const noexcept {return mode_;}
+    CONSTCD11 std::chrono::hours hours() const noexcept {return h_;}
+    CONSTCD11 unsigned mode() const noexcept {return mode_;}
 
-    CONSTEXPR explicit operator precision() const noexcept
+    CONSTCD14 explicit operator precision() const noexcept
     {
         return to24hr();
     }
+
+    CONSTCD14 time_of_day_storage& make24() noexcept {base::make24(); return *this;}
+    CONSTCD14 time_of_day_storage& make12() noexcept {base::make12(); return *this;}
 
     friend
     std::ostream&
@@ -3060,7 +3067,7 @@ public:
 
 template <class Rep, class Period>
 class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::minute>
-    : public detail::time_of_day_base
+    : private detail::time_of_day_base
 {
     using base = detail::time_of_day_base;
 
@@ -3069,25 +3076,28 @@ class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::
 public:
    using precision = std::chrono::minutes;
 
-   constexpr explicit time_of_day_storage(std::chrono::minutes since_midnight) noexcept
+   CONSTCD11 explicit time_of_day_storage(std::chrono::minutes since_midnight) noexcept
         : base(std::chrono::duration_cast<std::chrono::hours>(since_midnight), is24hr)
         , m_(since_midnight - h_)
         {}
 
-    constexpr explicit time_of_day_storage(std::chrono::hours h, std::chrono::minutes m,
+    CONSTCD11 explicit time_of_day_storage(std::chrono::hours h, std::chrono::minutes m,
                                            unsigned md) noexcept
         : base(h, md)
         , m_(m)
         {}
 
-    constexpr std::chrono::hours hours() const noexcept {return h_;}
-    constexpr std::chrono::minutes minutes() const noexcept {return m_;}
-    constexpr unsigned mode() const noexcept {return mode_;}
+    CONSTCD11 std::chrono::hours hours() const noexcept {return h_;}
+    CONSTCD11 std::chrono::minutes minutes() const noexcept {return m_;}
+    CONSTCD11 unsigned mode() const noexcept {return mode_;}
 
-    CONSTEXPR explicit operator precision() const noexcept
+    CONSTCD14 explicit operator precision() const noexcept
     {
         return to24hr() + m_;
     }
+
+    CONSTCD14 time_of_day_storage& make24() noexcept {base::make24(); return *this;}
+    CONSTCD14 time_of_day_storage& make12() noexcept {base::make12(); return *this;}
 
     friend
     std::ostream&
@@ -3119,7 +3129,7 @@ public:
 
 template <class Rep, class Period>
 class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::second>
-    : public detail::time_of_day_base
+    : private detail::time_of_day_base
 {
     using base = detail::time_of_day_base;
 
@@ -3129,28 +3139,31 @@ class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::
 public:
     using precision = std::chrono::seconds;
 
-    constexpr explicit time_of_day_storage(std::chrono::seconds since_midnight) noexcept
+    CONSTCD11 explicit time_of_day_storage(std::chrono::seconds since_midnight) noexcept
         : base(std::chrono::duration_cast<std::chrono::hours>(since_midnight), is24hr)
         , m_(std::chrono::duration_cast<std::chrono::minutes>(since_midnight - h_))
         , s_(since_midnight - h_ - m_)
         {}
 
-    constexpr explicit time_of_day_storage(std::chrono::hours h, std::chrono::minutes m,
+    CONSTCD11 explicit time_of_day_storage(std::chrono::hours h, std::chrono::minutes m,
                                            std::chrono::seconds s, unsigned md) noexcept
         : base(h, md)
         , m_(m)
         , s_(s)
         {}
 
-    constexpr std::chrono::hours hours() const noexcept {return h_;}
-    constexpr std::chrono::minutes minutes() const noexcept {return m_;}
-    constexpr std::chrono::seconds seconds() const noexcept {return s_;}
-    constexpr unsigned mode() const noexcept {return mode_;}
+    CONSTCD11 std::chrono::hours hours() const noexcept {return h_;}
+    CONSTCD11 std::chrono::minutes minutes() const noexcept {return m_;}
+    CONSTCD11 std::chrono::seconds seconds() const noexcept {return s_;}
+    CONSTCD11 unsigned mode() const noexcept {return mode_;}
 
-    CONSTEXPR explicit operator precision() const noexcept
+    CONSTCD14 explicit operator precision() const noexcept
     {
         return to24hr() + m_ + s_;
     }
+
+    CONSTCD14 time_of_day_storage& make24() noexcept {base::make24(); return *this;}
+    CONSTCD14 time_of_day_storage& make12() noexcept {base::make12(); return *this;}
 
     friend
     std::ostream&
@@ -3184,7 +3197,7 @@ public:
 
 template <class Rep, class Period>
 class time_of_day_storage<std::chrono::duration<Rep, Period>, detail::classify::subsecond>
-    : public detail::time_of_day_base
+    : private detail::time_of_day_base
 {
 public:
     using precision = std::chrono::duration<Rep, Period>;
@@ -3197,14 +3210,14 @@ private:
     precision            sub_s_;
 
 public:
-    constexpr explicit time_of_day_storage(precision since_midnight) noexcept
+    CONSTCD11 explicit time_of_day_storage(precision since_midnight) noexcept
         : base(std::chrono::duration_cast<std::chrono::hours>(since_midnight), is24hr)
         , m_(std::chrono::duration_cast<std::chrono::minutes>(since_midnight - h_))
         , s_(std::chrono::duration_cast<std::chrono::seconds>(since_midnight - h_ - m_))
         , sub_s_(since_midnight - h_ - m_ - s_)
         {}
 
-    constexpr explicit time_of_day_storage(std::chrono::hours h, std::chrono::minutes m,
+    CONSTCD11 explicit time_of_day_storage(std::chrono::hours h, std::chrono::minutes m,
                                            std::chrono::seconds s, precision sub_s,
                                            unsigned md) noexcept
         : base(h, md)
@@ -3213,16 +3226,19 @@ public:
         , sub_s_(sub_s)
         {}
 
-    constexpr std::chrono::hours hours() const noexcept {return h_;}
-    constexpr std::chrono::minutes minutes() const noexcept {return m_;}
-    constexpr std::chrono::seconds seconds() const noexcept {return s_;}
-    constexpr precision subseconds() const noexcept {return sub_s_;}
-    constexpr unsigned mode() const noexcept {return mode_;}
+    CONSTCD11 std::chrono::hours hours() const noexcept {return h_;}
+    CONSTCD11 std::chrono::minutes minutes() const noexcept {return m_;}
+    CONSTCD11 std::chrono::seconds seconds() const noexcept {return s_;}
+    CONSTCD11 precision subseconds() const noexcept {return sub_s_;}
+    CONSTCD11 unsigned mode() const noexcept {return mode_;}
 
-    CONSTEXPR explicit operator precision() const noexcept
+    CONSTCD14 explicit operator precision() const noexcept
     {
         return to24hr() + m_ + s_ + sub_s_;
     }
+
+    CONSTCD14 time_of_day_storage& make24() noexcept {base::make24(); return *this;}
+    CONSTCD14 time_of_day_storage& make12() noexcept {base::make12(); return *this;}
 
     friend
     std::ostream&
@@ -3241,19 +3257,19 @@ public:
         os << abs(t.m_.count()) << ':';
         os.width(2);
         os << abs(t.s_.count()) << '.';
-#if __cplusplus >= 201305
-        constexpr auto cl10 = ceil_log10(Period::den);
+#if __cplusplus >= 201402
+        CONSTDATA auto cl10 = ceil_log10(Period::den);
         using scale = std::ratio_multiply<Period, std::ratio<pow10(cl10)>>;
         os.width(cl10);
         os << abs(t.sub_s_.count()) * scale::num / scale::den;
-#else  // __cplusplus >= 201305
+#else  // __cplusplus >= 201402
         // inefficient sub-optimal run-time mess, but gets the job done
         const unsigned long long cl10 = std::ceil(log10(Period::den));
         const auto p10 = std::pow(10., cl10);
         os.width(cl10);
         os << static_cast<unsigned long long>(abs(t.sub_s_.count())
                                               * Period::num * p10 / Period::den);
-#endif  // __cplusplus >= 201305
+#endif  // __cplusplus >= 201402
         switch (t.mode_)
         {
         case am:
@@ -3267,8 +3283,8 @@ public:
     }
 
 private:
-#if __cplusplus >= 201305
-    constexpr static int ceil_log10(unsigned long long i) noexcept
+#if __cplusplus >= 201402
+    CONSTCD11 static int ceil_log10(unsigned long long i) noexcept
     {
         --i;
         int n = 0;
@@ -3281,9 +3297,9 @@ private:
         return n;
     }
 
-    constexpr static unsigned long long pow10(unsigned y) noexcept
+    CONSTCD11 static unsigned long long pow10(unsigned y) noexcept
     {
-        constexpr unsigned long long p10[] =
+        CONSTDATA unsigned long long p10[] =
         {
             1ull,
             10ull,
@@ -3308,7 +3324,7 @@ private:
         };
         return p10[y];
     }
-#endif  // __cplusplus >= 201305
+#endif  // __cplusplus >= 201402
 };
 
 }  // namespace detail
@@ -3322,8 +3338,10 @@ public:
     using base::base;
 };
 
-template <class Rep, class Period>
-constexpr
+template <class Rep, class Period,
+          class = typename std::enable_if
+              <!std::chrono::treat_as_floating_point<Rep>::value>::type>
+CONSTCD11
 inline
 time_of_day<std::chrono::duration<Rep, Period>>
 make_time(std::chrono::duration<Rep, Period> d) noexcept
@@ -3331,7 +3349,7 @@ make_time(std::chrono::duration<Rep, Period> d) noexcept
     return time_of_day<std::chrono::duration<Rep, Period>>(d);
 }
 
-constexpr
+CONSTCD11
 inline
 time_of_day<std::chrono::hours>
 make_time(std::chrono::hours h, unsigned md) noexcept
@@ -3339,7 +3357,7 @@ make_time(std::chrono::hours h, unsigned md) noexcept
     return time_of_day<std::chrono::hours>(h, md);
 }
 
-constexpr
+CONSTCD11
 inline
 time_of_day<std::chrono::minutes>
 make_time(std::chrono::hours h, std::chrono::minutes m, unsigned md) noexcept
@@ -3347,7 +3365,7 @@ make_time(std::chrono::hours h, std::chrono::minutes m, unsigned md) noexcept
     return time_of_day<std::chrono::minutes>(h, m, md);
 }
 
-constexpr
+CONSTCD11
 inline
 time_of_day<std::chrono::seconds>
 make_time(std::chrono::hours h, std::chrono::minutes m, std::chrono::seconds s,
@@ -3359,13 +3377,27 @@ make_time(std::chrono::hours h, std::chrono::minutes m, std::chrono::seconds s,
 template <class Rep, class Period,
           class = typename std::enable_if<std::ratio_less<Period,
                                                           std::ratio<1>>::value>::type>
-constexpr
+CONSTCD11
 inline
 time_of_day<std::chrono::duration<Rep, Period>>
 make_time(std::chrono::hours h, std::chrono::minutes m, std::chrono::seconds s,
           std::chrono::duration<Rep, Period> sub_s, unsigned md) noexcept
 {
     return time_of_day<std::chrono::duration<Rep, Period>>(h, m, s, sub_s, md);
+}
+
+template <class Rep, std::intmax_t N, std::intmax_t D,
+          class = typename std::enable_if
+              <!std::chrono::treat_as_floating_point<Rep>::value>::type>
+inline
+std::ostream&
+operator<<(std::ostream& os,
+           const std::chrono::time_point
+               <std::chrono::system_clock,
+                std::chrono::duration<Rep, std::ratio<N, D>>>& tp)
+{
+    auto const dp = floor<days>(tp);
+    return os << year_month_day(dp) << ' ' << make_time(tp-dp);
 }
 
 }  // namespace date
