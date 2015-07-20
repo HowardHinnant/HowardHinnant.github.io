@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-05-19<br/>
+2015-07-20<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -74,6 +74,13 @@ done at compile-time to run-time.  Porting to C++98/03 has not been attempted.
 </p>
 
 <a name="Overview"></a><h2>Overview</h2>
+
+<p>
+This library builds date and date/time support on top of the <code>&lt;chrono&gt;</code>
+library.  However it does not support timezones nor leap seconds.  A
+<a href="tz.html">separate library is provided</a>, built on top of this one, for timezone
+and leap second support.  Thus you only pay for such support if you need it.
+</p>
 
 <h3>Major Concepts</h3>
 
@@ -304,34 +311,12 @@ cout &lt;&lt; x2 &lt;&lt; '\n';
 
 <p>
 To get today as a <code>day_point</code>, use <code>system_clock::now()</code> and
-<code>time_point_cast</code> to convert the <code>time_point</code> to a
+<code>floor</code> to convert the <code>time_point</code> to a
 <code>day_point</code>:
 </p>
 
 <blockquote><pre>
-auto today = time_point_cast&lt;days&gt;(system_clock::now());
-cout &lt;&lt; today.time_since_epoch().count() &lt;&lt; '\n';
-</pre></blockquote>
-
-<p>
-Currently this outputs for me:
-</p>
-
-<blockquote><pre>
-16516
-</pre></blockquote>
-
-<p>
-Which obtusely indicates that I wrote this 16,516 days after the epoch.
-</p>
-
-<p>
-To get today as a <code>year_month_day</code>, get a <code>day_point</code> as above and
-convert it to a <code>year_month_day</code>:
-</p>
-
-<blockquote><pre>
-auto today = year_month_day{time_point_cast&lt;days&gt;(system_clock::now())};
+auto today = floor&lt;days&gt;(system_clock::now());
 cout &lt;&lt; today &lt;&lt; '\n';
 </pre></blockquote>
 
@@ -344,8 +329,22 @@ Currently this outputs for me:
 </pre></blockquote>
 
 <p>
-Which coincidently is 16,516 days after Jan. 1, 1970.
+To get today as a <code>year_month_day</code>, get a <code>day_point</code> as above and
+convert it to a <code>year_month_day</code>:
 </p>
+
+<blockquote><pre>
+auto today = year_month_day{floor&lt;days&gt;(system_clock::now())};
+cout &lt;&lt; today &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+Which again currently outputs for me:
+</p>
+
+<blockquote><pre>
+2015-03-22
+</pre></blockquote>
 
 <p>
 To get today as a <code>year_month_weekday</code>, get a <code>day_point</code> as above and
@@ -353,7 +352,7 @@ convert it to a <code>year_month_weekday</code>:
 </p>
 
 <blockquote><pre>
-auto today = year_month_weekday{time_point_cast&lt;days&gt;(system_clock::now())};
+auto today = year_month_weekday{floor&lt;days&gt;(system_clock::now())};
 cout &lt;&lt; today &lt;&lt; '\n';
 </pre></blockquote>
 
@@ -840,11 +839,28 @@ auto tp = system_clock::now();
 </pre></blockquote>
 
 <p>
-Then one can turn that into a <code>time_point</code> with the precision of a a day with:
+This library provides a stream insertion operator for
+<code>system_clock::time_point</code> (in <code>namespace date</code>).
 </p>
 
 <blockquote><pre>
-auto dp = time_point_cast&lt;days&gt;(tp);
+std::cout &lt;&lt; tp &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+This currently outputs for me:
+</p>
+
+<blockquote><pre>
+2015-04-19 18:24:42.770911
+</pre></blockquote>
+
+<p>
+One can turn that into a <code>time_point</code> with the precision of a day with:
+</p>
+
+<blockquote><pre>
+auto dp = floor&lt;days&gt;(tp);
 </pre></blockquote>
 
 <p>
@@ -892,6 +908,13 @@ Which will result in something like:
 </pre></blockquote>
 
 <p>
+Indeed, this is exactly what the stream insertion operator for
+<code>system_clock::time_point</code> does.  So if you don't like the default format,
+this is how you pick apart a <code>system_clock::time_point</code> so you can output it
+in whatever format you prefer.
+</p>
+
+<p>
 The above is the current date and time in the UTC timezone with microsecond precision.
 On the platform I'm writing this, <code>system_clock::time_point</code> counts
 microseconds.  When you run this code on your platform, the library will automatically
@@ -901,12 +924,12 @@ adapt to the precision supported by your platform's implementation of
 
 <p>
 If you prefer output in a local time zone, you will need to discover your current UTC
-offset and add that to <code>tp</code> prior to applying the <code>time_point_cast</code>.
+offset and add that to <code>tp</code> prior to applying <code>floor</code>.
 Your current UTC offset is a function of both your UTC time point <code>tp</code>, and
-your location.  This functionality is not offered by this library, but could easily be
-built on top of it (and such a full-featured open-sourced library is in
-development and nearing release). But as a simplistic example, here is code that assumes
-an Eastern US location and daylight savings rules currently in effect:
+your location.  This functionality is not offered by this library, but can be built on top
+of it.  For example <a href="tz.html">here is such a library</a>. But as a simplistic
+example, here is code that assumes an Eastern US location and daylight savings rules
+currently in effect:
 </p>
 
 <blockquote><pre>
@@ -917,7 +940,7 @@ utc_offset_Eastern_US(std::chrono::system_clock::time_point tp)
     using namespace std::chrono;
     constexpr auto EST = -5h;
     constexpr auto EDT = -4h;
-    const auto y = year_month_day(time_point_cast&lt;days&gt;(tp)).year();
+    const auto y = year_month_day(floor&lt;days&gt;(tp)).year();
     const auto begin = day_point(sun[2]/mar/y) + 2h - EST; // EDT begins at this UTC time
     const auto end   = day_point(sun[1]/nov/y) + 2h - EDT; // EST begins at this UTC time
     if (tp &lt; begin || end &lt;= tp)
@@ -927,10 +950,7 @@ utc_offset_Eastern_US(std::chrono::system_clock::time_point tp)
 ...
 auto tp = system_clock::now();
 tp += utc_offset_Eastern_US(tp);                // tp now in Eastern US timezone
-const auto dp = time_point_cast&lt;days&gt;(tp);
-const auto ymd = year_month_day(dp);
-const auto time = make_time(tp-dp);             // microseconds since midnight
-std::cout &lt;&lt; ymd &lt;&lt; ' ' &lt;&lt; time &lt;&lt; '\n';
+std::cout &lt;&lt; tp &lt;&lt; '\n';
 
 2015-04-19 14:24:42.770911
 </pre></blockquote>
@@ -943,8 +963,8 @@ is also easily accomplished:
 <blockquote><pre>
 auto tp = system_clock::now();
 tp += utc_offset_Eastern_US(tp);
-const auto tpm = time_point_cast&lt;minutes&gt;(tp);  // truncate to minutes precision
-const auto dp = time_point_cast&lt;days&gt;(tpm);
+const auto tpm = floor&lt;minutes&gt;(tp);            // truncate to minutes precision
+const auto dp = floor&lt;days&gt;(tpm);
 const auto ymd = year_month_day(dp);
 auto time = make_time(tpm-dp);                  // minutes since midnight
 time.make12();                                  // change to 12-hour format
@@ -1138,7 +1158,7 @@ main()
     using namespace date;
     using namespace std;
     using namespace std::chrono;
-    auto dp = time_point_cast&lt;days&gt;(system_clock::now());
+    auto dp = floor&lt;days&gt;(system_clock::now());
     auto ymd = year_month_day(dp);
     cout &lt;&lt; ymd &lt;&lt; '\n';
     <b>auto iso = iso_week(ymd);</b>
@@ -1306,6 +1326,15 @@ constexpr
 time_of_day&lt;std::chrono::duration&lt;Rep, Period&gt;&gt;
 make_time(std::chrono::hours h, std::chrono::minutes m, std::chrono::seconds s,
           std::chrono::duration&lt;Rep, Period&gt; sub_s, unsigned md) noexcept
+</pre></a></td></tr>
+
+<tr><td>&nbsp;</td><td><a href="#_46">
+<pre>
+template &lt;class Duration&gt;
+inline
+std::ostream&amp;
+operator&lt;&lt;(std::ostream&amp; os,
+           const std::chrono::time_point&lt;std::chrono::system_clock, Duration&gt;&amp; tp);
 </pre></a></td></tr>
 
 </table>
@@ -3860,7 +3889,7 @@ resolution of <code>days</code>.  One can observe each field.  <code>year_month_
 supports <code>years</code> and <code>months</code> oriented arithmetic, but not
 <code>days</code> oriented arithmetic.  For the latter, there is a conversion to
 <code>day_point</code> which efficiently supports <code>days</code> oriented arithmetic. 
-There is a also a conversion <i>from</i> <code>day_point</code>.
+There is also a conversion <i>from</i> <code>day_point</code>.
 <code>year_month_day</code> is equality and less-than comparable.
 </p>
 
@@ -6339,6 +6368,39 @@ make_time(std::chrono::hours h, std::chrono::minutes m, std::chrono::seconds s,
 </p>
 </blockquote>
 
+</blockquote>
+
+<a name="_46"></a><pre>
+template &lt;class Duration&gt;
+inline
+std::ostream&amp;
+operator&lt;&lt;(std::ostream&amp; os,
+           const std::chrono::time_point&lt;std::chrono::system_clock, Duration&gt;&amp; tp);
+</pre>
+
+<blockquote>
+<p>
+<i>Remarks:</i>  This operator shall not participate in overload resolution if
+<code>std::chrono::treat_as_floating_point&lt;typename Duration::rep&gt;::value</code> is
+true.
+</p>
+<p>
+<i>Effects:</i> If <code>Duration{1} &lt; days{1}</code>:
+</p>
+<blockquote><pre>
+auto const dp = floor&lt;days&gt;(tp);
+os &lt;&lt; year_month_day(dp) &lt;&lt; ' ' &lt;&lt; make_time(tp-dp);
+</pre></blockquote>
+<p>
+Otherwise:
+</p>
+<blockquote><pre>
+os &lt;&lt; year_month_day(floor&lt;days&gt;(tp));
+</pre></blockquote>
+
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
 </blockquote>
 
 </body>
