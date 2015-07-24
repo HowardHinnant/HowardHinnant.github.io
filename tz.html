@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-07-19<br/>
+2015-07-23<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -1006,9 +1006,9 @@ offset change?
 
 <p>
 This library offers a partial solution to this dilemma.  If the location you are concerned
-about doesn't change, and if the database isn't <code>reload_tzdb</code>'ed, then
-<code>get_info</code> can tell you how far into the past, and far into the future a given
-offset and abbreviation are guaranteed to stay valid:
+about doesn't change, and if the database isn't reloaded, then <code>get_info</code> can
+tell you how far into the past, and far into the future a given offset and abbreviation
+are guaranteed to stay valid:
 </p>
 
 <blockquote><pre>
@@ -1050,7 +1050,7 @@ current abbreviation for the local time zone.
 <code>info.begin</code> has type <code>seconds_point</code> and indicates the first
 instant guaranteed to have this same <code>offset</code> and <code>abbrev</code>. The
 <code>time_point info.begin</code> is implicitly in the UTC time zone. Note that it is
-possible that the instant prior to <code>begin</code> is not guaranteed to have a
+possible that the instant prior to <code>begin</code> may or may not have a
 different <code>offset</code> or <code>abbrev</code>.
 </p></li>
 
@@ -1059,7 +1059,7 @@ different <code>offset</code> or <code>abbrev</code>.
 before which it is guaranteed to have this same <code>offset</code> and
 <code>abbrev</code>. The <code>time_point info.end</code> is implicitly in the UTC time
 zone. The <code>offset</code> and <code>abbrev</code> associated with
-<code>info.end</code> and beyond <i>may</i> be different.
+<code>info.end</code> and beyond may or may not be different.
 </p></li>
 
 <li><p>
@@ -1118,7 +1118,7 @@ the local arrival time?
 
 <blockquote><pre>
 #include "tz.h"
-#include <iostream>
+#include &lt;iostream&gt;
 
 int
 main()
@@ -1127,16 +1127,16 @@ main()
     using namespace date;
     auto nyc_tz = locate_zone("America/New_York");
     auto teh_tz = locate_zone("Asia/Tehran");
-    auto nyc_departure_sys = nyc_tz->to_sys(day_point(dec/30/1978) + 12h + 1min);
-    auto nyc_departure = nyc_tz->to_local(nyc_departure_sys);
+    auto nyc_departure_sys = nyc_tz-&gt;to_sys(day_point(dec/30/1978) + 12h + 1min);
+    auto nyc_departure = nyc_tz-&gt;to_local(nyc_departure_sys);
     auto flight_length = 14h + 44min;
     auto teh_arrival_sys = nyc_departure_sys + flight_length;
-    auto teh_arrival = teh_tz->to_local(teh_arrival_sys);
-    std::cout << "departure NYC time:  " << nyc_departure.first << ' '
-                                         << nyc_departure.second << '\n';
-    std::cout << "flight time is " << make_time(flight_length) << '\n';
-    std::cout << "arrival Tehran time: " << teh_arrival.first << ' '
-                                         << teh_arrival.second << '\n';
+    auto teh_arrival = teh_tz-&gt;to_local(teh_arrival_sys);
+    std::cout &lt;&lt; "departure NYC time:  " &lt;&lt; nyc_departure.first &lt;&lt; ' '
+                                         &lt;&lt; nyc_departure.second &lt;&lt; '\n';
+    std::cout &lt;&lt; "flight time is " &lt;&lt; make_time(flight_length) &lt;&lt; '\n';
+    std::cout &lt;&lt; "arrival Tehran time: " &lt;&lt; teh_arrival.first &lt;&lt; ' '
+                                         &lt;&lt; teh_arrival.second &lt;&lt; '\n';
 }
 </pre></blockquote>
 
@@ -1433,7 +1433,8 @@ occur with the permission of a C++14
 <code>std::shared_lock&lt;std::shared_timed_mutex&gt;</code>, except for the calls to
 <code>reload_tzdb</code>, which must be done with a
 <code>std::unique_lock&lt;std::shared_timed_mutex&gt;</code>.  Such facilities are not
-provided by default with this so that you don't pay for them if you don't need them.
+provided by default with this library so that you don't pay for them if you don't need
+them.
 </p>
 
 <p>
@@ -1513,7 +1514,7 @@ contains the following string near the top:
 </p>
 
 <blockquote><pre>
-static std::string install{"/Users/howardhinnant/Downloads/tz/tzdata2015e"};
+static std::string install{"/Users/howardhinnant/Downloads/tzdata2015e"};
 </pre></blockquote>
 
 <p>
@@ -1539,7 +1540,7 @@ You can limit geography by removing one or more of the files in this list:
 <blockquote><pre>
 const std::vector&lt;const std::string&gt; files =
 {
-    "africa", "antarctica", "asia", "australasia", "etcetera", "europe",
+    "africa", "antarctica", "asia", "australasia", "backward", "etcetera", "europe",
     "pacificnew", "northamerica", "southamerica", "systemv", "leapseconds"
 };
 </pre></blockquote>
