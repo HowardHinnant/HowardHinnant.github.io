@@ -368,6 +368,103 @@ Currently this outputs for me:
 This indicates that today (2015-03-22) is the fourth Sunday of Mar., 2015.
 </p>
 
+<h3>Example: Contrast with C</h3>
+
+<p>
+Just about everything C++ has for date handling, it inherits from C.  I thought it
+would be fun to contrast an example that comes from the C standard with this library.
+</p>
+
+<p>
+From the C standard: 7.27.2.3 The <code>mktime</code> function, paragraph 4:
+</p>
+
+<blockquote>
+<p>
+EXAMPLE  What day of the week is July 4, 2001?
+</p>
+
+<blockquote><pre>
+#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+static const char *const wday[] =
+{
+    "Sunday", "Monday", "Tuesday", "Wednesday",
+    "Thursday", "Friday", "Saturday", "-unknown-"
+};
+
+int
+main()
+{
+    struct tm time_str;
+    time_str.tm_year   = 2001 - 1900;
+    time_str.tm_mon    = 7 - 1;
+    time_str.tm_mday   = 4;
+    time_str.tm_hour   = 0;
+    time_str.tm_min    = 0;
+    time_str.tm_sec    = 0;
+    time_str.tm_isdst  = -1;
+    if (mktime(&amp;time_str) == (time_t)(-1))
+        time_str.tm_wday = 7;
+    printf("%s\n", wday[time_str.tm_wday]);
+}
+</pre></blockquote>
+
+</blockquote>
+
+<p>
+This program outputs:
+</p>
+
+<blockquote><pre>
+Wednesday
+</pre></blockquote>
+
+<p>
+Coding the same problem up in this library looks like:
+</p>
+
+<blockquote><pre>
+#include "date.h"
+#include &lt;iostream&gt;
+
+int
+main()
+{
+    using namespace date;
+    std::cout &lt;&lt; weekday(jul/4/2001) &lt;&lt; '\n';
+}
+</pre></blockquote>
+
+<p>
+which outputs:
+</p>
+
+<blockquote><pre>
+Wed
+</pre></blockquote>
+
+<p>
+And if we really want to show off, this can all be done at compile time:
+</p>
+
+<blockquote><pre>
+#include "date.h"
+
+int
+main()
+{
+    using namespace date;
+    static_assert(weekday(2001_y/jul/4) == wed, "");
+}
+</pre></blockquote>
+
+<p>
+(Date ordering was switched simply to assure the gentle reader that we're not hung up on
+m/d/y ordering.)
+</p>
+
 <h3>Errors</h3>
 
 <p>
