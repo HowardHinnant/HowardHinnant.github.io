@@ -203,13 +203,13 @@ If you don't see it in the synopsis below, it is not a documented part of this l
 namespace date
 {
 
-using seconds_point = std::chrono::time_point&lt;std::chrono::system_clock,
-                                              std::chrono::seconds&gt;;
+using second_point = std::chrono::time_point&lt;std::chrono::system_clock,
+                                             std::chrono::seconds&gt;;
 
 struct Info
 {
-    seconds_point        begin;
-    seconds_point        end;
+    second_point         begin;
+    second_point         end;
     std::chrono::seconds offset;
     std::chrono::minutes save;
     std::string          abbrev;
@@ -302,7 +302,7 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const Link&amp; x);
 class Leap
 {
 public:
-    seconds_point date() const;
+    second_point date() const;
 };
 
 bool operator==(const Leap&amp; x, const Leap&amp; y);
@@ -549,28 +549,28 @@ infrastructure which is introduced first.
 <a name="Infrastructure"></a><h4>Infrastructure</h4>
 
 <blockquote><pre>
-using seconds_point = std::chrono::time_point&lt;std::chrono::system_clock,
-                                              std::chrono::seconds&gt;;
+using second_point = std::chrono::time_point&lt;std::chrono::system_clock,
+                                             std::chrono::seconds&gt;;
 </pre></blockquote>
 
 <p>
-<code>seconds_point</code> is a <code>std::chrono::time_point</code> based on
+<code>second_point</code> is a <code>std::chrono::time_point</code> based on
 <code>system_clock</code> but with the precision of <code>seconds</code>.  This library
 will interoperate with <code>system_clock::time_point</code>s of <i>any</i> precision.
-However the data in the database is largely based on <code>seconds_point</code>, and
+However the data in the database is largely based on <code>second_point</code>, and
 some of the data which is presented, such as that in the <code>Info</code> class, uses
-this type alias as a convenience, and to reduce verbosity.  <code>seconds_point</code>
+this type alias as a convenience, and to reduce verbosity.  <code>second_point</code>
 will implicitly convert to <code>system_clock::time_point</code>.  And coarser
 <code>time_point</code>s such as the <code>day_point</code> from the
 <a href="date_v2.html"><code>date</code></a> library will implicitly convert to 
-<code>seconds_point</code>.
+<code>second_point</code>.
 </p>
 
 <blockquote><pre>
 struct Info
 {
-    seconds_point        begin;
-    seconds_point        end;
+    second_point         begin;
+    second_point         end;
     std::chrono::seconds offset;
     std::chrono::minutes save;
     std::string          abbrev;
@@ -1036,7 +1036,7 @@ current abbreviation for the local time zone.
 </p></li>
 
 <li><p>
-<code>info.begin</code> has type <code>seconds_point</code> and indicates the first
+<code>info.begin</code> has type <code>second_point</code> and indicates the first
 instant guaranteed to have this same <code>offset</code> and <code>abbrev</code>. The
 <code>time_point info.begin</code> is implicitly in the UTC time zone. Note that it is
 possible that the instant prior to <code>begin</code> may or may not have a
@@ -1044,7 +1044,7 @@ different <code>offset</code> or <code>abbrev</code>.
 </p></li>
 
 <li><p>
-<code>info.end</code> has type <code>seconds_point</code> and indicates the last instant
+<code>info.end</code> has type <code>second_point</code> and indicates the last instant
 before which it is guaranteed to have this same <code>offset</code> and
 <code>abbrev</code>. The <code>time_point info.end</code> is implicitly in the UTC time
 zone. The <code>offset</code> and <code>abbrev</code> associated with
