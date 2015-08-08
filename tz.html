@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-07-23<br/>
+2015-08-08<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -272,7 +272,7 @@ public:
 };
 
 const Zone* locate_zone(const std::string&amp; tz_name);
-const Zone* current_timezone();
+const Zone* current_zone();
 
 bool operator==(const Zone&amp; x, const Zone&amp; y);
 bool operator!=(const Zone&amp; x, const Zone&amp; y);
@@ -686,7 +686,7 @@ public:
 };
 
 const Zone* locate_zone(const std::string&amp; tz_name);
-const Zone* current_timezone();
+const Zone* current_zone();
 
 bool operator==(const Zone&amp; x, const Zone&amp; y);
 bool operator!=(const Zone&amp; x, const Zone&amp; y);
@@ -707,26 +707,15 @@ is initialized (or reloaded), <code>Zone</code>s are set in concrete.
 
 <p>
 The current time zone associated with your computer can be retrieved with the namespace
-scope function <code>current_timezone()</code>.  For example:
+scope function <code>current_zone()</code>.  For example:
 </p>
 
 <blockquote><pre>
-std::cout &lt;&lt; current_timezone()-&gt;name() &lt;&lt; '\n';
+std::cout &lt;&lt; current_zone()-&gt;name() &lt;&lt; '\n';
 </pre></blockquote>
 
 <p>
 For me the above currently outputs <code>America/New_York</code>.
-</p>
-
-<p>
-<code>current_timezone()</code> is currently the only function known to not be portably
-implemented in this library.  The current implementation supports only
-<a href="http://www.apple.com/osx/">OS X</a>.  Contributions to this library to support
-other OS's are most welcome.  The implementation must obtain the name of a
-<code>Zone</code> in the <a href="http://www.iana.org/time-zones">IANA Time Zone
-Database</a>, and then use that in a call to <code>locate_zone</code>.  The
-<a href="http://www.apple.com/osx/">OS X</a> implementation obtains this information from
-the symbolic link at <code>/etc/localtime</code>.
 </p>
 
 <hr>
@@ -823,7 +812,7 @@ Example:
 </p>
 
 <blockquote><pre>
-auto local = current_timezone()-&gt;to_local(system_clock::now());
+auto local = current_zone()-&gt;to_local(system_clock::now());
 cout &lt;&lt; local.first &lt;&lt; ' ' &lt;&lt; local.second &lt;&lt; '\n';
 </pre></blockquote>
 
@@ -1078,7 +1067,7 @@ purposes.  Here is sample code and output:
 </p>
 
 <blockquote><pre>
-cout &lt;&lt; current_timezone()-&gt;get_info(system_clock::now(), tz::utc);
+cout &lt;&lt; current_zone()-&gt;get_info(system_clock::now(), tz::utc);
 
 2015-03-08 07:00:00
 2015-11-01 06:00:00
@@ -1455,7 +1444,7 @@ const TZ_DB&amp; get_tzdb();
 
 <i>// Zone functions</i>
 const Zone* locate_zone(const std::string&amp; tz_name);
-const Zone* current_timezone();
+const Zone* current_zone();
 Info Zone::get_info(std::chrono::system_clock::time_point tp, tz timezone) const;
 
 template &lt;class Rep, class Period&gt;
