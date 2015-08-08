@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-07-23<br/>
+2015-08-08<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -5780,6 +5780,7 @@ public:
     constexpr unsigned mode() const noexcept;
 
     constexpr explicit operator precision() const noexcept;
+    constexpr precision to_duration() const noexcept;
 
     void make24() noexcept;
     void make12() noexcept;
@@ -5852,6 +5853,16 @@ constexpr explicit time_of_day&lt;std::chrono::hours&gt;::operator precision() c
 </blockquote>
 
 <pre>
+constexpr precision to_duration() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;precision&gt;(*this)</code>.
+</p>
+</blockquote>
+
+<pre>
 void time_of_day&lt;std::chrono::hours&gt;::make24() noexcept;
 </pre>
 
@@ -5915,6 +5926,7 @@ public:
     constexpr unsigned mode() const noexcept;
 
     constexpr explicit operator precision() const noexcept;
+    constexpr precision to_duration() const noexcept;
 
     void make24() noexcept;
     void make12() noexcept;
@@ -6000,6 +6012,16 @@ constexpr explicit time_of_day&lt;std::chrono::minutes&gt;::operator precision()
 </blockquote>
 
 <pre>
+constexpr precision to_duration() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;precision&gt;(*this)</code>.
+</p>
+</blockquote>
+
+<pre>
 void time_of_day&lt;std::chrono::minutes&gt;::make24() noexcept;
 </pre>
 
@@ -6064,6 +6086,7 @@ public:
     constexpr unsigned mode() const noexcept;
 
     constexpr explicit operator precision() const noexcept;
+    constexpr precision to_duration() const noexcept;
 
     void make24() noexcept;
     void make12() noexcept;
@@ -6163,6 +6186,16 @@ constexpr explicit time_of_day&lt;std::chrono::seconds&gt;::operator precision()
 </blockquote>
 
 <pre>
+constexpr precision to_duration() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;precision&gt;(*this)</code>.
+</p>
+</blockquote>
+
+<pre>
 void time_of_day&lt;std::chrono::seconds&gt;::make24() noexcept;
 </pre>
 
@@ -6228,6 +6261,7 @@ public:
     constexpr unsigned mode() const noexcept;
 
     constexpr explicit operator precision() const noexcept;
+    constexpr precision to_duration() const noexcept;
 
     void make24() noexcept;
     void make12() noexcept;
@@ -6342,6 +6376,16 @@ constexpr explicit time_of_day&lt;std::chrono::duration&lt;Rep, Period&gt;&gt;::
 <blockquote>
 <p>
 <i>Returns:</i> The number of subseconds since midnight.
+</p>
+</blockquote>
+
+<pre>
+constexpr precision to_duration() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>static_cast&lt;precision&gt;(*this)</code>.
 </p>
 </blockquote>
 
