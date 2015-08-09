@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-08-08<br/>
+2015-08-09<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -3562,13 +3562,14 @@ distinct text representations.
 <pre>
 class month_weekday_last
 {
-    date::month   m_;    // exposition only
-    date::weekday wd_;   // exposition only
+    date::month        m_;     // exposition only
+    date::weekday_last wdl_;   // exposition only
 public:
-    constexpr month_weekday_last(const date::month&amp; m, const date::weekday&amp; wd) noexcept;
+    constexpr month_weekday_last(const date::month&amp; m,
+                                 const date::weekday_last&amp; wdl) noexcept;
 
-    constexpr date::month month() const noexcept;
-    constexpr date::weekday weekday() const noexcept;
+    constexpr date::month        month()        const noexcept;
+    constexpr date::weekday_last weekday_last() const noexcept;
     constexpr bool ok() const noexcept;
 };
 
@@ -3583,7 +3584,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_weekday_las
 <p>
 <code>month_weekday_last</code> represents the last <code>weekday</code> of a
 <code>month</code>, of an as yet unspecified <code>year</code>.  To do this the
-<code>month_weekday_last</code> stores a <code>month</code> and a <code>weekday</code>.
+<code>month_weekday_last</code> stores a <code>month</code> and a
+<code>weekday_last</code>.
 </p>
 
 <p><b>Specification</b></p>
@@ -3595,13 +3597,14 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_weekday_las
 </p>
 
 <pre>
-constexpr month_weekday_last::month_weekday_last(const date::month&amp; m, const date::weekday&amp; wd) noexcept;
+constexpr month_weekday_last::month_weekday_last(const date::month&amp; m,
+                                                 const date::weekday_last&amp; wdl) noexcept;
 </pre>
 
 <blockquote>
 <p>
 <i>Effects:</i> Constructs an object of type <code>month_weekday_last</code> by constructing
-<code>m_</code> with <code>m</code>, and <code>wd_</code> with <code>wd</code>.
+<code>m_</code> with <code>m</code>, and <code>wdl_</code> with <code>wdl</code>.
 </p>
 </blockquote>
 
@@ -3616,12 +3619,12 @@ constexpr month month_weekday_last::month() const noexcept;
 </blockquote>
 
 <pre>
-constexpr weekday month_weekday_last::weekday() const noexcept;
+constexpr weekday_last month_weekday_last::weekday_last() const noexcept;
 </pre>
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>wd_</code>.
+<i>Returns:</i> <code>wdl_</code>.
 </p>
 </blockquote>
 
@@ -3631,7 +3634,7 @@ constexpr bool month_weekday_last::ok() const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>m_.ok() &amp;&amp; wd_.ok()</code>.
+<i>Returns:</i> <code>m_.ok() &amp;&amp; wdl_.ok()</code>.
 </p>
 </blockquote>
 
@@ -3641,7 +3644,7 @@ constexpr bool operator==(const month_weekday_last&amp; x, const month_weekday_l
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>x.month() == y.month() &amp;&amp; x.weekday() == y.weekday()</code>.
+<i>Returns:</i> <code>x.month() == y.month() &amp;&amp; x.weekday_last() == y.weekday_last()</code>.
 </p>
 </blockquote>
 
@@ -5479,7 +5482,7 @@ constexpr month_weekday_last operator/(const month&amp; m, const weekday_last&am
 </pre>
 
 <blockquote>
-<i>Returns:</i> <code>{m, wdl.weekday()}</code>.
+<i>Returns:</i> <code>{m, wdl}</code>.
 </blockquote>
 
 <a name="_17"></a><pre>
@@ -5663,7 +5666,7 @@ constexpr year_month_weekday_last operator/(const year&amp; y, const month_weekd
 </pre>
 
 <blockquote>
-<i>Returns:</i> <code>{y, mwdl.month(), mwdl.weekday()[last]}</code>.
+<i>Returns:</i> <code>{y, mwdl.month(), mwdl.weekday_last()}</code>.
 </blockquote>
 
 <a name="_38"></a><pre>
