@@ -4321,20 +4321,23 @@ shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</c
 <pre>
 class year_month_day_last
 {
-    date::year  y_;  // exposition only
-    date::month m_;  // exposition only
+    date::year           y_;    // exposition only
+    date::month_day_last mdl_;  // exposition only
 
 public:
-    constexpr year_month_day_last(const date::year&amp; y, const date::month&amp; m) noexcept;
+    constexpr year_month_day_last(const date::year&amp; y,
+                                  const date::month_day_last&amp; mdl) noexcept;
 
     year_month_day_last&amp; operator+=(const months&amp; m) noexcept;
     year_month_day_last&amp; operator-=(const months&amp; m) noexcept;
     year_month_day_last&amp; operator+=(const years&amp; y) noexcept;
     year_month_day_last&amp; operator-=(const years&amp; y) noexcept;
 
-    constexpr date::year year() const noexcept;
-    constexpr date::month month() const noexcept;
-    constexpr date::day day() const noexcept;
+    constexpr date::year           year()           const noexcept;
+    constexpr date::month          month()          const noexcept;
+    constexpr date::month_day_last month_day_last() const noexcept;
+    constexpr date::day            day()            const noexcept;
+
     constexpr operator day_point() const noexcept;
     constexpr bool ok() const noexcept;
 };
@@ -4380,13 +4383,14 @@ comparable.
 </p>
 
 <pre>
-constexpr year_month_day_last::year_month_day_last(const date::year&amp; y, const date::month&amp; m) noexcept;
+constexpr year_month_day_last::year_month_day_last(const date::year&amp; y,
+                                                   const date::month_day_last&amp; mdl) noexcept;
 </pre>
 
 <blockquote>
 <p>
 <i>Effects:</i> Constructs an object of type <code>year_month_day_last</code> by
-constructing <code>y_</code> with <code>y</code> and <code>m_</code> with <code>m</code>.
+constructing <code>y_</code> with <code>y</code> and <code>mdl_</code> with <code>mdl</code>.
 </p>
 </blockquote>
 
@@ -4458,7 +4462,17 @@ constexpr month year_month_day_last::month() const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>m_</code>.
+<i>Returns:</i> <code>mdl_.month()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr month_day_last year_month_day_last::month_day_last() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>mdl_</code>.
 </p>
 </blockquote>
 
@@ -4493,7 +4507,7 @@ constexpr bool year_month_day_last::ok() const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>y_.ok() &amp;&amp; m_.ok()</code>.
+<i>Returns:</i> <code>y_.ok() &amp;&amp; mdl_.ok()</code>.
 </p>
 </blockquote>
 
@@ -4503,7 +4517,7 @@ constexpr bool operator==(const year_month_day_last&amp; x, const year_month_day
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>x.year() == y.year() &amp;&amp; x.month() == y.month()</code>.
+<i>Returns:</i> <code>x.year() == y.year() &amp;&amp; x.month_day_last() == y.month_day_last()</code>.
 </p>
 </blockquote>
 
@@ -4525,7 +4539,7 @@ constexpr bool operator&lt; (const year_month_day_last&amp; x, const year_month_
 <p>
 <i>Returns:</i> If <code>x.year() &lt; y.year()</code>, returns <code>true</code>.  Else
 if <code>x.year() &gt; y.year()</code> returns <code>false</code>.
-Else returns <code>x.month() &lt; y.month()</code>.
+Else returns <code>x.month_day_last() &lt; y.month_day_last()</code>.
 </p>
 </blockquote>
 
@@ -4605,7 +4619,7 @@ constexpr year_month_day_last operator+(const year_month_day_last&amp; ymdl, con
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>{ymdl.year()+dy, ymdl.month()}</code>.
+<i>Returns:</i> <code>{ymdl.year()+dy, ymdl.month_day_last()}</code>.
 </p>
 </blockquote>
 
@@ -5570,7 +5584,7 @@ constexpr year_month_day_last operator/(const year_month&amp; ym, last_spec) noe
 </pre>
 
 <blockquote>
-<i>Returns:</i> <code>{ym.year(), ym.month()}</code>.
+<i>Returns:</i> <code>{ym.year(), month_day_last{ym.month()}}</code>.
 </blockquote>
 
 <a name="_27"></a><pre>
@@ -5578,7 +5592,7 @@ constexpr year_month_day_last operator/(const year&amp; y, const month_day_last&
 </pre>
 
 <blockquote>
-<i>Returns:</i> <code>{y, mdl.month()}</code>.
+<i>Returns:</i> <code>{y, mdl}</code>.
 </blockquote>
 
 <a name="_28"></a><pre>
