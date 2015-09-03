@@ -51,7 +51,7 @@ inline
 To
 round(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
 {
-    To t0 = std::chrono::duration_cast&lt;To&gt;(d);
+    To t0 = floor&lt;To&gt;(d);
     To t1 = t0 + To{1};
     auto diff0 = d - t0;
     auto diff1 = t1 - d;
