@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-08-09<br/>
+2015-09-07<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -916,7 +916,7 @@ using time_point = std::chrono::time_point&lt;std::chrono::system_clock,
 
 <p>
 Upon recompile the compiler automatically updates the compile-time constant in
-<code>ripple2system</code> from 946684800 to 946684800000 (and everywhere else such as
+<code>shift_epoch</code> from 946684800 to 946684800000 (and everywhere else such as
 where you perform the epoch shift in the reverse direction).
 </p>
 
@@ -1438,7 +1438,9 @@ operator&lt;&lt;(std::ostream&amp; os,
 </table>
 
 <p>
-Everything here is contained in the namespace <code>date</code>.
+Everything here is contained in the namespace <code>date</code>.  The literal operators,
+and the constexpr field literals (e.g. <code>sun</code>, <code>jan</code>, etc.) are
+in namespace <code>date_literals</code> and imported into namespace <code>date</code>.
 </p>
 
 <a name="days"></a><h3><code>days</code></h3>
@@ -1822,11 +1824,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const day&amp; d);
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>d</code> into
-<code>os</code>. For two objects of type <code>day</code> <code>x</code> and
-<code>y</code>, if <code>x == y</code> the <code>day</code> objects shall have the same
-text representation and if <code>x != y</code> the <code>day</code> shall have distinct
-text representations.
+<i>Effects:</i> Inserts a decimal integral text representation of <code>d</code> into
+<code>os</code>.  Single digit values are prefixed with <code>'0'</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -2088,12 +2087,12 @@ constexpr month  operator+(const month&amp;  x, const months&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Requires:</i> <code>x.ok() == true</code>.
-</p>
-<p>
 <i>Returns:</i> A <code>month</code> for which <code>ok() == true</code> and is found as
 if by incrementing (or decrementing if <code>y &lt; months{0}</code>) <code>x</code>,
-<code>y</code> times.
+<code>y</code> times.  If <code>month.ok() == false</code> prior to this operation,
+behaves as if <code>*this</code> is first brought into the range [1, 12] by modular
+arithmetic. [<i>Note:</i> For example <code>month{0}</code> becomes <code>month{12}</code>,
+and <code>month{13}</code> becomes <code>month{1}</code>. &mdash; <i>end note</i>]
 </p>
 <p>
 <i>Complexity:</i> O(1) with respect to the value of <code>y</code>.  That is, repeated
@@ -2151,11 +2150,9 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month&amp; m);
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>m</code> into
-<code>os</code>. For two objects of type <code>month</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month</code> objects
-shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
-<code>month</code> objects shall have distinct text representations.
+<i>Effects:</i> If <code>ok() == true</code> outputs the same string that would be
+output for the month field by <code>asctime</code>.  Otherwise outputs
+<code> static_cast&lt;unsigned&gt;(m) &lt;&lt; " is not a valid month"</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -2213,7 +2210,7 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year&amp; y);
 
 <p>
 <code>year</code> represents a year in the Gregorian calendar.  It shall represent values
-in the range -32768 to 32767 or a superset of this range.  It can be constructed with any
+in the range <code>[min(), max()]</code>.  It can be constructed with any
 <code>int</code> value, which will be subsequently truncated to fit into
 <code>year</code>'s internal storage.  <code>year</code> is equality and less-than
 comparable, and participates in basic arithmetic with <code>years</code> representing the
@@ -2348,7 +2345,7 @@ constexpr bool year::ok() const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>true</code>.
+<i>Returns:</i> <code>min() &lt;= *this &amp;&amp; *this &lt;= max()</code>.
 </p>
 </blockquote>
 
@@ -2359,7 +2356,11 @@ static constexpr year year::min() noexcept;
 <blockquote>
 <p>
 <i>Returns:</i> A <code>year</code> constructed with the minimum representable year
-number. This year shall be less than or equal to <code>year{-32768}</code>.
+number. This year shall be a value such that
+<code>day_point(min()/jan/1) + Unit{0}</code>, where <code>Unit</code> is one of
+<code>microseconds</code>, <code>milliseconds</code>, <code>seconds</code>,
+<code>minutes</code>, or <code>hours</code>, there shall be no overflow.  [<i>Note:</i>
+<code>nanoseconds</code> is intentionally omitted from this list. &mdash; <i>end note</i>]
 </p>
 </blockquote>
 
@@ -2370,7 +2371,11 @@ static constexpr year year::max() noexcept;
 <blockquote>
 <p>
 <i>Returns:</i> A <code>year</code> constructed with the maximum representable year
-number. This year shall be greater than or equal to <code>year{32767}</code>.
+number. This year shall be a value such that
+<code>day_point(max()/dec/31) + Unit{0}</code>, where <code>Unit</code> is one of
+<code>microseconds</code>, <code>milliseconds</code>, <code>seconds</code>,
+<code>minutes</code>, or <code>hours</code>, there shall be no overflow.  [<i>Note:</i>
+<code>nanoseconds</code> is intentionally omitted from this list. &mdash; <i>end note</i>]
 </p>
 </blockquote>
 
@@ -2490,11 +2495,9 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year&amp; y);
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>y</code> into
-<code>os</code>. For two objects of type <code>year</code> <code>x</code> and
-<code>y</code>, if <code>x == y</code> the <code>year</code> objects shall have the same
-text representation and if <code>x != y</code> the <code>year</code> shall have distinct
-text representations.
+<i>Effects:</i> Inserts a signed decimal integral text representation of <code>y</code>
+into <code>os</code>. If the year is less than four decimal digits, pads the year with
+<code>'0'</code> to four digits.  If the year is negative, prefixes with <code>'-'</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -2761,12 +2764,12 @@ constexpr weekday  operator+(const weekday&amp;  x, const days&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Requires:</i> <code>x.ok() == true</code>.
-</p>
-<p>
 <i>Returns:</i> A <code>weekday</code> for which <code>ok() == true</code> and is found as
 if by incrementing (or decrementing if <code>y &lt; days{0}</code>) <code>x</code>,
-<code>y</code> times.
+<code>y</code> times.  If <code>weekday.ok() == false</code> prior to this operation,
+behaves as if <code>*this</code> is first brought into the range [0, 6] by modular
+arithmetic. [<i>Note:</i> For example <code>weekday{7}</code> becomes
+<code>weekday{0}</code>. &mdash; <i>end note</i>]
 </p>
 <p>
 <i>Complexity:</i> O(1) with respect to the value of <code>y</code>.  That is, repeated
@@ -2824,11 +2827,9 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday&amp; wd);
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>wd</code> into
-<code>os</code>. For two objects of type <code>weekday</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>weekday</code> objects
-shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
-<code>weekday</code> objects shall have distinct text representations.
+<i>Effects:</i>  If <code>ok() == true</code> outputs the same string that would be
+output for the weekday field by <code>asctime</code>.  Otherwise outputs
+<code> static_cast&lt;unsigned&gt;(wd) &lt;&lt; " is not a valid weekday"</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -2959,11 +2960,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday_indexed&a
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>wdi</code> into
-<code>os</code>. For two objects of type <code>weekday_indexed</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>weekday_indexed</code>
-objects shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code>
-the <code>weekday_indexed</code> objects shall have distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; wdi.weekday() &lt;&lt; '[' &lt;&lt; wdi.index() &lt;&lt; ']'</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -3080,11 +3078,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday_last&amp;
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>wdl</code> into
-<code>os</code>. For two objects of type <code>weekday_last</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>weekday_last</code>
-objects shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code>
-the <code>weekday_last</code> objects shall have distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; wdi.weekday() &lt;&lt; "[last]"</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -3252,12 +3247,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_day&amp; md
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>md</code> into
-<code>os</code>. For two objects of type <code>month_day</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month_day</code>
-objects shall have the same text representation and if
-<code>x.ok() &amp;&amp; x != y</code> the <code>month_day</code> objects shall have
-distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; md.month() &lt;&lt; '/' &lt;&lt; md.day()</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -3419,12 +3410,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_day_last&am
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>mdl</code> into
-<code>os</code>. For two objects of type <code>month_day_last</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month_day_last</code>
-objects shall have the same text representation and if
-<code>x.ok() &amp;&amp; x != y</code> the <code>month_day_last</code> objects shall have
-distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; mdl.month() &lt;&lt; "/last"</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -3540,12 +3527,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_weekday&amp
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>mwd</code> into
-<code>os</code>. For two objects of type <code>month_weekday</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month_weekday</code>
-objects shall have the same text representation and if
-<code>x.ok() &amp;&amp; x != y</code> the <code>month_weekday</code> objects shall have
-distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; mwd.month() &lt;&lt; '/' &lt;&lt; mwd.weekday_indexed()</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -3664,12 +3647,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month_weekday_las
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>mwdl</code> into
-<code>os</code>. For two objects of type <code>month_weekday_last</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>month_weekday_last</code>
-objects shall have the same text representation and if
-<code>x.ok() &amp;&amp; x != y</code> the <code>month_weekday_last</code> objects shall have
-distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; mwdl.month() &lt;&lt; '/' &lt;&lt; mwdl.weekday_last()</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -3694,6 +3673,12 @@ public:
 
     constexpr date::year year() const noexcept;
     constexpr date::month month() const noexcept;
+
+    year_month&amp; operator+=(const months&amp; dm) noexcept;
+    year_month&amp; operator-=(const months&amp; dm) noexcept;
+    year_month&amp; operator+=(const years&amp; dy) noexcept;
+    year_month&amp; operator-=(const years&amp; dy) noexcept;
+
     constexpr bool ok() const noexcept;
 };
 
@@ -3762,6 +3747,58 @@ constexpr month year_month::month() const noexcept;
 <blockquote>
 <p>
 <i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month&amp; operator+=(const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + dm</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month&amp; operator-=(const months&amp; dm) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - dm</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month&amp; operator+=(const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + dy</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_month&amp; operator-=(const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - dy</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
 </p>
 </blockquote>
 
@@ -3843,9 +3880,6 @@ constexpr year_month operator+(const year_month& ym, const months& dm) noexcept;
 
 <blockquote>
 <p>
-<i>Requires:</i> <code>ym.month().ok()</code> is <code>true</code>.
-</p>
-<p>
 <i>Returns:</i> A <code>year_month</code> value <code>z</code> such that
 <code>z - ym == dm</code>.
 </p>
@@ -3921,12 +3955,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month&amp; y
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>ym</code> into
-<code>os</code>. For two objects of type <code>year_month</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month</code>
-objects shall have the same text representation and if
-<code>x.ok() &amp;&amp; x != y</code> the <code>year_month</code> objects shall have
-distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; ym.year() &lt;&lt; '/' &lt;&lt; ym.month()</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -3957,9 +3987,10 @@ public:
     year_month_day&amp; operator+=(const years&amp; y) noexcept;
     year_month_day&amp; operator-=(const years&amp; y) noexcept;
 
-    constexpr date::year year() const noexcept;
+    constexpr date::year year()   const noexcept;
     constexpr date::month month() const noexcept;
-    constexpr date::day day() const noexcept;
+    constexpr date::day day()     const noexcept;
+
     constexpr operator day_point() const noexcept;
     constexpr bool ok() const noexcept;
 };
@@ -4300,11 +4331,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_day&am
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>ymd</code> into
-<code>os</code>. For two objects of type <code>year_month_day</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month_day</code> objects
-shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
-<code>year_month_day</code> objects shall have distinct text representations.
+<i>Effects:</i> Inserts <code>yyyy-mm-dd</code> where the number of indicated digits
+are prefixed with <code>'0'</code> if necessary..
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -4649,11 +4677,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_day_la
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>ymdl</code> into
-<code>os</code>. For two objects of type <code>year_month_day_last</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month_day_last</code> objects
-shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
-<code>year_month_day_last</code> objects shall have distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; ymdl.year() &lt;&lt; '/' &lt;&lt; ymdl.month_day_last()</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -4687,6 +4712,7 @@ public:
     constexpr date::year year() const noexcept;
     constexpr date::month month() const noexcept;
     constexpr date::weekday_indexed weekday_indexed() const noexcept;
+
     constexpr operator day_point() const noexcept;
     constexpr bool ok() const noexcept;
 };
@@ -4958,11 +4984,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_weekda
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>ymwd</code> into
-<code>os</code>. For two objects of type <code>year_month_weekday</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month_weekday</code> objects
-shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
-<code>year_month_weekday</code> objects shall have distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; ymwdi.year() &lt;&lt; '/' &lt;&lt; ymwdi.month() &lt;&lt; '/' &lt;&lt; ymwdi.weekday_indexed()</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -4995,6 +5018,7 @@ public:
     constexpr date::year year() const noexcept;
     constexpr date::month month() const noexcept;
     constexpr date::weekday_last weekday_last() const noexcept;
+
     constexpr operator day_point() const noexcept;
     constexpr bool ok() const noexcept;
 };
@@ -5171,7 +5195,7 @@ constexpr bool year_month_weekday_last::ok() const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> If <code>m_.ok() &amp;&amp; wdl_.ok()</code>.
+<i>Returns:</i> If <code>y_.ok() &amp;&amp; m_.ok() &amp;&amp; wdl_.ok()</code>.
 </p>
 </blockquote>
 
@@ -5271,11 +5295,8 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_month_weekda
 
 <blockquote>
 <p>
-<i>Effects:</i> Inserts an unspecified text representation of <code>ymwdl</code> into
-<code>os</code>. For two objects of type <code>year_month_weekday_last</code> <code>x</code> and
-<code>y</code>, if <code>x.ok() &amp;&amp; x == y</code> the <code>year_month_weekday_last</code> objects
-shall have the same text representation and if <code>x.ok() &amp;&amp; x != y</code> the
-<code>year_month_weekday_last</code> objects shall have distinct text representations.
+<i>Effects:</i> Inserts
+<code>os &lt;&lt; ymwdl.year() &lt;&lt; '/' &lt;&lt; ymwdl.month() &lt;&lt; '/' &lt;&lt; ymwdl.weekday_last()</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
