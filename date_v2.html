@@ -1713,7 +1713,7 @@ constexpr bool operator==(const day&amp; x, const day&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) == static_cast&lt;unsigned&gt;(y)</code>.
+<i>Returns:</i> <code>unsigned{x} == unsigned{y}</code>.
 </p>
 </blockquote>
 
@@ -1733,7 +1733,7 @@ constexpr bool operator&lt; (const day&amp; x, const day&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) &lt; static_cast&lt;unsigned&gt;(y)</code>.
+<i>Returns:</i> <code>unsigned{x} &lt; unsigned{y}</code>.
 </p>
 </blockquote>
 
@@ -1773,7 +1773,7 @@ constexpr day  operator+(const day&amp;  x, const days&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>day{static_cast&lt;unsigned&gt;(x) + y.count()}</code>.
+<i>Returns:</i> <code>day{unsigned{x} + y.count()}</code>.
 </p>
 </blockquote>
 
@@ -1803,8 +1803,7 @@ constexpr days operator-(const day&amp;  x, const day&amp;  y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>days{static_cast&lt;days::rep&gt;(static_cast&lt;unsigned&gt;(x)
-                                 - static_cast&lt;unsigned&gt;(y))}</code>.
+<i>Returns:</i> <code>days{static_cast&lt;days::rep&gt;(unsigned{x} - unsigned{y})}</code>.
 </p>
 </blockquote>
 
@@ -2027,7 +2026,7 @@ constexpr bool operator==(const month&amp; x, const month&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) == static_cast&lt;unsigned&gt;(y)</code>.
+<i>Returns:</i> <code>unsigned{x} == unsigned{y}</code>.
 </p>
 </blockquote>
 
@@ -2047,7 +2046,7 @@ constexpr bool operator&lt; (const month&amp; x, const month&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) &lt; static_cast&lt;unsigned&gt;(y)</code>.
+<i>Returns:</i> <code>unsigned{x} &lt; unsigned{y}</code>.
 </p>
 </blockquote>
 
@@ -2152,7 +2151,7 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const month&amp; m);
 <p>
 <i>Effects:</i> If <code>ok() == true</code> outputs the same string that would be
 output for the month field by <code>asctime</code>.  Otherwise outputs
-<code> static_cast&lt;unsigned&gt;(m) &lt;&lt; " is not a valid month"</code>.
+<code>unsigned{m} &lt;&lt; " is not a valid month"</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -2385,7 +2384,7 @@ constexpr bool operator==(const year&amp; x, const year&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;int&gt;(x) == static_cast&lt;int&gt;(y)</code>.
+<i>Returns:</i> <code>int{x} == int{y}</code>.
 </p>
 </blockquote>
 
@@ -2405,7 +2404,7 @@ constexpr bool operator&lt; (const year&amp; x, const year&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;int&gt;(x) &lt; static_cast&lt;int&gt;(y)</code>.
+<i>Returns:</i> <code>int{x} &lt; int{y}</code>.
 </p>
 </blockquote>
 
@@ -2445,7 +2444,7 @@ constexpr year  operator+(const year&amp;  x, const years&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>year{static_cast&lt;int&gt;(x) + y.count()}</code>.
+<i>Returns:</i> <code>year{int{x} + y.count()}</code>.
 </p>
 </blockquote>
 
@@ -2475,7 +2474,7 @@ constexpr years operator-(const year&amp;  x, const year&amp;  y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>years{static_cast&lt;int&gt;(x) - static_cast&lt;int&gt;(y)}</code>.
+<i>Returns:</i> <code>years{int{x} - int{y}}</code>.
 </p>
 </blockquote>
 
@@ -2744,7 +2743,7 @@ constexpr bool operator==(const weekday&amp; x, const weekday&amp; y) noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;unsigned&gt;(x) == static_cast&lt;unsigned&gt;(y)</code>.
+<i>Returns:</i> <code>unsigned{x} == unsigned{y}</code>.
 </p>
 </blockquote>
 
@@ -2829,7 +2828,7 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday&amp; wd);
 <p>
 <i>Effects:</i>  If <code>ok() == true</code> outputs the same string that would be
 output for the weekday field by <code>asctime</code>.  Otherwise outputs
-<code> static_cast&lt;unsigned&gt;(wd) &lt;&lt; " is not a valid weekday"</code>.
+<code>unsigned{wd} &lt;&lt; " is not a valid weekday"</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
@@ -4075,7 +4074,7 @@ to the date represented by <code>dp</code>.
 <p>
 <i>Remarks:</i> For any value of <code>year_month_day</code>, <code>ymd</code>, for which
 <code>ymd.ok()</code> is <code>true</code>, this equality will also be <code>true</code>:
-<code>ymd == year_month_day(static_cast&lt;day_point&gt;(ymd))</code>.
+<code>ymd == year_month_day{day_point{ymd}}</code>.
 </p>
 </blockquote>
 
@@ -4776,7 +4775,7 @@ corresponds to the date represented by <code>dp</code>.
 <p>
 <i>Remarks:</i> For any value of <code>year_month_weekday</code>, <code>ymdl</code>, for
 which <code>ymdl.ok()</code> is <code>true</code>, this equality will also be
-<code>true</code>: <code>ymdl == year_month_weekday(static_cast&lt;day_point&gt;(ymdl))</code>.
+<code>true</code>: <code>ymdl == year_month_weekday{day_point{ymdl}}</code>.
 </p>
 </blockquote>
 
@@ -5896,7 +5895,7 @@ constexpr precision to_duration() const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;precision&gt;(*this)</code>.
+<i>Returns:</i> <code>precision{*this}</code>.
 </p>
 </blockquote>
 
@@ -6055,7 +6054,7 @@ constexpr precision to_duration() const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;precision&gt;(*this)</code>.
+<i>Returns:</i> <code>precision{*this}</code>.
 </p>
 </blockquote>
 
@@ -6229,7 +6228,7 @@ constexpr precision to_duration() const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;precision&gt;(*this)</code>.
+<i>Returns:</i> <code>precision{*this}</code>.
 </p>
 </blockquote>
 
@@ -6423,7 +6422,7 @@ constexpr precision to_duration() const noexcept;
 
 <blockquote>
 <p>
-<i>Returns:</i> <code>static_cast&lt;precision&gt;(*this)</code>.
+<i>Returns:</i> <code>precision{*this}</code>.
 </p>
 </blockquote>
 
