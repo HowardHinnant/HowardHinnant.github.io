@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-09-07<br/>
+2015-09-19<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -4710,6 +4710,8 @@ public:
 
     constexpr date::year year() const noexcept;
     constexpr date::month month() const noexcept;
+    constexpr date::weekday weekday() const noexcept;
+    constexpr unsigned index() const noexcept;
     constexpr date::weekday_indexed weekday_indexed() const noexcept;
 
     constexpr operator day_point() const noexcept;
@@ -4848,6 +4850,26 @@ constexpr month year_month_weekday::month() const noexcept;
 <blockquote>
 <p>
 <i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday year_month_weekday::weekday() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wdi_.weekday()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr unsigned year_month_weekday::index() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wdi_.index()</code>.
 </p>
 </blockquote>
 
@@ -5016,6 +5038,7 @@ public:
 
     constexpr date::year year() const noexcept;
     constexpr date::month month() const noexcept;
+    constexpr date::weekday weekday() const noexcept;
     constexpr date::weekday_last weekday_last() const noexcept;
 
     constexpr operator day_point() const noexcept;
@@ -5161,6 +5184,16 @@ constexpr month year_month_weekday_last::month() const noexcept;
 <blockquote>
 <p>
 <i>Returns:</i> <code>m_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday year_month_weekday_last::weekday() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wdl_.weekday()</code>.
 </p>
 </blockquote>
 
