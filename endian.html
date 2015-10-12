@@ -1,0 +1,249 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>Endian</title>
+
+	<style>
+	p {text-align:justify}
+	li {text-align:justify}
+	blockquote.note
+	{
+		background-color:#E0E0E0;
+		padding-left: 15px;
+		padding-right: 15px;
+		padding-top: 1px;
+		padding-bottom: 1px;
+	}
+	ins {color:#00A000}
+	del {color:#A00000}
+	code {white-space:pre;}
+	</style>
+</head>
+<body>
+
+<address align=right>
+Document number: DxxxxR0<br>
+<br/>
+<br/>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
+2015-10-12<br/>
+</address>
+<hr/>
+<h1 align=center>Endian</h1>
+
+<h2>Contents</h2>
+
+<ul>
+<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#ExampleUse">Example Use</a></li>
+<li><a href="#Implementation">Implementation</a></li>
+<li><a href="#Wording">Wording</a></li>
+</ul>
+
+<a name="Introduction"></a><h2>Introduction</h2>
+
+<p>
+This paper proposes a new header <code>&lt;endian&gt;</code>.  This header
+contains an <code>enum class</code> named <code>endian</code> as described
+herein. The purpose of this header is to describe at compile time, the nature of
+the <a href="https://en.wikipedia.org/wiki/Endianness">endianness</a> of the
+targeted platform.
+</p>
+
+<p>
+Big endian and little endian are the most common forms of endianness encountered
+today.  Big endian refers to the most significant bytes appearing first in a multi-byte
+data structure such as an <code>int</code> or <code>pointer</code>.  Little endian
+refers to the least significant bytes appearing first.  Big endian ordering is
+preferred (by convention) when transferring binary data over a network.
+</p>
+
+<p>
+Historically there has also existed <i>mixed endian</i>.  This proposal does contain
+support for mixed endian.
+</p>
+
+<p>
+Some hardware is capable of switching endian, and maintaining distinct endian
+settings for data and code segments.  This proposal does contain
+support for run-time endian.
+</p>
+
+<p>
+This paper proposes a simple <code>enum class endian</code>:
+</p>
+
+<blockquote><pre>
+namespace std {
+
+enum class endian
+{
+    native = <i>see below</i>,
+    little = <i>see below</i>,
+    big    = <i>see below</i>
+};
+
+}  // namespace std
+</pre></blockquote>
+
+<p>
+For little endian targets, <code>endian::native == endian::little</code>.
+For big endian targets, <code>endian::native == endian::big</code>.
+For mixed endian and run-time endian targets, <code>endian::native</code> equals neither
+<code>endian::little</code> nor <code>endian::big</code>.
+</p>
+
+<a name="ExampleUse"></a><h2>Example Use</h2>
+
+<p>
+Sometimes low-level code needs to know what endian it is running on so that it
+can deal with binary data that may or may not have other endian storage.  For
+example consider a case where one needs to read integers out of a binary file,
+and the file is known to store 4 byte signed integers in little endian format.
+In order to write code which is both portable and high performance, one needs to
+reverse the bytes after reading the integer on big endian machines, and not do
+so on little endian machines.  And the decision on little endian machines should
+have <em>zero overhead</em>.
+</p>
+
+<p>
+Here is how one might portably handle different endians for this problem:
+</p>
+
+<blockquote><pre>
+template &lt;class T&gt;
+constexpr
+inline
+void
+maybe_reverse_bytes(T&amp; t, std::true_type) noexcept
+{
+    // do nothing for little endian
+}
+
+template &lt;class T&gt;
+constexpr
+inline
+void
+maybe_reverse_bytes(T&amp; t, std::false_type) noexcept
+{
+    using namespace std;
+    static_assert(<b>endian::native == endian::big</b>, "mixed endian not supported");
+    reverse_bytes(t);
+}
+
+template &lt;class T&gt;
+constexpr
+inline
+void
+maybe_reverse_bytes(T&amp; t) noexcept
+{
+    using namespace std;
+    maybe_reverse_bytes(t, bool_constant&lt;<b>endian::native == endian::little</b>&gt;{});
+}
+</pre></blockquote>
+
+<p>
+By using tag dispatching on <code>bool_constant</code>, the decision is made at
+<i>compile-time</i>, and thus there is no run time branch decision.  On little endian
+machines <code>maybe_reverse_bytes</code> compiles down to <b>zero</b> machine
+instructions.
+</p>
+
+<p>
+This is a very simple, very efficient solution to this problem.
+</p>
+
+<a name="Implementation"></a><h2>Implementation</h2>
+
+<p>
+Across gcc and clang, the following is a portable implementation.  Other compilers
+would need to add similar infrastructure if not present already:
+</p>
+
+<blockquote><pre>
+namespace std {
+
+enum class endian
+{
+    native = __BYTE_ORDER__,
+    little = __ORDER_LITTLE_ENDIAN__,
+    big    = __ORDER_BIG_ENDIAN__
+};
+
+}  // namespace std
+</pre></blockquote>
+
+<p>
+Note that though this is exceedingly simple, programmers can not portably write this
+code.  Therefore their std::lib implementors should provide it.
+</p>
+
+<a name="Wording"></a><h2>Wording</h2>
+
+<ol>
+
+<li>
+<p>
+Add a row to Table 16 &mdash; C++ headers for freestanding implementations
+</p>
+<blockquote>
+18.x Endian <code>&lt;endian&gt;</code>
+</blockquote>
+</li>
+
+<li>
+<p>
+Add a row to Table 29 &mdash; Language support library summary:
+</p>
+<blockquote>
+18.x Endian <code>&lt;endian&gt;</code>
+</blockquote>
+</li>
+
+<li>
+<p>
+Add a new section to Chapter 18:  Endian [support.endian]:
+</p>
+
+<blockquote>
+<p>
+The header <code>&lt;endian&gt;</code> defines a enum class related to the
+endianness of the targeted architecture.
+</p>
+
+<p>
+<b>Header <code>&lt;endian&gt;</code> synopsis</b>
+</p>
+
+<blockquote><pre>
+namespace std {
+
+enum class endian
+{
+    native = <i>see below</i>,
+    little = <i>see below</i>,
+    big    = <i>see below</i>
+};
+
+}  // namespace std
+</pre></blockquote>
+
+<p>
+The values of <code>endian::little</code> and <code>endian::big</code> shall not
+be equal to one another.  If the execution environment has little endian, then
+<code>endian::native</code> shall be equal to <code>endian::little</code>.
+Otherwise if the execution environment has big endian, then
+<code>endian::native</code> shall be equal to <code>endian::big</code>.
+Otherwise <code>endian::native</code> shall be equal to neither 
+<code>endian::little</code> nor <code>endian::big</code>.
+</p>
+
+<blockquote>
+
+</li>
+
+</ol>
+
+</body>
+</html>
