@@ -4,10 +4,9 @@
 #include <cstddef>
 #include <cassert>
 
-template <std::size_t N>
+template <std::size_t N, std::size_t alignment = alignof(std::max_align_t)>
 class arena
 {
-    static const std::size_t alignment = alignof(std::max_align_t);
     alignas(alignment) char buf_[N];
     char* ptr_;
 
@@ -34,10 +33,10 @@ public:
     void reset() {ptr_ = buf_;}
 };
 
-template <std::size_t N>
+template <std::size_t N, std::size_t alignment>
 template <std::size_t ReqAlign>
 char*
-arena<N>::allocate(std::size_t n)
+arena<N, alignment>::allocate(std::size_t n)
 {
     static_assert(ReqAlign <= alignment, "alignment is too small for this T");
     assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
@@ -51,9 +50,9 @@ arena<N>::allocate(std::size_t n)
     return static_cast<char*>(::operator new(n));
 }
 
-template <std::size_t N>
+template <std::size_t N, std::size_t alignment>
 void
-arena<N>::deallocate(char* p, std::size_t n) noexcept
+arena<N, alignment>::deallocate(char* p, std::size_t n) noexcept
 {
     assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
     if (pointer_in_buffer(p))
