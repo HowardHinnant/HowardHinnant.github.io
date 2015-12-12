@@ -38,7 +38,7 @@ template <std::size_t ReqAlign>
 char*
 arena<N, alignment>::allocate(std::size_t n)
 {
-    static_assert(ReqAlign <= alignment, "alignment is too small for this T");
+    static_assert(ReqAlign <= alignment, "alignment is too small for this arena");
     assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
     n = align_up(n);
     if (buf_ + N - ptr_ >= n)
@@ -65,19 +65,24 @@ arena<N, alignment>::deallocate(char* p, std::size_t n) noexcept
         ::operator delete(p);
 }
 
-template <class T, std::size_t N>
+template <class T, std::size_t N, std::size_t Align = alignof(std::max_align_t)>
 class short_alloc
 {
-    arena<N>& a_;
 public:
-    typedef T value_type;
+    using value_type = T;
+    static auto constexpr alignment = Align;
+    static auto constexpr size = N;
+    using arena_type = arena<size, alignment>;
+
+private:
+    arena_type& a_;
 
 public:
-    template <class _Up> struct rebind {typedef short_alloc<_Up, N> other;};
+    template <class _Up> struct rebind {typedef short_alloc<_Up, N, alignment> other;};
 
-    short_alloc(arena<N>& a) noexcept : a_(a) {}
+    short_alloc(arena_type& a) noexcept : a_(a) {}
     template <class U>
-        short_alloc(const short_alloc<U, N>& a) noexcept
+        short_alloc(const short_alloc<U, N, alignment>& a) noexcept
             : a_(a.a_) {}
     short_alloc(const short_alloc&) = default;
     short_alloc& operator=(const short_alloc&) = delete;
@@ -91,26 +96,26 @@ public:
         a_.deallocate(reinterpret_cast<char*>(p), n*sizeof(T));
     }
 
-    template <class T1, std::size_t N1, class U, std::size_t M>
+    template <class T1, std::size_t N1, std::size_t A1, class U, std::size_t M, std::size_t A2>
     friend
     bool
-    operator==(const short_alloc<T1, N1>& x, const short_alloc<U, M>& y) noexcept;
+    operator==(const short_alloc<T1, N1, A1>& x, const short_alloc<U, M, A2>& y) noexcept;
 
-    template <class U, std::size_t M> friend class short_alloc;
+    template <class U, std::size_t M, std::size_t A> friend class short_alloc;
 };
 
-template <class T, std::size_t N, class U, std::size_t M>
+template <class T, std::size_t N, std::size_t A1, class U, std::size_t M, std::size_t A2>
 inline
 bool
-operator==(const short_alloc<T, N>& x, const short_alloc<U, M>& y) noexcept
+operator==(const short_alloc<T, N, A1>& x, const short_alloc<U, M, A2>& y) noexcept
 {
-    return N == M && &x.a_ == &y.a_;
+    return N == M && A1 == A2 && &x.a_ == &y.a_;
 }
 
-template <class T, std::size_t N, class U, std::size_t M>
+template <class T, std::size_t N, std::size_t A1, class U, std::size_t M, std::size_t A2>
 inline
 bool
-operator!=(const short_alloc<T, N>& x, const short_alloc<U, M>& y) noexcept
+operator!=(const short_alloc<T, N, A1>& x, const short_alloc<U, M, A2>& y) noexcept
 {
     return !(x == y);
 }

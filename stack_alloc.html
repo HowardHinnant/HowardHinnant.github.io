@@ -62,9 +62,9 @@ desired.
 
 <blockquote><pre>
 #include "<a href="short_alloc.h">short_alloc.h</a>"
-#include &lt;vector&gt;
-#include &lt;new&gt;
 #include &lt;iostream&gt;
+#include &lt;new&gt;
+#include &lt;vector&gt;
 
 std::size_t memory = 0;
 std::size_t alloc = 0;
@@ -91,9 +91,9 @@ void memuse()
 int main()
 {
     const unsigned N = 200;
-    typedef short_alloc&lt;int, N&gt; Alloc;
-    typedef std::vector&lt;int, Alloc&gt; SmallVector;
-    arena&lt;N&gt; a;
+    using Alloc = short_alloc&lt;int, N, alignof(int)&gt;;
+    using SmallVector = std::vector&lt;int, Alloc&gt;;
+    Alloc::arena_type a;
     SmallVector v{Alloc(a)};
     v.push_back(1);
     memuse();
@@ -135,9 +135,9 @@ This works with <tt>list</tt> too:
 int main()
 {
     const unsigned N = 200;
-    typedef short_alloc&lt;int, N&gt; Alloc;
-    typedef std::list&lt;int, Alloc&gt; SmallList;
-    arena&lt;N&gt; a;
+    using Alloc = short_alloc&lt;int, N&gt;;
+    using SmallList = std::list&lt;Alloc::value_type, Alloc&gt;;
+    Alloc::arena_type a;
     SmallList v{Alloc(a)};
     v.push_back(1);
     memuse();
