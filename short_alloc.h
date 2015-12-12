@@ -7,9 +7,13 @@
 template <std::size_t N>
 class arena
 {
-    static const std::size_t alignment = 16;
+    static const std::size_t alignment = alignof(std::max_align_t);
     alignas(alignment) char buf_[N];
     char* ptr_;
+
+    std::size_t 
+    align_up(std::size_t n) noexcept
+        {return n + (alignment-1) & ~(alignment-1);}
 
     bool
     pointer_in_buffer(char* p) noexcept
@@ -34,6 +38,7 @@ char*
 arena<N>::allocate(std::size_t n)
 {
     assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
+    n = align_up(n);
     if (buf_ + N - ptr_ >= n)
     {
         char* r = ptr_;
@@ -50,6 +55,7 @@ arena<N>::deallocate(char* p, std::size_t n) noexcept
     assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
     if (pointer_in_buffer(p))
     {
+        n = align_up(n);
         if (p + n == ptr_)
             ptr_ = p;
     }
