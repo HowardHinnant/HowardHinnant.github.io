@@ -25,7 +25,8 @@ public:
     arena(const arena&) = delete;
     arena& operator=(const arena&) = delete;
 
-    char* allocate(std::size_t n, std::size_t requested_align);
+    template <std::size_t>
+    char* allocate(std::size_t n);
     void deallocate(char* p, std::size_t n) noexcept;
 
     static constexpr std::size_t size() {return N;}
@@ -34,10 +35,11 @@ public:
 };
 
 template <std::size_t N>
+template <std::size_t ReqAlign>
 char*
-arena<N>::allocate(std::size_t n, std::size_t requested_align)
+arena<N>::allocate(std::size_t n)
 {
-    assert(requested_align <= alignment);
+    static_assert(ReqAlign <= alignment, "alignment is too small for this T");
     assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
     n = align_up(n);
     if (buf_ + N - ptr_ >= n)
@@ -83,7 +85,7 @@ public:
 
     T* allocate(std::size_t n)
     {
-        return reinterpret_cast<T*>(a_.allocate(n*sizeof(T), alignof(T)));
+        return reinterpret_cast<T*>(a_.template allocate<alignof(T)>(n*sizeof(T)));
     }
     void deallocate(T* p, std::size_t n) noexcept
     {
