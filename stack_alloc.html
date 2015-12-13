@@ -14,6 +14,17 @@
 
 <hr/>
 <p>
+<b>Update 2015-12-13:</b>
+</p>
+
+<p>
+Thanks to
+<a href="http://stackoverflow.com/q/33722907/576911">this stackoverflow question</a>
+I have revisited this handy little allocator and made several improvements.
+</p>
+
+<hr/>
+<p>
 <b>Update:</b>
 </p>
 
@@ -58,6 +69,24 @@ add the boiler-plate C++98/03 allocator requirements to this allocator if
 desired.
 </p>
 
+<p>
+This allocator will dole out memory in units of <code>alignment</code> which defaults
+to <code>alignof(std::max_align_t)</code>.  This is the same alignment which
+<code>malloc</code> and <code>new</code> hand out memory.  If there is room on
+the stack supplied buffer (you specify the buffer size), the memory will be
+allocated on the stack, else it will ask <code>new</code> for the memory.
+</p>
+
+<p>
+If memory is tight (when is it not!), you can reduce the alignment requirements
+via the defaulted third template argument of <code>short_alloc</code>.  If you
+do this, and then the container attempts to allocate memory with alignment
+requirements greater than you have specified, a compile-time error will result.
+Thus you can safely experiment with reducing the alignment requirement, without
+having to know implementation details of the container you're using
+<code>short_alloc</code> with.
+</p>
+
 <h2>A small <tt>vector</tt></h2>
 
 <blockquote><pre>
@@ -65,6 +94,9 @@ desired.
 #include &lt;iostream&gt;
 #include &lt;new&gt;
 #include &lt;vector&gt;
+
+// Replace new and delete just for the purpose of demonstrating that
+//  they are not called.
 
 std::size_t memory = 0;
 std::size_t alloc = 0;
@@ -88,13 +120,21 @@ void memuse()
     std::cout &lt;&lt; "alloc = " &lt;&lt; alloc &lt;&lt; '\n';
 }
 
+// Create a vector&lt;T&gt; template with a small buffer of 200 bytes.
+//   Note for vector it is possible to reduce the alignment requirements
+//   down to alignof(T) because vector doesn't allocate anything but T's.
+//   And if we're wrong about that guess, it is a comple-time error, not
+//   a run time error.
+template &lt;class T, std::size_t BufSize = 200&gt;
+using SmallVector = std::vector&lt;T, short_alloc&lt;T, BufSize, alignof(T)&gt;&gt;;
+
 int main()
 {
-    const unsigned N = 200;
-    using Alloc = short_alloc&lt;int, N, alignof(int)&gt;;
-    using SmallVector = std::vector&lt;int, Alloc&gt;;
-    Alloc::arena_type a;
-    SmallVector v{Alloc(a)};
+    // Create the stack-based arena from which to allocate
+    SmallVector&lt;int&gt;::allocator_type::arena_type a;
+    // Create the vector which uses that arena.
+    SmallVector&lt;int&gt; v{a};
+    // Exercise the vector and note that new/delete are not getting called.
     v.push_back(1);
     memuse();
     v.push_back(2);
@@ -103,6 +143,7 @@ int main()
     memuse();
     v.push_back(4);
     memuse();
+    // Yes, the correct values are actually in the vector
     for (auto i : v)
         std::cout &lt;&lt; i &lt;&lt; ' ';
     std::cout &lt;&lt; '\n';
@@ -122,23 +163,28 @@ alloc = 0
 <p>
 In the above example I've created a custom <tt>new/delete</tt> just for the purpose
 of monitoring heap allocations.  A <tt>vector&lt;int&gt;</tt> is created that
-will allocate up to 100 <tt>bytes</tt>'s before going to the heap.
+will allocate up to 200 <tt>bytes</tt>'s before going to the heap.
 </p>
 
 <h2>A small <tt>list</tt></h2>
 
 <p>
-This works with <tt>list</tt> too:
+This works with <tt>list</tt> too.  Note though that here I have defaulted the alignment
+requirements because <code>std::list&lt;T&gt;</code> allocates internal nodes that may
+have larger alignment requirements than <code>T</code>.  If desired, I could experiment
+with reduced alignment requirements here and get a per-instantiation compile-time check
+for each experiment.  Those results won't be portable, but on porting the experiment will
+either run correctly or fail to compile.
 </p>
 
 <blockquote><pre>
+template &lt;class T, std::size_t BufSize = 200&gt;
+using SmallList = std::list&lt;T, short_alloc&lt;T, BufSize&gt;&gt;;
+
 int main()
 {
-    const unsigned N = 200;
-    using Alloc = short_alloc&lt;int, N&gt;;
-    using SmallList = std::list&lt;Alloc::value_type, Alloc&gt;;
-    Alloc::arena_type a;
-    SmallList v{Alloc(a)};
+    SmallList&lt;int&gt;::allocator_type::arena_type a;
+    SmallList&lt;int&gt; v{a};
     v.push_back(1);
     memuse();
     v.push_back(2);
@@ -163,14 +209,25 @@ alloc = 0
 1 2 3 4 
 </pre></blockquote>
 
-<h2>A small <tt>set</tt></h2>
+<h2>A small <tt>unordered_set</tt></h2>
 
 <p>
-Yes, you can make a small <tt>set</tt> too:
+Yes, you can make a small <tt>unordered_set</tt> too.  Here I've experimentally
+determined on my system that I can reduce the alignment requirement down as low as
+8 for many types <code>T</code>.  The compiler may tell you that this number is too
+small on your system.
 </p>
 
 <blockquote><pre>
-typedef std::set&lt;int, std::less&lt;int&gt;, short_alloc&lt;int, 200&gt;&gt; SmallSet;
+template &lt;class T, std::size_t BufSize = 200&gt;
+using SmallSet = std::unordered_set&lt;T, std::hash&lt;T&gt;, std::equal_to&lt;T&gt;,
+                      short_alloc&lt;T, BufSize, alignof(T) &lt; 8 ? 8 : alignof(T)&gt;&gt;;
+
+int main()
+{
+    SmallSet&lt;int&gt;::allocator_type::arena_type a;
+    SmallSet&lt;int&gt; v{a};
+    ...
 </pre></blockquote>
 
 <p>

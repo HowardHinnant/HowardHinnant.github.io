@@ -10,6 +10,21 @@ class arena
     alignas(alignment) char buf_[N];
     char* ptr_;
 
+public:
+    ~arena() {ptr_ = nullptr;}
+    arena() noexcept : ptr_(buf_) {}
+    arena(const arena&) = delete;
+    arena& operator=(const arena&) = delete;
+
+    template <std::size_t ReqAlign> char* allocate(std::size_t n);
+    void deallocate(char* p, std::size_t n) noexcept;
+
+    static constexpr std::size_t size() noexcept {return N;}
+    std::size_t used() const noexcept {return static_cast<std::size_t>(ptr_ - buf_);}
+    void reset() noexcept {ptr_ = buf_;}
+
+private:
+    static
     std::size_t 
     align_up(std::size_t n) noexcept
         {return n + (alignment-1) & ~(alignment-1);}
@@ -17,20 +32,6 @@ class arena
     bool
     pointer_in_buffer(char* p) noexcept
         {return buf_ <= p && p <= buf_ + N;}
-
-public:
-    arena() noexcept : ptr_(buf_) {}
-    ~arena() {ptr_ = nullptr;}
-    arena(const arena&) = delete;
-    arena& operator=(const arena&) = delete;
-
-    template <std::size_t>
-    char* allocate(std::size_t n);
-    void deallocate(char* p, std::size_t n) noexcept;
-
-    static constexpr std::size_t size() {return N;}
-    std::size_t used() const {return static_cast<std::size_t>(ptr_ - buf_);}
-    void reset() {ptr_ = buf_;}
 };
 
 template <std::size_t N, std::size_t alignment>
@@ -40,11 +41,11 @@ arena<N, alignment>::allocate(std::size_t n)
 {
     static_assert(ReqAlign <= alignment, "alignment is too small for this arena");
     assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
-    n = align_up(n);
-    if (buf_ + N - ptr_ >= n)
+    auto const aligned_n = align_up(n);
+    if (buf_ + N - ptr_ >= aligned_n)
     {
         char* r = ptr_;
-        ptr_ += n;
+        ptr_ += aligned_n;
         return r;
     }
     return static_cast<char*>(::operator new(n));
@@ -78,14 +79,15 @@ private:
     arena_type& a_;
 
 public:
-    template <class _Up> struct rebind {typedef short_alloc<_Up, N, alignment> other;};
+    short_alloc(const short_alloc&) = default;
+    short_alloc& operator=(const short_alloc&) = delete;
 
     short_alloc(arena_type& a) noexcept : a_(a) {}
     template <class U>
         short_alloc(const short_alloc<U, N, alignment>& a) noexcept
             : a_(a.a_) {}
-    short_alloc(const short_alloc&) = default;
-    short_alloc& operator=(const short_alloc&) = delete;
+
+    template <class _Up> struct rebind {using other = short_alloc<_Up, N, alignment>;};
 
     T* allocate(std::size_t n)
     {
@@ -96,7 +98,8 @@ public:
         a_.deallocate(reinterpret_cast<char*>(p), n*sizeof(T));
     }
 
-    template <class T1, std::size_t N1, std::size_t A1, class U, std::size_t M, std::size_t A2>
+    template <class T1, std::size_t N1, std::size_t A1, 
+              class U, std::size_t M, std::size_t A2>
     friend
     bool
     operator==(const short_alloc<T1, N1, A1>& x, const short_alloc<U, M, A2>& y) noexcept;
