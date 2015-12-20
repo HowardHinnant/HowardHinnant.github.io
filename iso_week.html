@@ -1,0 +1,217 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>iso_week</title>
+
+	<style>
+	p {text-align:justify}
+	li {text-align:justify}
+	blockquote.note
+	{
+		background-color:#E0E0E0;
+		padding-left: 15px;
+		padding-right: 15px;
+		padding-top: 1px;
+		padding-bottom: 1px;
+	}
+	ins {color:#00A000}
+	del {color:#A00000}
+	code {white-space:pre;}
+	</style>
+</head>
+<body>
+
+<address align=right>
+<br/>
+<br/>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
+2015-12-19<br/>
+<a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
+Commons License" style="border-width:0"
+src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
+under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative
+Commons Attribution 4.0 International License</a>.
+</address>
+<hr/>
+<h1 align=center><code>iso_week</code></h1>
+
+<h2>Contents</h2>
+
+<ul>
+<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#Implementation">Implementation</a></li>
+<li><a href="#Overview">Overview</a></li>
+<li><a href="#Reference">Reference</a></li>
+</ul>
+
+<a name="Introduction"></a><h2>Introduction</h2>
+
+<p>
+This paper fully documents an
+<a href="https://en.wikipedia.org/wiki/ISO_week_date">ISO week date calendar</a>
+that is fully interoperable with
+<a href="date_v2.html"><code>date</code></a>.
+</p>
+
+<a name="Implementation"></a><h2>Implementation</h2>
+
+<p>
+This entire library is implemented in a single header:
+<a href="https://github.com/HowardHinnant/date/blob/master/iso_week.h">iso_week.h</a>
+and is open source using the MIT license.
+</p>
+
+<a name="Overview"></a><h2>Overview</h2>
+
+<p>
+This library creates field types that hold the year, week number and weekday
+associated with a <a href="https://en.wikipedia.org/wiki/ISO_week_date">ISO week date</a>.
+For example, to specify the Saturday of the 51st week of 2015 one can say:
+</p>
+
+<blockquote><pre>
+#include "iso_week.h"
+#include &lt;iostream&gt;
+
+int
+main()
+{
+    using namespace iso_week::literals;
+    auto iso_date = sat/51/2015;
+    std::cout &lt;&lt; iso_date &lt;&lt; '\n';
+}
+</pre></blockquote>
+
+<p>
+The output of this program is:
+</p>
+
+<blockquote><pre>
+2015-W51-Sat
+</pre></blockquote>
+
+<p>
+In this example <code>iso_date</code> has type <code>iso_week::year_weeknum_weekday</code>,
+and this type does nothing but hold the three quantities: <code>year</code>,
+<code>weeknum</code> and <code>weekday</code>.  This is such trivial functionality that
+it almost seems useless.  Anyone can write a type to be constructed from three values,
+and then print them back out when requested.
+</p>
+
+<p>
+The real power of <code>year_weeknum_weekday</code> is that it can implicitly convert to
+and from <a href="date_v2.html#day_point"><code>day_point</code></a>.  And
+ <a href="date_v2.html#day_point"><code>day_point</code></a> is just a type alias for:
+</p>
+
+<blockquote><pre>
+std::chrono::time_point&lt;std::chrono::system_clock, days&gt;
+</pre></blockquote>
+
+<p>
+This is the exact same <code>day_point</code> used by the
+<a href="date_v2.html"><code>date</code></a> and <a href="tz.html">time zone</a>
+libraries.  And so by simply having conversions to and from <code>day_point</code>,
+<code>iso_week::year_weeknum_weekday</code> becomes seamlessly interoperable with all
+of the types in <a href="date_v2.html"><code>date</code></a> and
+<a href="tz.html">time zone</a> such as <code>date::year_month_day</code> and
+<code>date::Zone</code>:
+</p>
+
+<blockquote><pre>
+#include "date.h"
+#include "iso_week.h"
+#include "tz.h"
+#include &lt;iostream&gt;
+
+int
+main()
+{
+    using namespace std::chrono;
+    using namespace date;
+    using namespace iso_week;
+    auto zone = locate_zone("America/New_York");
+    auto now = zone-&gt;to_local(system_clock::now());
+    auto dp = floor&lt;days&gt;(now.first);
+    auto iso_date = year_weeknum_weekday{dp};
+    auto civil_date = year_month_day{dp};
+    auto time = make_time(duration_cast&lt;minutes&gt;(now.first-dp));
+    std::cout &lt;&lt; "It is currently " &lt;&lt; time &lt;&lt; ' ' &lt;&lt; now.second &lt;&lt; " on "
+              &lt;&lt; iso_date &lt;&lt; " which is also " &lt;&lt; civil_date &lt;&lt; '\n';
+}
+</pre></blockquote>
+
+<p>
+Which just output for me:
+</p>
+
+<blockquote><pre>
+It is currently 18:33 EST on 2015-W51-Sat which is also 2015-12-19
+</pre></blockquote>
+
+<p>
+Or if you want to find the civil date of the last day of the ISO week year for 2015, then
+(knowning the last day of the week is Sunday in this calendar) it is:
+</p>
+
+<blockquote><pre>
+using namespace iso_week::literals;
+std::cout &lt;&lt; date::year_month_day{2015_y/last/sun} &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+Which will output:
+</p>
+
+<blockquote><pre>
+2016-01-03
+</pre></blockquote>
+
+<p>
+And of course one can convert in the opposite direction:
+</p>
+
+<blockquote><pre>
+using namespace date::literals;
+std::cout &lt;&lt; iso_week::year_weeknum_weekday{2016_y/1/3} &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+Which will output:
+</p>
+
+<blockquote><pre>
+2015-W53-Sun
+</pre></blockquote>
+
+<p>
+In particular, note that for this day, the <code>iso_week::year</code> is 2015 and the
+<code>date::year</code> is 2016.
+</p>
+
+<p>
+This brings us to an important type-safety feature of these libraries:  The
+<code>iso_week::year</code> and the <code>date::year</code> are two <i>distinct</i> types.
+They represent concepts that are <i>very</i> similar.  They almost always have the same
+value for the same <code>day_point</code>.  But as in this example, they are occasionally
+different.  It is not unheard of for computer systems to conflate these two very similar
+types, resulting in bugs that are hard to find because they are relatively rare.  Having
+the C++ type system help you keep these similar but different concepts distinct is a
+solid step towards finding bugs at compile time!
+</p>
+
+<a name="Reference"></a><h2>Reference</h2>
+
+<p>
+Here is a detailed specification of the entire library.  This specification is detailed
+enough that you could write your own implementation from it if desired.  But feel free
+to use <a href="https://github.com/HowardHinnant/date/blob/master/iso_week.h">this one</a>
+instead.  Each type, and each operation is simple
+and predictable.
+</p>
+
+<p><i>Under construction!</i></p>
+
+</body>
+</html>
