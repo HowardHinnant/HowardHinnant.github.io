@@ -6327,7 +6327,7 @@ public:
     constexpr std::chrono::hours   hours() const noexcept;
     constexpr std::chrono::minutes minutes() const noexcept;
     constexpr std::chrono::seconds seconds() const noexcept;
-    constexpr std::chrono::precision subseconds() const noexcept;
+    constexpr precision subseconds() const noexcept;
     constexpr unsigned mode() const noexcept;
 
     constexpr explicit operator precision() const noexcept;
@@ -6418,7 +6418,9 @@ constexpr std::chrono::seconds time_of_day&lt;std::chrono::duration&lt;Rep, Peri
 </blockquote>
 
 <pre>
-constexpr std::chrono::seconds time_of_day&lt;std::chrono::duration&lt;Rep, Period&gt;&gt;::subseconds() const noexcept;
+constexpr
+std::chrono::duration&lt;Rep, Period&gt;
+time_of_day&lt;std::chrono::duration&lt;Rep, Period&gt;&gt;::subseconds() const noexcept;
 </pre>
 
 <blockquote>
