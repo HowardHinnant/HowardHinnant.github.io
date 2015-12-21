@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-12-20<br/>
+2015-12-21<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -203,6 +203,8 @@ solid step towards finding bugs at compile time!
 
 <a name="Reference"></a><h2>Reference</h2>
 
+<p><i>Under construction!</i></p>
+
 <p>
 Here is a detailed specification of the entire library.  This specification is detailed
 enough that you could write your own implementation from it if desired.  But feel free
@@ -225,6 +227,8 @@ and predictable.
 <tr><td>types</td><td>&nbsp;</td></tr>
 <tr><td>&nbsp;</td><td><a href="#last_week"><code>last_week</code></a></td></tr>
 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+<tr><td>&nbsp;</td><td><a href="#weekday"><code>weekday</code></a></td></tr>
 
 </table>
 
@@ -302,9 +306,10 @@ using day_point = std::chrono::time_point&lt;std::chrono::system_clock, days&gt;
 <p>
 <code>last_week</code> is a <code>struct</code> that is <code>CopyConstructible</code>.
 There exists a <code>constexpr</code> instance of <code>last_week</code> named
-<code>last</code>.  This is simply a tag type.  It is used to indicate the last day of
-a month, or the last weekday of a month.
+<code>last</code>.  This is simply a tag type.  It is used to indicate the last week of
+the year.
 </p>
+
 <pre>
 struct last_week
 {
@@ -331,7 +336,350 @@ passes.  This will make it so that <code>{}</code> won't implicitly convert to
 
 </blockquote>
 
-<p><i>Under construction!</i></p>
+<a name="weekday"></a><h3><code>weekday</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class weekday
+{
+    unsigned char wd_;  // exposition only
+public:
+    explicit constexpr weekday(unsigned wd) noexcept;
+    constexpr weekday(const day_point&amp; dp) noexcept;
+    constexpr weekday(date::weekday wd) noexcept;
+    explicit weekday(int) = delete;
+
+    weekday&amp; operator++() noexcept;
+    weekday operator++(int) noexcept;
+    weekday&amp; operator--() noexcept;
+    weekday operator--(int) noexcept;
+
+    weekday&amp; operator+=(const days&amp; d) noexcept;
+    weekday&amp; operator-=(const days&amp; d) noexcept;
+
+    constexpr explicit operator unsigned() const noexcept;
+    constexpr operator date::weekday() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const weekday&amp; x, const weekday&amp; y) noexcept;
+constexpr bool operator!=(const weekday&amp; x, const weekday&amp; y) noexcept;
+
+constexpr weekday operator+(const weekday&amp; x, const days&amp;    y) noexcept;
+constexpr weekday operator+(const days&amp;    x, const weekday&amp; y) noexcept;
+constexpr weekday operator-(const weekday&amp; x, const days&amp;    y) noexcept;
+constexpr days    operator-(const weekday&amp; x, const weekday&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday&amp; wd);
+
+inline namespace literals
+{
+constexpr weekday mon{1u};
+constexpr weekday tue{2u};
+constexpr weekday wed{3u};
+constexpr weekday thu{4u};
+constexpr weekday fri{5u};
+constexpr weekday sat{6u};
+constexpr weekday sun{7u};
+}  // namespace literals
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>weekday</code> represents a day of the week in the ISO week calendar.  It should
+only be representing values in the range 1 to 7, corresponding to Monday thru Sunday. 
+However it may hold values outside this range.  It can be constructed with any
+<code>unsigned</code> value, which will be subsequently truncated to fit into
+<code>weekday</code>'s internal storage.  <code>weekday</code> is equality comparable.
+<code>weekday</code> is not less-than comparable because there is no universal consensus
+on which day is the first day of the week.  This design chooses the encoding of 1 to 7 to
+represent Monday thru Sunday only because this is consistent with ISO 8601.
+ However  <code>weekday</code>'s comparison and arithmetic operations treat the
+days of the week as a circular range, with no beginning and no end.   One can stream out a
+<code>weekday</code> for debugging purposes. <code>weekday</code> has explicit conversions
+to and from <code>unsigned</code>.  There are 7 <code>weekday</code> constants, one for each
+day of the week.
+</p>
+
+<p>
+A <code>weekday</code> can be implicitly constructed from a <code>day_point</code>. This
+is the computation that discovers the day of the week of an arbitrary date.
+</p>
+
+<p>
+A <code>weekday</code> can be implicitly converted to or from a <code>date::weekday</code>.
+<code>iso_week::weekday</code> and <code>date::weekday</code> are distinct types, though
+they represent very similar concepts.  <code>date::weekday</code> can be indexed, and
+<code>iso_week::weekday</code> can not.  <code>date::weekday</code> is encoded as
+[0, 6] representing [Sunday, Saturday], while <code>iso_week::weekday</code> is encoded as
+[1, 7] representing [Monday, Sunday].  The conversion functions will correctly translate
+between these encodings.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>weekday</code> is a trivially copyable class type.</br>
+<code>weekday</code> is a standard-layout class type.</br>
+<code>weekday</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr weekday::weekday(unsigned wd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>weekday</code> by constructing
+<code>wd_</code> with <code>wd</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday(const day_point&amp; dp) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>weekday</code> by computing what day
+of the week corresponds to the <code>day_point dp</code>, and representing that day of
+the week in <code>wd_</code>.
+</p>
+<p>
+<i>Example:</i> If <code>dp</code> represents 1970-01-01, the constructed
+<code>weekday</code> shall represent Thursday by storing 4 in <code>wd_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday(date::weekday wd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>weekday</code> from a
+<code>date::weekday</code>.  This changes the underlying encoding from [0, 6] -&gt;
+[sun, sat] to [1, 7] -&gt; [mon, sun].
+</p>
+</blockquote>
+
+<pre>
+weekday&amp; weekday::operator++() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> If <code>wd_ != 6</code>, <code>++wd_</code>.  Otherwise sets
+<code>wd_</code> to 0.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+weekday weekday::operator++(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+weekday&amp; weekday::operator--() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> If <code>wd_ != 0</code>, <code>--wd_</code>.  Otherwise sets
+<code>wd_</code> to 6.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+weekday weekday::operator--(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+weekday&amp; weekday::operator+=(const days&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + d</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+weekday&amp; weekday::operator-=(const days&amp; d) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - d</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr explicit weekday::operator unsigned() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr operator date::weekday() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> An object of type <code>date::weekday</code> constructed from
+<code>*this</code>.  This changes the underlying encoding from [1, 7] -&gt; [mon, sun] to
+[0, 6] -&gt; [sun, sat].
+</p>
+</blockquote>
+
+<pre>
+constexpr bool weekday::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>1 &lt;= wd_ &amp;&amp; wd_ &lt;= 7</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const weekday&amp; x, const weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>unsigned{x} == unsigned{y}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const weekday&amp; x, const weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday  operator+(const weekday&amp;  x, const days&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>weekday</code> for which <code>ok() == true</code> and is found as
+if by incrementing (or decrementing if <code>y &lt; days{0}</code>) <code>x</code>,
+<code>y</code> times.  If <code>weekday.ok() == false</code> prior to this operation,
+behaves as if <code>*this</code> is first brought into the range [1, 7] by modular
+arithmetic. [<i>Note:</i> For example <code>weekday{0}</code> becomes
+<code>weekday{7}</code>. &mdash; <i>end note</i>]
+</p>
+<p>
+<i>Complexity:</i> O(1) with respect to the value of <code>y</code>.  That is, repeated
+increments or decrements is not a valid implementation.
+</p>
+<p>
+<i>Example:</i> <code>sun + days{6} == sat</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday  operator+(const days&amp; x, const weekday&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y + x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday  operator-(const weekday&amp;  x, const days&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x + -y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr days operator-(const weekday&amp;  x, const weekday&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Requires:</i> <code>x.ok() == true</code> and <code>y.ok() == true</code>.
+</p>
+<p>
+<i>Returns:</i> A value of <code>days</code> in the range of <code>days{0}</code> to
+<code>days{6}</code> inclusive.
+</p>
+<p>
+<i>Remarks:</i> The returned value <code>d</code> shall satisfy the equality:
+<code>y + d == x</code>.
+</p>
+<p>
+<i>Example:</i> <code>sat - sun == days{6}</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weekday&amp; wd);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i>  If <code>ok() == true</code> outputs the same string that would be
+output for the weekday field by <code>asctime</code>, assuming the conversion
+<code>unsigned{date::weekday{*this}}</code>.  Otherwise outputs
+<code>unsigned{wd} &lt;&lt; " is not a valid weekday"</code>.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
 
 </body>
 </html>
