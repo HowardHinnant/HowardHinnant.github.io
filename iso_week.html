@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-12-19<br/>
+2015-12-20<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -210,6 +210,126 @@ to use <a href="https://github.com/HowardHinnant/date/blob/master/iso_week.h">th
 instead.  Each type, and each operation is simple
 and predictable.
 </p>
+
+<table>
+<tr><td>durations</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#days"><code>days</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#weeks"><code>weeks</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#years"><code>years</code></a></td></tr>
+
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>time_point</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#day_point"><code>day_point</code></a></td></tr>
+
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>types</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#last_week"><code>last_week</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+</table>
+
+<p>
+Everything here is contained in the namespace <code>iso_week</code>. The literal
+operators, and the constexpr field literals (e.g. <code>sun</code>, <code>last</code>,
+etc.) are in namespace <code>iso_week::literals</code> and imported into namespace
+<code>iso_week</code>.
+</p>
+
+<a name="days"></a><h3><code>days</code></h3>
+
+<blockquote>
+<p>
+<code>days</code> is a <code>std::chrono::duration</code> with a tick period of 24 hours.
+This definition is not an SI unit but <a
+href="http://www.bipm.org/en/publications/si-brochure/table6.html">is accepted for use
+with SI</a>.  <code>days</code> is the resultant type when subtracting two
+<code>day_point</code>s.
+</p>
+<pre>
+using days = std::chrono::duration
+    &lt;int, std::ratio_multiply&lt;std::ratio&lt;24&gt;, std::chrono::hours::period&gt;&gt;;
+</pre></blockquote>
+
+<a name="weeks"></a><h3><code>weeks</code></h3>
+
+<blockquote>
+<p>
+<code>weeks</code> is a <code>std::chrono::duration</code> with a tick period of 7 days.
+This definition is widely recognized and predates the Gregorian calendar.  It is
+consistent with <a href="http://en.wikipedia.org/wiki/ISO_8601">ISO 8601</a>.
+<code>weeks</code> will implicitly convert to <code>days</code> but not vice-versa.
+</p>
+<pre>
+using weeks = std::chrono::duration
+    &lt;int, std::ratio_multiply&lt;std::ratio&lt;7&gt;, days::period&gt;&gt;;
+</pre></blockquote>
+
+<a name="years"></a><h3><code>years</code></h3>
+
+<blockquote>
+<p>
+<code>years</code> is a <code>std::chrono::duration</code> with a tick period of 365.2425
+days.  This definition accurately describes the length of the average year in the
+ISO week calendar.  <code>years</code> is the resultant type when subtracting two
+<code>year</code> field-based time points.  <code>years</code> is not implicitly
+convertible to <code>days</code> or <code>weeks</code> nor vice-versa.
+</p>
+<pre>
+using years = std::chrono::duration
+    &lt;int, std::ratio_multiply&lt;std::ratio&lt;146097, 400&gt;, days::period&gt;&gt;;
+</pre></blockquote>
+
+<a name="day_point"></a><h3><code>day_point</code></h3>
+
+<blockquote>
+<p>
+<code>day_point</code> is a <code>std::chrono::time_point</code> using
+<code>std::chrono::system_clock</code> and <code>days</code>.  This makes
+<code>day_point</code> interoperable with
+<code>std::chrono::system_clock::time_point</code>.  It is simply a count of days since
+the epoch of <code>std::chrono::system_clock</code> which in every implementation is
+Jan. 1, 1970.  <code>day_point</code> is a serial-based time point with a resolution of
+<code>days</code>.
+</p>
+<pre>
+using day_point = std::chrono::time_point&lt;std::chrono::system_clock, days&gt;;
+</pre>
+</blockquote>
+
+<a name="last_week"></a><h3><code>last_week</code></h3>
+
+<blockquote>
+<p>
+<code>last_week</code> is a <code>struct</code> that is <code>CopyConstructible</code>.
+There exists a <code>constexpr</code> instance of <code>last_week</code> named
+<code>last</code>.  This is simply a tag type.  It is used to indicate the last day of
+a month, or the last weekday of a month.
+</p>
+<pre>
+struct last_week
+{
+    explicit last_week() = default;
+};
+
+inline namespace literals
+{
+
+constexpr iso_week::last_week last{};
+
+}
+</pre>
+
+<p>
+I am leading the C++ standard here a little with the <code>explicit</code> qualifier on
+the default constructor.  This compiles today, but doesn't have quite the desired
+semantics.  But it will when
+<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/cwg_toc.html#1518">CWG 1518</a>
+passes.  This will make it so that <code>{}</code> won't implicitly convert to
+<code>last_week</code>.  This addresses the concern expressed in
+<a href="http://cplusplus.github.io/LWG/lwg-toc.html#2510">LWG 2510</a>.
+</p>
+
+</blockquote>
 
 <p><i>Under construction!</i></p>
 
