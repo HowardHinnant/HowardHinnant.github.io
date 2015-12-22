@@ -230,6 +230,7 @@ and predictable.
 
 <tr><td>&nbsp;</td><td><a href="#weekday"><code>weekday</code></a></td></tr>
 <tr><td>&nbsp;</td><td><a href="#weeknum"><code>weeknum</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#year"><code>year</code></a></td></tr>
 
 </table>
 
@@ -986,6 +987,354 @@ constexpr weeknum operator "" _w(unsigned long long wn) noexcept;
 <blockquote>
 <p>
 <i>Returns:</i> <code>weeknum{static_cast&lt;unsigned&gt;(wn)}</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="year"></a><h3><code>year</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class year
+{
+    short y_;  // exposition only
+
+public:
+    explicit constexpr year(int y) noexcept;
+
+    year&amp; operator++() noexcept;
+    year operator++(int) noexcept;
+    year&amp; operator--() noexcept;
+    year operator--(int) noexcept;
+
+    year&amp; operator+=(const years&amp; y) noexcept;
+    year&amp; operator-=(const years&amp; y) noexcept;
+
+    constexpr explicit operator int() const noexcept;
+    constexpr bool ok() const noexcept;
+
+    static constexpr year min() noexcept;
+    static constexpr year max() noexcept;
+};
+
+constexpr bool operator==(const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator!=(const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator&lt; (const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator&gt; (const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator&lt;=(const year&amp; x, const year&amp; y) noexcept;
+constexpr bool operator&gt;=(const year&amp; x, const year&amp; y) noexcept;
+
+constexpr year  operator+(const year&amp;  x, const years&amp; y) noexcept;
+constexpr year  operator+(const years&amp; x, const year&amp;  y) noexcept;
+constexpr year  operator-(const year&amp;  x, const years&amp; y) noexcept;
+constexpr years operator-(const year&amp;  x, const year&amp;  y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year&amp; y);
+
+inline namespace literals
+{
+constexpr year operator "" _y(unsigned long long y) noexcept;
+}
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>year</code> represents a year in the
+<a href="https://en.wikipedia.org/wiki/ISO_week_date">ISO week date calendar</a>.
+It shall represent values in the range <code>[min(), max()]</code>.  It can be constructed
+with any <code>int</code> value, which will be subsequently truncated to fit into
+<code>year</code>'s internal storage.  <code>year</code> is equality and less-than
+comparable, and participates in basic arithmetic with <code>years</code> representing the
+quantity between any two <code>year</code>'s.  One can form a <code>year</code> literal
+with <code>_y</code>.  And one can stream out a <code>year</code> for debugging purposes.
+<code>year</code> has explicit conversions to and from <code>int</code>.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>year</code> is a trivially copyable class type.</br>
+<code>year</code> is a standard-layout class type.</br>
+<code>year</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr year::year(int y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year</code> by constructing
+<code>y_</code> with <code>y</code>.
+</p>
+</blockquote>
+
+<pre>
+year&amp; year::operator++() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++y_</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year year::operator++(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+year&amp; year::operator--() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--y_</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year year::operator--(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+year&amp; year::operator+=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + y</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year&amp; year::operator-=(const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - y</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr explicit year::operator int() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool year::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>min() &lt;= *this &amp;&amp; *this &lt;= max()</code>.
+</p>
+</blockquote>
+
+<pre>
+static constexpr year year::min() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>year</code> constructed with the minimum representable year
+number. This year shall be a value such that
+<code>day_point{min()/1_w/mon} + Unit{0}</code>, where <code>Unit</code> is one of
+<code>microseconds</code>, <code>milliseconds</code>, <code>seconds</code>,
+<code>minutes</code>, or <code>hours</code>, there shall be no overflow.  [<i>Note:</i>
+<code>nanoseconds</code> is intentionally omitted from this list. &mdash; <i>end note</i>]
+</p>
+</blockquote>
+
+<pre>
+static constexpr year year::max() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> A <code>year</code> constructed with the maximum representable year
+number. This year shall be a value such that
+<code>day_point{max()/last/sun} + Unit{0}</code>, where <code>Unit</code> is one of
+<code>microseconds</code>, <code>milliseconds</code>, <code>seconds</code>,
+<code>minutes</code>, or <code>hours</code>, there shall be no overflow.  [<i>Note:</i>
+<code>nanoseconds</code> is intentionally omitted from this list. &mdash; <i>end note</i>]
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>int{x} == int{y}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>int{x} &lt; int{y}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const year&amp; x, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year  operator+(const year&amp;  x, const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>year{int{x} + y.count()}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year  operator+(const years&amp; x, const year&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y + x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year  operator-(const year&amp;  x, const years&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x + -y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr years operator-(const year&amp;  x, const year&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>years{int{x} - int{y}}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year operator "" _y(unsigned long long y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>year{static_cast&lt;int&gt;(y)}</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year&amp; y);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts a signed decimal integral text representation of <code>y</code>
+into <code>os</code>. If the year is less than four decimal digits, pads the year with
+<code>'0'</code> to four digits.  If the year is negative, prefixes with <code>'-'</code>.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year operator "" _y(unsigned long long y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>year{static_cast&lt;int&gt;(y)}</code>.
 </p>
 </blockquote>
 
