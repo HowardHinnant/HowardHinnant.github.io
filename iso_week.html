@@ -229,6 +229,7 @@ and predictable.
 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
 <tr><td>&nbsp;</td><td><a href="#weekday"><code>weekday</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#weeknum"><code>weeknum</code></a></td></tr>
 
 </table>
 
@@ -676,6 +677,315 @@ output for the weekday field by <code>asctime</code>, assuming the conversion
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="weeknum"></a><h3><code>weeknum</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class weeknum
+{
+    unsigned char wn_;  // exposition only
+
+public:
+    explicit constexpr weeknum(unsigned wn) noexcept;
+
+    weeknum&amp; operator++() noexcept;
+    weeknum operator++(int) noexcept;
+    weeknum&amp; operator--() noexcept;
+    weeknum operator--(int) noexcept;
+
+    weeknum&amp; operator+=(const weeks&amp; w) noexcept;
+    weeknum&amp; operator-=(const weeks&amp; w) noexcept;
+
+    constexpr explicit operator unsigned() const noexcept;
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const weeknum&amp; x, const weeknum&amp; y) noexcept;
+constexpr bool operator!=(const weeknum&amp; x, const weeknum&amp; y) noexcept;
+constexpr bool operator&lt; (const weeknum&amp; x, const weeknum&amp; y) noexcept;
+constexpr bool operator&gt; (const weeknum&amp; x, const weeknum&amp; y) noexcept;
+constexpr bool operator&lt;=(const weeknum&amp; x, const weeknum&amp; y) noexcept;
+constexpr bool operator&gt;=(const weeknum&amp; x, const weeknum&amp; y) noexcept;
+
+constexpr weeknum operator+(const weeknum&amp; x, const weeks&amp;   y) noexcept;
+constexpr weeknum operator+(const weeks&amp;   x, const weeknum&amp; y) noexcept;
+constexpr weeknum operator-(const weeknum&amp; x, const weeks&amp;   y) noexcept;
+constexpr weeks   operator-(const weeknum&amp; x, const weeknum&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weeknum&amp; wn);
+
+inline namespace literals
+{
+
+constexpr weeknum operator "" _w(unsigned long long wn) noexcept;
+
+}
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>weeknum</code> represents a week number of of the ISO week-year [1, 53]. It should
+only be representing values in the range 1 to 53.  However it may hold values outside this
+range.  It can be constructed with any <code>unsigned</code> value, which will be
+subsequently truncated to fit into <code>weeknum</code>'s internal storage. 
+<code>weeknum</code> is equality and less-than comparable, and participates in basic
+arithmetic with <code>weeks</code> representing the quantity between any two
+<code>weeknum</code>'s.   One can stream out a <code>weeknum</code> for debugging
+purposes. <code>weeknum</code> has explicit conversions to and from <code>unsigned</code>.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>weeknum</code> is a trivially copyable class type.</br>
+<code>weeknum</code> is a standard-layout class type.</br>
+<code>weeknum</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr weeknum::weeknum(unsigned wn) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>weeknum</code> by constructing
+<code>wn_</code> with <code>wn</code>.
+</p>
+</blockquote>
+
+<pre>
+weeknum&amp; weeknum::operator++() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++wn_</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+weeknum weeknum::operator++(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>++(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+weeknum&amp; weeknum::operator--() noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--wn_</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+weeknum weeknum::operator--(int) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>--(*this)</code>.
+</p>
+<p>
+<i>Returns:</i> A copy of <code>*this</code> as it existed on entry to this member
+function.
+</p>
+</blockquote>
+
+<pre>
+weeknum&amp; weeknum::operator+=(const weeks&amp; w) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + w</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+weeknum&amp; weeknum::operator-=(const weeks&amp; w) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - w</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr explicit weeknum::operator unsigned() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wn_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool weeknum::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>1 &lt;= wn_ && wn_ &lt;= 53</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const weeknum&amp; x, const weeknum&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>unsigned{x} == unsigned{y}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const weeknum&amp; x, const weeknum&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt; (const weeknum&amp; x, const weeknum&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>unsigned{x} &lt; unsigned{y}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt; (const weeknum&amp; x, const weeknum&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const weeknum&amp; x, const weeknum&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const weeknum&amp; x, const weeknum&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weeknum  operator+(const weeknum&amp;  x, const weeks&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>weeknum{unsigned{x} + static_cast&lt;unsigned&gt;(y.count())}</code>
+</p>
+</blockquote>
+
+<pre>
+constexpr weeknum  operator+(const weeks&amp; x, const weeknum&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y + x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weeknum  operator-(const weeknum&amp;  x, const weeks&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x + -y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weeks operator-(const weeknum&amp;  x, const weeknum&amp;  y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>weeks{static_cast&lt;weeks::rep&gt;(unsigned{x}) -
+              static_cast&lt;weeks::rep&gt;(unsigned{y})}</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weeknum&amp; wn);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Inserts 'W' followed by a decimal integral text representation of
+length 2, prefixed by '0' if the value is less than or equal to 9.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+<p>
+<i>Example:</i> <code>5_w</code> is output as <code>W05</code>.</i>
+</p>
+</blockquote>
+
+<pre>
+constexpr weeknum operator "" _w(unsigned long long wn) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>weeknum{static_cast&lt;unsigned&gt;(wn)}</code>.
 </p>
 </blockquote>
 
