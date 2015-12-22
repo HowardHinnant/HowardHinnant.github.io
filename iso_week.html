@@ -236,6 +236,8 @@ and predictable.
 <tr><td>&nbsp;</td><td><a href="#year_weeknum"><code>year_weeknum</code></a></td></tr>
 <tr><td>&nbsp;</td><td><a href="#year_lastweek"><code>year_lastweek</code></a></td></tr>
 <tr><td>&nbsp;</td><td><a href="#weeknum_weekday"><code>weeknum_weekday</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#lastweek_weekday"><code>lastweek_weekday</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
 </table>
 
@@ -1955,6 +1957,155 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const weeknum_weekday&a
 <blockquote>
 <p>
 <i>Effects:</i> <code>os &lt;&lt; md.weeknum() &lt;&lt; '-' &lt;&lt; md.weekday()</code>.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="lastweek_weekday"></a><h3><code>lastweek_weekday</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class lastweek_weekday
+{
+    iso_week::weekday wd_;  // exposition only
+
+public:
+    explicit constexpr lastweek_weekday(const iso_week::weekday&amp; wd) noexcept;
+
+    constexpr iso_week::weekday weekday() const noexcept;
+
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+constexpr bool operator!=(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+constexpr bool operator&lt; (const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+constexpr bool operator&gt; (const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+constexpr bool operator&lt;=(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+constexpr bool operator&gt;=(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const lastweek_weekday&amp; md);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>lastweek_weekday</code> represents a weekday in the last week of an unspecified
+year.  <code>lastweek_weekday</code> is equality and less-than comparable.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>lastweek_weekday</code> is a trivially copyable class type.</br>
+<code>lastweek_weekday</code> is a standard-layout class type.</br>
+<code>lastweek_weekday</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr lastweek_weekday::lastweek_weekday(const iso_week::weekday&amp; wd) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>lastweek_weekday</code> by constructing
+<code>wd_</code> with <code>wd</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr iso_week::weekday lastweek_weekday::weekday() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool lastweek_weekday::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>wd_.ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.weekday() == y.weekday()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>unsigned{x.weekday()} &lt; unsigned{y.weekday()}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const lastweek_weekday&amp; x, const lastweek_weekday&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const lastweek_weekday&amp; md);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>os &lt;&lt; "W last-" &lt;&lt; md.weekday()</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
