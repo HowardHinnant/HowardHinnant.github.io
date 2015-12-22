@@ -234,6 +234,7 @@ and predictable.
 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
 <tr><td>&nbsp;</td><td><a href="#year_weeknum"><code>year_weeknum</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#year_lastweek"><code>year_lastweek</code></a></td></tr>
 
 </table>
 
@@ -1557,12 +1558,236 @@ constexpr year_weeknum operator-(const year_weeknum&amp; ym, const years&amp; dy
 </blockquote>
 
 <pre>
-std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_weeknum&amp; ym);
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_weeknum&amp; ywn);
 </pre>
 
 <blockquote>
 <p>
 <i>Effects:</i> <code>os &lt;&lt; ywn.year() &lt;&lt; '-' &lt;&lt; ywn.weeknum()</code>.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+<a name="year_lastweek"></a><h3><code>year_lastweek</code></h3>
+
+<blockquote>
+<p><b>Synopsis</b></p>
+
+<pre>
+class year_lastweek
+{
+    iso_week::year y_;
+
+public:
+    explicit constexpr year_lastweek(const iso_week::year&amp; y) noexcept;
+
+    constexpr iso_week::year    year()    const noexcept;
+    constexpr iso_week::weeknum weeknum() const noexcept;
+
+    year_lastweek&amp; operator+=(const years&amp; dy) noexcept;
+    year_lastweek&amp; operator-=(const years&amp; dy) noexcept;
+
+    constexpr bool ok() const noexcept;
+};
+
+constexpr bool operator==(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+constexpr bool operator!=(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+constexpr bool operator&lt; (const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+constexpr bool operator&gt; (const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+constexpr bool operator&lt;=(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+constexpr bool operator&gt;=(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+
+constexpr year_lastweek operator+(const year_lastweek&amp; ym, const years&amp; dy) noexcept;
+constexpr year_lastweek operator+(const years&amp; dy, const year_lastweek&amp; ym) noexcept;
+constexpr year_lastweek operator-(const year_lastweek&amp; ym, const years&amp; dy) noexcept;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_lastweek&amp; ym);
+</pre>
+
+<p><b>Overview</b></p>
+
+<p>
+<code>year_lastweek</code> represents a ISO week <code>year</code> and the last week of
+that year.  One can perform year-oriented arithmetic with a <code>year_lastweek</code>.  And
+<code>year_lastweek</code> is equality and less-than comparable.
+</p>
+
+<p><b>Specification</b></p>
+
+<p>
+<code>year_lastweek</code> is a trivially copyable class type.</br>
+<code>year_lastweek</code> is a standard-layout class type.</br>
+<code>year_lastweek</code> is a literal class type.</br>
+</p>
+
+<pre>
+explicit constexpr year_lastweek::year_lastweek(const iso_week::year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>year_lastweek</code> by constructing
+<code>y_</code> with <code>y</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr iso_week::year year_lastweek::year() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr iso_week::weeknum year_lastweek::weeknum() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> The ISO week number for the last week of the year <code>y_</code>.
+</p>
+</blockquote>
+
+<pre>
+year_lastweek&amp; year_lastweek::operator+=(const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this + dy</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+year_lastweek&amp; year_lastweek::operator-=(const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>*this = *this - dy</code>.
+</p>
+<p>
+<i>Returns:</i> <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool year_lastweek::ok() const noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y_.ok()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator==(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.year() == y.year()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator!=(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>x.year() &lt; y.year()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&lt;=(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr bool operator&gt;=(const year_lastweek&amp; x, const year_lastweek&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_lastweek operator+(const year_lastweek&amp; ym, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>year_lastweek{ym.year() + dy}</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_lastweek operator+(const years&amp; dy, const year_lastweek&amp; ym) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ym + dy</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr year_lastweek operator-(const year_lastweek&amp; ym, const years&amp; dy) noexcept;
+</pre>
+
+<blockquote>
+<p>
+<i>Returns:</i> <code>ym + -dy</code>.
+</p>
+</blockquote>
+
+<pre>
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_lastweek&amp; ywn);
+</pre>
+
+<blockquote>
+<p>
+<i>Effects:</i> <code>os &lt;&lt; ywn.year() &lt;&lt; "-W last"</code>.
 </p>
 <p>
 <i>Returns:</i> <code>os</code>.
