@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-12-22<br/>
+2015-12-23<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -203,8 +203,6 @@ solid step towards finding bugs at compile time!
 
 <a name="Reference"></a><h2>Reference</h2>
 
-<p><i>Under construction!</i></p>
-
 <p>
 Here is a detailed specification of the entire library.  This specification is detailed
 enough that you could write your own implementation from it if desired.  But feel free
@@ -242,6 +240,38 @@ and predictable.
 <tr><td>&nbsp;</td><td><a href="#year_weeknum_weekday"><code>year_weeknum_weekday</code></a></td></tr>
 <tr><td>&nbsp;</td><td><a href="#year_lastweek_weekday"><code>year_lastweek_weekday</code></a></td></tr>
 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+<tr><td>date composition operators</td><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><a href="#_1"><code>constexpr year_weeknum operator/(const year&amp; y, const weeknum& wn) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_2"><code>constexpr year_weeknum operator/(const year&amp; y, int            wn) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+<tr><td>&nbsp;</td><td><a href="#_3"><code>constexpr year_lastweek operator/(const year&amp; y, last_week      wn) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+<tr><td>&nbsp;</td><td><a href="#_4"><code>constexpr weeknum_weekday operator/(const weeknum&amp; wn, const weekday&amp; wd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_5"><code>constexpr weeknum_weekday operator/(const weeknum&amp; wn, int            wd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_6"><code>constexpr weeknum_weekday operator/(const weekday&amp; wd, const weeknum&amp; wn) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_7"><code>constexpr weeknum_weekday operator/(const weekday&amp; wd, int            wn) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+<tr><td>&nbsp;</td><td><a href="#_8"><code>constexpr lastweek_weekday operator/(const last_week&amp; wn, const weekday&amp; wd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_9"><code>constexpr lastweek_weekday operator/(const last_week&amp; wn, int            wd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_10"><code>constexpr lastweek_weekday operator/(const weekday&amp; wd, const last_week&amp; wn) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+<tr><td>&nbsp;</td><td><a href="#_11"><code>constexpr year_weeknum_weekday operator/(const year_weeknum&amp; ywn, const weekday&amp; wd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_12"><code>constexpr year_weeknum_weekday operator/(const year_weeknum&amp; ywn, int            wd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_13"><code>constexpr year_weeknum_weekday operator/(const weeknum_weekday&amp; wnwd, const year&amp; y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_14"><code>constexpr year_weeknum_weekday operator/(const weeknum_weekday&amp; wnwd, int         y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+<tr><td>&nbsp;</td><td><a href="#_15"><code>constexpr year_lastweek_weekday operator/(const year_lastweek&amp; ylw, const weekday&amp; wd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_16"><code>constexpr year_lastweek_weekday operator/(const year_lastweek&amp; ylw, int            wd) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+<tr><td>&nbsp;</td><td><a href="#_17"><code>constexpr year_lastweek_weekday operator/(const lastweek_weekday&amp; lwwd, const year&amp; y) noexcept;</code></a></td></tr>
+<tr><td>&nbsp;</td><td><a href="#_18"><code>constexpr year_lastweek_weekday operator/(const lastweek_weekday&amp; lwwd, int         y) noexcept;</code></a></td></tr>
 </table>
 
 <p>
@@ -2664,6 +2694,228 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const year_lastweek_wee
 <p>
 <i>Returns:</i> <code>os</code>.
 </p>
+</blockquote>
+
+</blockquote>
+
+<h3>date composition operators</h3>
+
+<blockquote>
+
+<p>
+To understand this API it is not necessary for you to memorize each of these operators.
+Indeed, that would be detrimental to understanding this API.  Instead it is sufficient
+to known that this collection of operators implement constructions in 3 orders:
+</p>
+
+<ol>
+<li><code>year/weeknum/weekday</code></li>
+<li><code>weeknum/weekday/year</code></li>
+<li><code>weekday/weeknum/year</code></li>
+</ol>
+
+<p>
+The first component in each order must be properly typed, the following components may
+be specified with the proper type or an <code>int</code>.
+</p>
+
+<p>
+Anywhere a "weeknum" is required one can also specify <code>last</code> to indicate the
+last week of the year.
+</p>
+
+<p>
+Sub-field-types such as <code>year_weeknum</code> and <code>weeknum_weekday</code> can be
+created by simply not applying the second division operator for any of the three orders. 
+For example:
+</p>
+
+<blockquote><pre>
+year_weeknum ym = 2015_y/52_w;
+weeknum_weekday md1 = 52_w/thu;
+weeknum_weekday md2 = thu/52_w;
+</pre></blockquote>
+
+<p>
+Everything not intended as above is caught as a compile-time error, with the notable
+exception of an expression that consists of nothing but <code>int</code>, which of course
+has type <code>int</code>.
+</p>
+
+<blockquote><pre>
+auto a = 2015/4/4;       // a == int(125)
+auto b = 2015_y/4/4;     // b == year_weeknum_weekday{year(2015), week(4), weekday(4)}
+auto c = 2015_y/thu/4_w; // error: invalid operands to binary expression ('iso_week::year' and 'iso_week::weekday')
+auto d = 2015/4_w/4;     // error: invalid operands to binary expression ('int' and 'const iso_week::weeknum')
+</pre></blockquote>
+
+<p>
+The last example may be clear to a human reader.  But the compiler doesn't know if
+<code>2015</code> refers to a <code>year</code> or a <code>weekday</code>.  Instead of
+guessing, the compiler flags it as an error.
+</p>
+
+<p>
+In short, you will either write unambiguous and readable code, or you will get a
+compile-time error.
+</p>
+
+<hr>
+
+<p><b><code>year_weeknum</code>:</b></p>
+
+<a name="_1"></a><pre>
+constexpr year_weeknum operator/(const year&amp; y, const weeknum& wn) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{y, wn}</code>.
+</blockquote>
+
+<a name="_2"></a><pre>
+constexpr year_weeknum operator/(const year&amp; y, int wn) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>y / weeknum(wn)</code>.
+</blockquote>
+
+<p><b><code>year_lastweek</code>:</b></p>
+
+<a name="_3"></a><pre>
+constexpr year_lastweek operator/(const year&amp; y, last_week) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>year_lastweek{y}</code>.
+</blockquote>
+
+<p><b><code>weeknum_weekday</code>:</b></p>
+
+<a name="_4"></a><pre>
+constexpr weeknum_weekday operator/(const weeknum&amp; wn, const weekday&amp; wd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{wn, wd}</code>.
+</blockquote>
+
+<a name="_5"></a><pre>
+constexpr weeknum_weekday operator/(const weeknum&amp; wn, int wd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>wn / weekday{static_cast&lt;unsigned&gt;(wd)}</code>.
+</blockquote>
+
+<a name="_6"></a><pre>
+constexpr weeknum_weekday operator/(const weekday&amp; wd, const weeknum&amp; wn) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>wn / wd</code>.
+</blockquote>
+
+<a name="_7"></a><pre>
+constexpr weeknum_weekday operator/(const weekday&amp; wd, int wn) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>weeknum{static_cast&lt;unsigned&gt;(wn)} / wd</code>.
+</blockquote>
+
+<p><b><code>lastweek_weekday</code>:</b></p>
+
+<a name="_8"></a><pre>
+constexpr lastweek_weekday operator/(const last_week&amp;, const weekday&amp; wd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>lastweek_weekday{wd}</code>.
+</blockquote>
+
+<a name="_9"></a><pre>
+constexpr lastweek_weekday operator/(const last_week&amp; wn, int wd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>wn / weekday{static_cast&lt;unsigned&gt;(wd)}</code>.
+</blockquote>
+
+<a name="_10"></a><pre>
+constexpr lastweek_weekday operator/(const weekday&amp; wd, const last_week&amp; wn) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>wn / wd</code>.
+</blockquote>
+
+<p><b><code>year_weeknum_weekday</code>:</b></p>
+
+<a name="_11"></a><pre>
+constexpr year_weeknum_weekday operator/(const year_weeknum&amp; ywn, const weekday&amp; wd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{ywn.year(), ywn.weeknum(), wd}</code>.
+</blockquote>
+
+<a name="_12"></a><pre>
+constexpr year_weeknum_weekday operator/(const year_weeknum&amp; ywn, int wd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>ywn / weekday{static_cast&lt;unsigned&gt;(wd)}</code>.
+</blockquote>
+
+<a name="_13"></a><pre>
+constexpr year_weeknum_weekday operator/(const weeknum_weekday&amp; wnwd, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{y, wnwd.weeknum(), wnwd.weekday()}</code>.
+</blockquote>
+
+<a name="_14"></a><pre>
+constexpr year_weeknum_weekday operator/(const weeknum_weekday&amp; wnwd, int y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>wnwd / year{y}</code>.
+</blockquote>
+
+<p><b><code>year_lastweek_weekday</code>:</b></p>
+
+<a name="_15"></a><pre>
+constexpr year_lastweek_weekday operator/(const year_lastweek&amp; ylw, const weekday&amp; wd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{ylw.year(), wd}</code>.
+</blockquote>
+
+<a name="_16"></a><pre>
+constexpr year_lastweek_weekday operator/(const year_lastweek&amp; ylw, int wd) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>ylw / weekday{static_cast&lt;unsigned&gt;(wd)}</code>.
+</blockquote>
+
+<a name="_17"></a><pre>
+constexpr year_lastweek_weekday operator/(const lastweek_weekday&amp; lwwd, const year&amp; y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>{y, lwwd.weekday()}</code>.
+</blockquote>
+
+<a name="_18"></a><pre>
+constexpr year_lastweek_weekday operator/(const lastweek_weekday&amp; lwwd, int y) noexcept;
+</pre>
+
+<blockquote>
+<i>Returns:</i> <code>lwwd / year{y}</code>.
 </blockquote>
 
 </blockquote>
