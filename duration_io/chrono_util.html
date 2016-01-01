@@ -8,7 +8,7 @@
 
 <address align=right>
 <a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
-2014-11-29
+2016-01-01
 </address>
 <hr>
 
@@ -21,14 +21,78 @@ A few simple utility functions for working with <code>duration</code>s.
 <h2>Rounding functions</h2>
 
 <blockquote><pre>
-<font color="#C80000">// truncate towards zero</font>
+namespace detail {
+
+template &lt;class T&gt;
+struct choose_trunc_type
+{
+    static const int digits = std::numeric_limits&lt;T&gt;::digits;
+    using type = typename std::conditional
+                 &lt;
+                     digits &lt; 32,
+                     std::int32_t,
+                     typename std::conditional
+                     &lt;
+                         digits &lt; 64,
+                         std::int64_t,
+#ifdef __SIZEOF_INT128__
+                         __int128
+#else
+                         std::int64_t
+#endif
+                     &gt;::type
+                 &gt;::type;
+};
+
+template &lt;class T&gt;
+constexpr
+inline
+typename std::enable_if
+&lt;
+    !std::chrono::treat_as_floating_point&lt;T&gt;::value,
+    T
+&gt;::type
+trunc(T t) NOEXCEPT
+{
+    return t;
+}
+
+template &lt;class T&gt;
+constexpr
+inline
+typename std::enable_if
+&lt;
+    std::chrono::treat_as_floating_point&lt;T&gt;::value,
+    T
+&gt;::type
+trunc(T t) NOEXCEPT
+{
+    using namespace std;
+    using I = typename choose_trunc_type&lt;T&gt;::type;
+    constexpr auto digits = numeric_limits&lt;T&gt;::digits;
+    static_assert(digits &lt; numeric_limits&lt;I&gt;::digits, "");
+    constexpr auto max = I{1} &lt;&lt; (digits-1);
+    constexpr auto min = -max;
+    const auto negative = t &lt; T{0};
+    if (min &lt;= t &amp;&amp; t &lt;= max &amp;&amp; t != 0 &amp;&amp; t == t)
+    {
+        t = static_cast&lt;T&gt;(static_cast&lt;I&gt;(t));
+        if (t == 0 &amp;&amp; negative)
+            t = -t;
+    }
+    return t;
+}
+
+}  <font color="#C80000">// detail</font>
+
+<font color="#C80000">// trunc towards zero</font>
 template &lt;class To, class Rep, class Period&gt;
 constexpr
 inline
 To
-truncate(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
+trunc(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
 {
-    return std::chrono::duration_cast&lt;To&gt;(d);
+    return To{detail::trunc(std::chrono::duration_cast&lt;To&gt;(d).count())};
 }
 
 <font color="#C80000">// round down</font>
@@ -38,9 +102,9 @@ inline
 To
 floor(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
 {
-    To t = std::chrono::duration_cast&lt;To&gt;(d);
+    auto t = trunc&lt;To&gt;(d);
     if (t &gt; d)
-        t = t - To{1};
+        return t - To{1};
     return t;
 }
 
@@ -51,17 +115,19 @@ inline
 To
 round(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
 {
-    To t0 = floor&lt;To&gt;(d);
-    To t1 = t0 + To{1};
+    auto t0 = floor&lt;To&gt;(d);
+    auto t1 = t0 + To{1};
+    if (t1 == To{0} &amp;&amp; t0 &lt; To{0})
+        t1 = -t1;
     auto diff0 = d - t0;
     auto diff1 = t1 - d;
     if (diff0 == diff1)
     {
-        if (t0.count() &amp; 1)
-            return t1;
-        return t0;
+        if (t0 - trunc&lt;To&gt;(t0/2)*2 == To{0})
+            return t0;
+        return t1;
     }
-    else if (diff0 &lt; diff1)
+    if (diff0 &lt; diff1)
         return t0;
     return t1;
 }
@@ -73,20 +139,21 @@ inline
 To
 ceil(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
 {
-    To t = std::chrono::duration_cast&lt;To&gt;(d);
+    auto t = trunc&lt;To&gt;(d);
     if (t &lt; d)
-        t = t + To{1};
+        return t + To{1};
     return t;
 }
 
-<font color="#C80000">// truncate towards zero</font>
+<font color="#C80000">// trunc towards zero</font>
 template &lt;class To, class Clock, class FromDuration&gt;
 constexpr
 inline
 std::chrono::time_point&lt;Clock, To&gt;
-truncate(const std::chrono::time_point&lt;Clock, FromDuration&gt;&amp; tp)
+trunc(const std::chrono::time_point&lt;Clock, FromDuration&gt;&amp; tp)
 {
-    return std::chrono::time_point_cast&lt;To&gt;(tp);
+    using std::chrono::time_point;
+    return time_point&lt;Clock, To&gt;{trunc&lt;To&gt;(tp.time_since_epoch())};
 }
 
 <font color="#C80000">// round down</font>
@@ -181,12 +248,9 @@ the chrono library! :-)).
 template &lt;class Rep, class Period,
           class = typename std::enable_if
           &lt;
-              std::chrono::duration&lt;Rep, Period&gt;::min() &lt;
-              std::chrono::duration&lt;Rep, Period&gt;::zero()
-          &gt;::type
-         &gt;
-constexpr
-inline
+              std::numeric_limits&lt;Rep&gt;::is_signed
+          &gt;::type&gt;
+CONSTCD11
 std::chrono::duration&lt;Rep, Period&gt;
 abs(std::chrono::duration&lt;Rep, Period&gt; d)
 {
