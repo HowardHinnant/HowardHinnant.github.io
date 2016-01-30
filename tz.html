@@ -725,7 +725,7 @@ const Zone* locate_zone(const std::string&amp; tz_name);
 </pre></blockquote>
 
 <p>
-<code>locale_zone</code> returns a pointer to a <code>Zone</code> in the database
+<code>locate_zone</code> returns a pointer to a <code>Zone</code> in the database
 associated with <code>tz_name</code>.  If it can't find a <code>Zone</code> named
 <code>tz_name</code>, the implementation will search for a <code>Link</code> named
 <code>tz_name</code>, and then return the <code>Zone</code> associated with the
