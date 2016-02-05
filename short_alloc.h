@@ -70,6 +70,8 @@ arena<N, alignment>::allocate(std::size_t n)
         ptr_ += aligned_n;
         return r;
     }
+
+    static_assert(alignment <= alignof(std::max_align_t), "you've chosen an alignment that is larger than alignof(std::max_align_t), and cannot be guaranteed by normal operator new");
     return static_cast<char*>(::operator new(n));
 }
 
