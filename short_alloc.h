@@ -78,7 +78,7 @@ void
 arena<N, alignment>::deallocate(char* p, std::size_t n) noexcept
 {
 
-    if (p + n <= buf_ + N)
+    if ((buf_ <= p) && (p + n <= buf_ + N))
     {
         n = align_up(n);
         if (p + n == ptr_)
