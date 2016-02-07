@@ -64,7 +64,7 @@ arena<N, alignment>::allocate(std::size_t n)
     static_assert(ReqAlign <= alignment, "alignment is too small for this arena");
     assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
     auto const aligned_n = align_up(n);
-    if (ptr_ + aligned_n <= buf_ + N)
+    if (static_cast<decltype(aligned_n)>(buf_ + N - ptr_) >= aligned_n)
     {
         char* r = ptr_;
         ptr_ += aligned_n;
