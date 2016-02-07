@@ -62,16 +62,18 @@ char*
 arena<N, alignment>::allocate(std::size_t n)
 {
     static_assert(ReqAlign <= alignment, "alignment is too small for this arena");
-
+    assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
     auto const aligned_n = align_up(n);
-    if (ptr_ + n <= buf_ + N)
+    if (ptr_ + aligned_n <= buf_ + N)
     {
         char* r = ptr_;
         ptr_ += aligned_n;
         return r;
     }
 
-    static_assert(alignment <= alignof(std::max_align_t), "you've chosen an alignment that is larger than alignof(std::max_align_t), and cannot be guaranteed by normal operator new");
+    static_assert(alignment <= alignof(std::max_align_t), "you've chosen an "
+                  "alignment that is larger than alignof(std::max_align_t), and "
+                  "cannot be guaranteed by normal operator new");
     return static_cast<char*>(::operator new(n));
 }
 
@@ -79,8 +81,8 @@ template <std::size_t N, std::size_t alignment>
 void
 arena<N, alignment>::deallocate(char* p, std::size_t n) noexcept
 {
-
-    if ((buf_ <= p) && (p + n <= buf_ + N))
+    assert(pointer_in_buffer(ptr_) && "short_alloc has outlived arena");
+    if (pointer_in_buffer(p))
     {
         n = align_up(n);
         if (p + n == ptr_)
@@ -106,7 +108,10 @@ public:
     short_alloc(const short_alloc&) = default;
     short_alloc& operator=(const short_alloc&) = delete;
 
-    short_alloc(arena_type& a) noexcept : a_(a) {}
+    short_alloc(arena_type& a) noexcept : a_(a)
+    {
+        static_assert(N % alignment == 0, "size N needs to be a multiple of alignment Align");
+    }
     template <class U>
         short_alloc(const short_alloc<U, N, alignment>& a) noexcept
             : a_(a.a_) {}
