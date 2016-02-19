@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-08-08<br/>
+2016-02-19<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -378,6 +378,7 @@ class Rule;
 
 struct TZ_DB
 {
+    std::string       version;
     std::vector&lt;Zone&gt; zones;
     std::vector&lt;Link&gt; links;
     std::vector&lt;Leap&gt; leaps;
@@ -434,6 +435,7 @@ The database is represented with the type <code>TZ_DB</code>:
 <blockquote><pre>
 struct TZ_DB
 {
+    std::string       version;
     std::vector&lt;Zone&gt; zones;
     std::vector&lt;Link&gt; links;
     std::vector&lt;Leap&gt; leaps;
@@ -494,6 +496,12 @@ for (auto&amp; link : db.links)
 If you aren't happy with the format this outputs in, <code>Link</code> has public member
 functions <code>name()</code> and <code>target()</code> so that you can achieve whatever
 format you desire.
+</p>
+
+<p>
+If needed, <code>db.version</code> is a <code>std::string</code> containing the
+<a href="http://www.iana.org/time-zones">IANA Time Zone Database</a> version of the
+database you are reading.  For example the current version is "2016a".
 </p>
 
 <p>
