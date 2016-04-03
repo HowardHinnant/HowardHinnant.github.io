@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2016-02-19<br/>
+2016-04-03<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -54,6 +54,8 @@ Commons Attribution 4.0 International License</a>.
     <li><a href="#flightexample1">Flight Example</a></li>
     <li><a href="#utc_clock">utc_clock</a></li>
     <li><a href="#flightexample2">Flight Example with leap seconds</a></li>
+    <li><a href="#Formatting">Formatting</a></li>
+    <li><a href="#Parsing">Parsing</a></li>
     <li><a href="#ThreadSafety">Thread Safety</a></li>
     </ul>
 </li>
@@ -414,6 +416,30 @@ public:
             typename std::common_type&lt;Duration, std::chrono::seconds&gt;::type&gt;
         utc_to_sys(std::chrono::time_point&lt;utc_clock, Duration&gt; t);
 };
+
+template &lt;class Duration&gt;
+std::string
+format(const std::locale&amp; loc, std::string format,
+       std::chrono::time_point&lt;std::chrono::system_clock, Duration&gt; tp,
+       const Zone* zone = nullptr);
+
+std::string
+format(const std::locale&amp; loc, std::string format, day_point tp,
+       const Zone* zone = nullptr);
+
+template &lt;class Duration&gt;
+std::string
+format(std::string format,
+       std::chrono::time_point&lt;std::chrono::system_clock, Duration&gt; tp,
+       const Zone* zone = nullptr);
+
+std::string
+format(std::string format, day_point tp, const Zone* zone = nullptr);
+
+template &lt;class Duration&gt;
+void
+parse(std::istream&amp; is, const std::string&amp; format,
+      std::chrono::time_point&lt;std::chrono::system_clock, Duration&gt;&amp; tp);
 
 }  // namespace date
 </pre></blockquote>
@@ -1411,6 +1437,193 @@ You too can analyze the <a href="http://www.iana.org/time-zones">IANA Time Zone
 Database</a> in creative and interesting ways no one else has thought of.  There is a lot
 of history here.
 </p></blockquote>
+
+<a name="Formatting"></a><h3>Formatting</h3>
+
+<p>
+All of the types in this library, as well as in
+<a href="date_v2.html"><code>date.h</code></a> are streamable when you need quick and
+simple output.  However in addition to this simplistic streaming there is more
+sophisticated formatting built on top of the C++11 <code>time_put&lt;char&gt;</code>
+facet.  <code>time_put&lt;char&gt;</code> itself is built on C's <code>strftime</code>
+function.  But <code>time_put&lt;char&gt;</code> is sensitive to C++ <code>locale</code>s.
+</p>
+
+<p>
+The basic way to use formatting is to call the <code>format</code> function like this:
+</p>
+
+<blockquote><pre>
+cout &lt;&lt; format("%A %F %T", floor&lt;seconds&gt;(system_clock::now())) &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+Which just output for me:
+</p>
+
+<blockquote><pre>
+Sunday 2016-04-03 22:02:19
+</pre></blockquote>
+
+<p>
+Note the cast to <code>seconds</code> precision in the call.  This is how you control
+the precision of the <code>seconds</code> output (if any).  The modifiers <code>%S</code>
+and <code>%T</code> will output seconds to whatever the precision is of the
+<code>time_point</code>.  For example:
+</p>
+
+<blockquote><pre>
+cout &lt;&lt; format("%A %F %T", floor&lt;milliseconds&gt;(system_clock::now())) &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+would instead output:
+</p>
+
+<blockquote><pre>
+Sunday 2016-04-03 22:02:19.656
+</pre></blockquote>
+
+<p>
+Note that there is an implicit time zone being used here:  UTC.  The <code>%z</code> and
+<code>%Z</code> modifiers can be used to show this:
+</p>
+
+<blockquote><pre>
+cout &lt;&lt; format("%A %F %T %z %Z", floor&lt;milliseconds&gt;(system_clock::now())) &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+would instead output:
+</p>
+
+<blockquote><pre>
+Sunday 2016-04-03 22:02:19.656 +0000 UTC
+</pre></blockquote>
+
+<p>
+A <code>Zone</code> can also be passed in and then the  <code>%z</code> and
+<code>%Z</code> modifiers will reflect that passed-in zone.  It is important to
+remember however that <code>format</code> <em>never</em> shifts the
+<code>time_point</code> for you.  Instead you pass in a <code>Zone</code> that you know
+to be associated with your <code>time_point</code>.  For example:
+</p>
+
+<blockquote><pre>
+auto zone = locate_zone("Europe/Berlin");
+auto local = zone-&gt;to_local(floor&lt;milliseconds&gt;(system_clock::now())).first;
+cout &lt;&lt; format("%A %F %T %z %Z", local, zone) &lt;&lt; '\n';
+</pre></blockquote>
+
+<blockquote><pre>
+Monday 2016-04-04 00:02:19.656 +0200 CEST
+</pre></blockquote>
+
+<p>
+The <i>only</i> thing <code>format</code> ever does with a <code>Zone</code> is extract
+the offset and/or the abbreviation for use with the <code>%z</code> and <code>%Z</code>
+modifiers.
+</p>
+
+<p>
+You can also pass in a <code>locale</code> to <code>format</code>:
+</p>
+
+<blockquote><pre>
+cout &lt;&lt; format(locale("de_DE"), "%A %F %T %z %Z", local, zone) &lt;&lt; '\n';
+</pre></blockquote>
+
+<blockquote><pre>
+Montag 2016-04-04 00:02:19,656 +0200 CEST
+</pre></blockquote>
+
+<p>
+The set of named locales that your OS supports is defined by your OS, not this library.
+</p>
+
+<p>
+Instead of a <code>time_point</code> you can also pass in anything that is implicitly
+convertible to <code>day_point</code>:
+</p>
+
+<blockquote><pre>
+cout &lt;&lt; format(locale("de_DE"), "%A %B %e, %Y", 2016_y/jul/mon[1]) &lt;&lt; '\n';
+</pre></blockquote>
+
+<blockquote><pre>
+Montag Juli  4, 2016
+</pre></blockquote>
+
+<p>
+In summary, use <code>format</code> by passing in a format string and a
+<code>time_point</code>, or something implicitly convertible to a <code>day_point</code>.
+You can optionally pass in a <code>locale</code> as the first parameter, and a
+<code>Zone</code> as the last parameter.  <code>format</code> will never alter the value
+of your <code>time_point</code>.  The precision of the <code>time_point</code> controls
+the precision of seconds with the <code>%S</code> and <code>%T</code> modifiers. If you
+pass in a <code>Zone</code>, this will only impact the output of <code>%z</code> and
+<code>%Z</code> (which default to <code>+0000</code> and <code>UTC</code> respectively).
+The output of <code>format</code> is a <code>std::string</code>.
+</p>
+
+<a name="Parsing"></a><h3>Parsing</h3>
+
+<p>
+Since all parts of all date-types in this library can be constructed with integral types,
+you can parse any format you wish as integrals, and create dates from any format you
+wish that way.
+</p>
+
+<p>
+However this section introduces a <code>parse</code> function which is built on top
+of the C++11 <code>time_get</code> facet which can also be used:
+</p>
+
+<blockquote><pre>
+template &lt;class Duration&gt;
+void
+parse(std::istream&amp; is, const std::string&amp; format,
+      std::chrono::time_point&lt;std::chrono::system_clock, Duration&gt;&amp; tp);
+</pre></blockquote>
+
+<p>
+You can input any <code>istream</code>, and a format string much like that used for
+<code>format</code> and <code>strftime</code>, and a <code>time_point</code> of any
+precision, and this function will attempt to extract the <code>time_point</code> from
+the <code>istream</code> by using the format <code>string</code>.  If not successful,
+the <code>time_point</code> will not be altered.
+</p>
+
+<p>
+Example use:
+</p>
+
+<blockquote><pre>
+istringstream is("Montag 2016-04-04 00:02:19,656 +0200");
+is.imbue(locale("de_DE"));
+system_clock::time_point tp;
+parse(is, "%A %F %T %z", tp);
+cout &lt;&lt; tp &lt;&lt; '\n';
+</pre></blockquote>
+
+<p>
+Which outputs:
+</p>
+
+<blockquote><pre>
+2016-04-03 22:02:19.656000
+</pre></blockquote>
+
+<p>
+Note that the <code>locale</code> associated with the <code>istream</code> is
+respected.  If the format string contains a <code>%z</code> which matches the
+input stream, this is used to convert the value to UTC.  If there is no <code>%z</code>,
+then no conversion happens (you can assume whatever timezone you want).  <code>%Z</code>
+is not accepted as the mapping from a timezone abbreviation to UTC is ambiguous.  Also
+note that fractional seconds are accepted as long as one uses <code>%T</code> or
+<code>%S</code>, and the precision of the <code>time_point</code> is fine enough to
+accept fractional seconds.
+</p>
 
 <a name="ThreadSafety"></a><h3>Thread Safety</h3>
 
