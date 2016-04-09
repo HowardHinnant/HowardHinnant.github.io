@@ -26,7 +26,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2016-04-03<br/>
+2016-04-09<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
 Commons License" style="border-width:0"
 src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
@@ -45,6 +45,7 @@ Commons Attribution 4.0 International License</a>.
 <li><a href="#Description">Description</a>
     <ul>
     <li><a href="#TheDatabase">The Database</a></li>
+    <li><a href="#remote">The remote API</a></li>
     <li><a href="#Zone">Zone</a>
         <ul>
         <li><a href="#Infrastructure">Infrastructure</a></li>
@@ -391,7 +392,12 @@ std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const TZ_DB&amp; db);
 
 const TZ_DB&amp; get_tzdb();
 const TZ_DB&amp; reload_tzdb();
-const TZ_DB&amp; reload_tzdb(const std::string&amp; new_install);
+
+#if HAS_REMOTE_API
+std::string remote_version();
+bool        remote_download(const std::string&amp; version);
+bool        remote_install(const std::string&amp; version);
+#endif
 
 class utc_clock
 {
@@ -527,7 +533,8 @@ format you desire.
 <p>
 If needed, <code>db.version</code> is a <code>std::string</code> containing the
 <a href="http://www.iana.org/time-zones">IANA Time Zone Database</a> version of the
-database you are reading.  For example the current version is "2016a".
+database you are reading.  For example the current version when this sentence
+was written was "2016a".
 </p>
 
 <p>
@@ -546,22 +553,62 @@ constraints will be reflected in these examples.
 <p>
 If you decide you need to reload the database say, because you want to install a new
 version of the <a href="http://www.iana.org/time-zones">IANA Time Zone Database</a>
-without stopping your program, you can use one of these functions:
+without stopping your program, you can use this function:
 </p>
 
 <blockquote><pre>
 const TZ_DB&amp; reload_tzdb();
-const TZ_DB&amp; reload_tzdb(const std::string&amp; new_install);
 </pre></blockquote>
 
 <p>
-The first re-initializes the database by reading from the <code>install</code> location
-you customized on installation.  The second updates that <code>install</code> variable
-with <code>new_install</code> and then re-initializes from this new location.  But if
-you stop your program and restart it, the original <code>install</code> variable will
-be back in effect.  The use of these <code>reload_tzdb</code> functions are not pain-free,
-and not for every application (not for most of them I'm guessing).  For example see the
-<b>Thread Safety</b> section for issues related to the use of these functions.
+This re-initializes the database by reading from the <code>install</code> location you
+customized on installation.  The use of the <code>reload_tzdb</code> function is not
+pain-free, and not for every application (not for most of them I'm guessing).  For example
+see the <b>Thread Safety</b> section for issues related to the use of these functions.
+</p>
+
+<a name="remote"></a><h3>The remote API</h3>
+
+<p>
+The remote API is enabled only if <code>HAS_REMOTE_API</code> is set to 1 during
+compilation.  See <a href="#Installation">Installation</a> for more details.
+</p>
+
+<blockquote><pre>
+std::string remote_version();
+</pre></blockquote>
+
+<p>
+This function will query the
+<a href="http://www.iana.org/time-zones">IANA Time Zone Database website</a> for the
+latest version number of the IANA database, and return it as a <code>std::string</code>.
+If an internet connection can not be made, an empty <code>string</code> is returned.
+This string can be compared against the version of your local copy of the database:
+<code>get_tzdb().version</code>.
+</p>
+
+<blockquote><pre>
+bool remote_download(const std::string&amp; version);
+</pre></blockquote>
+
+<p>
+This function will attempt to download the database with the version <code>version</code>
+from the <a href="http://www.iana.org/time-zones">IANA Time Zone Database website</a>.
+If successful, <code>true</code> is returned and a file named
+<code>version + ".tar.gz"</code>  will be stored at the location <code>install</code>.
+If not successful, <code>false</code> is returned.
+</p>
+
+<blockquote><pre>
+bool remote_install(const std::string&amp; version);
+</pre></blockquote>
+
+<p>
+This function will attempt to uncompress the tar file downloaded by
+<code>remote_download(version)</code> and replace any existing database with
+the result.  It will then delete the tar file.  If the tar file doesn't exist,
+<code>remote_install</code> will do nothing.  Returns <code>true</code> on
+success, else returns <code>false</code>.
 </p>
 
 <a name="Zone"></a><h3>Zone</h3>
@@ -1657,7 +1704,6 @@ comprehensive list of the public API that accesses the database:
 <blockquote><pre>
 <b><i>// Read/write access</i></b>
 const TZ_DB&amp; reload_tzdb();
-const TZ_DB&amp; reload_tzdb(const std::string&amp; new_install);
 
 <b><i>// Read-only access</i></b>
 
@@ -1707,7 +1753,7 @@ reference or pointer.
 </p>
 
 <p>
-<b>Emphasis:</b>  If you don't use the <code>reload_tzdb</code> functions, then all access
+<b>Emphasis:</b>  If you don't use the <code>reload_tzdb</code> function, then all access
 is <i>read-only</i> and there is no need for synchronization with an external mutex.
 </p>
 
@@ -1726,13 +1772,122 @@ contains the following string near the top:
 </p>
 
 <blockquote><pre>
-static std::string install{"/Users/howardhinnant/Downloads/tzdata2015e"};
+static std::string install{"~/Downloads/tzdata"};  //  "c:\\tzdata" on Windows
 </pre></blockquote>
 
 <p>
 You should set this such that <code>install</code> points to the directory
 where your library or application can find the downloaded and uncompressed
 <a href="http://www.iana.org/time-zones">IANA Time Zone Database</a>.
+</p>
+
+<p>
+There are three configuration macros that can be defined on the command line during
+compilation, or you can ignore them and they will take on default values.
+</p>
+
+<blockquote>
+<table cellpadding="5">
+<tr>
+<td><code>HAS_REMOTE_API</code></td>
+<td>Defaults to 1 on Linux and OS X, and to 0 on Windows</td>
+</tr>
+<tr>
+<td><code>AUTO_DOWNLOAD</code></td>
+<td>Defaults to <code>HAS_REMOTE_API</code></td>
+</tr>
+<tr>
+<td><code>LAZY_INIT</code></td>
+<td>Defaults to 1</td>
+</tr>
+</table>
+</blockquote>
+
+<p>
+If <code>HAS_REMOTE_API</code> is 1 then the <a href="#remote">remote API</a> exists,
+else it doesn't:
+</p>
+
+<blockquote><pre>
+std::string remote_version();
+bool        remote_download(const std::string&amp; version);
+bool        remote_install(const std::string&amp; version);
+</pre></blockquote>
+
+<p>
+The remote API requires linking against <code>libcurl</code>
+(<a href="https://curl.haxx.se/libcurl">https://curl.haxx.se/libcurl</a>).
+On OS X and Linux this is done with <code>-lcurl</code>.
+<code>libcurl</code> comes pre-installed on OS X and Linux, but not on Windows.
+However one can download it for Windows.
+</p>
+
+<p>
+If <code>AUTO_DOWNLOAD</code> is 1 then first access to the timezone database will install
+it if it hasn't been installed, and if it has, will use the remote API to install the
+latest version if not already installed.
+</p>
+
+<p>
+If <code>AUTO_DOWNLOAD</code> is 1 then <code>reload_tzdb()</code> will automatically
+check <code>remote_version()</code> against the local version, and if unchanged, will do
+nothing.  If <code>remote_version()</code> can't access the IANA website,
+<code>reload_tzdb()</code> will re-initialize the database anyway (perhaps you changed it
+manually because the net is down).  If the <code>remote_version()</code> is confirmed to
+have changed (and <code>AUTO_DOWNLOAD</code> is on), then <code>reload_tzdb()</code> will
+download and install the latest version.
+</p>
+
+<p>
+If <code>AUTO_DOWNLOAD</code> is off, <code>reload_tzdb()</code> re-initializes the
+database without using the remote API (presumably because it has been manually updated).
+</p>
+
+<p>
+If <code>HAS_REMOTE_API</code> is off and <code>AUTO_DOWNLOAD</code> is on, there will be
+a compile-time error as <code>AUTO_DOWNLOAD</code> needs the remote API.
+</p>
+
+<p>
+If <code>LAZY_INIT</code> is on, the <code>Zone</code>s are not fully compiled upon first
+access to the database.  As each <code>Zone</code> is accessed individaully by the
+programmer (when they are used), they are fully compiled at that point.  However, this
+further <code>Zone</code> compilation does not involve any access to the local copy of the
+tz database files.
+</p>
+
+<p>
+If <code>LAZY_INIT</code> is off, every <code>Zone</code> is fully compiled upon first
+access to the database.
+</p>
+
+<p>
+<code>LAZY_INIT</code> speeds up the initialization of the database, but slows down the
+first use of any individual <code>Zone</code>.  If you are only using a few
+<code>Zone</code>s then <code>LAZY_INIT</code> is a clear win.  If you are immediately
+using all of the <code>Zone</code>s (say for some database analysis) then
+<code>LAZY_INIT</code> is not a win.
+</p>
+
+<p>
+If <code>LAZY_INIT</code> is off, and you are on multi-core hardware, and your application
+has other unrelated initialization it has to take care of, spinning off timezone
+initialization into a detached thread can be an attractive option:
+</p>
+
+<blockquote><pre>
+int
+main()
+{
+    std::thread(date::get_tzdb).detach();
+    // other initialization ...
+}
+</pre></blockquote>
+
+<p>
+By the time your application actually needs to use the timezone database, it is likely to
+be fully initialized and ready to go.  And if it is not, C++11 threadsafe function local
+statics ensure there is no race condition on the initialization.
 </p>
 
 <p>
@@ -1781,7 +1936,7 @@ in with the rest of your library or application.
 </p>
 
 <p>
-You are responsible for keeping your
+If <code>AUTO_DOWNLOAD</code> is not enabled, you are responsible for keeping your
 <a href="http://www.iana.org/time-zones">IANA Time Zone Database</a> up to date.  New
 versions of it are released several times a year.  This library is not bundled with a
 specific version of the database already installed, nor is any specific version of the
@@ -1800,43 +1955,9 @@ that.
 </p>
 
 <p>
-The first call to <code>get_tzdb()</code>, which initializes the database, can be
-expensive.  The full database takes a few hundred milliseconds to initialize when compiled
-with full optimizations.  When compiled with no optimizations it can easily take ten times
-that long.  For that reason, you may want to compile
-<a href="https://github.com/HowardHinnant/date/blob/master/tz.cpp"><code>tz.cpp</code></a>
-into its own
-(optimized) library, at least while compiling your code in non-optimized debug builds.  If
-you are on multi-core hardware, and your application has other unrelated initialization it
-has to take care of, spinning off timezone initialization into a detached thread can also
-be an attractive option:
-</p>
-
-<blockquote><pre>
-int
-main()
-{
-    std::thread(date::get_tzdb).detach();
-    // other initialization ...
-}
-</pre></blockquote>
-
-<p>
-By the time your application actually needs to use the timezone database, it is likely to
-be fully initialized and ready to go.  And if it is not, C++11 threadsafe function local
-statics ensure there is no race condition on the initialization.
-</p>
-
-<p>
 If you constrain geography during installation, this can significantly reduce the time
 it takes to initialize the database.  However constraining history has little (if any)
 impact on the performance of the initialization.
-</p>
-
-<p>
-Once initialized, the database is very fast to access.  For example you can expect
-<code>locate_zone()</code> to take about a microsecond in optimized builds and about
-ten times that in unoptimized builds.
 </p>
 
 <a name="Acknowledgements"></a><h2>Acknowledgements</h2>
