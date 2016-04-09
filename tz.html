@@ -447,6 +447,12 @@ void
 parse(std::istream&amp; is, const std::string&amp; format,
       std::chrono::time_point&lt;std::chrono::system_clock, Duration&gt;&amp; tp);
 
+template &lt;class Duration&gt;
+void
+parse(std::istream&amp; is, const std::string&amp; format,
+      std::chrono::time_point&lt;std::chrono::system_clock, Duration&gt;&amp; tp,
+      std::string&amp; abbrev);
+
 }  // namespace date
 </pre></blockquote>
 
@@ -1662,14 +1668,140 @@ Which outputs:
 </pre></blockquote>
 
 <p>
-Note that the <code>locale</code> associated with the <code>istream</code> is
-respected.  If the format string contains a <code>%z</code> which matches the
-input stream, this is used to convert the value to UTC.  If there is no <code>%z</code>,
-then no conversion happens (you can assume whatever timezone you want).  <code>%Z</code>
-is not accepted as the mapping from a timezone abbreviation to UTC is ambiguous.  Also
-note that fractional seconds are accepted as long as one uses <code>%T</code> or
-<code>%S</code>, and the precision of the <code>time_point</code> is fine enough to
-accept fractional seconds.
+Note that the <code>locale</code> associated with the <code>istream</code> is respected. 
+If the format string contains a <code>%z</code> which matches the input stream, this is
+used to convert the value to UTC.  If there is no <code>%z</code>, then no conversion
+happens (you can assume whatever timezone you want).  Note that fractional seconds are
+accepted as long as one uses <code>%T</code> or <code>%S</code>, and the precision of the
+<code>time_point</code> is fine enough to accept fractional seconds.
+</p>
+
+<p>
+<code>%Z</code> is not accepted as the mapping from a timezone abbreviation to UTC is
+in general, ambiguous.  If you have a <code>%Z</code> in the format string, this will
+result in <code>is.fail()</code> returning <code>true</code> after the call to
+<code>parse</code>.
+</p>
+
+<p>
+However, if you absolutely must parse a timestamp with a timezone abbreviation in it,
+an extra <code>parse</code> overload is provided:
+</p>
+
+<blockquote><pre>
+template &lt;class Duration&gt;
+void
+parse(std::istream&amp; is, const std::string&amp; format,
+      std::chrono::time_point&lt;std::chrono::system_clock, Duration&gt;&amp; tp,
+      std::string& abbrev);
+</pre></blockquote>
+
+<p>
+Now if <code>%Z</code> matches a word in <code>is</code> <em>and</em> if the rest of
+<code>is</code> correctly parses according to <code>format</code>, then
+<code>abbrev</code> will be assigned the word which matched <code>%Z</code>.  This
+<i>will not</i> have any impact on the value of <code>tp</code> (no timezone offset
+applied).  However perhaps there is enough a-priori knowledge in your application to
+make use of the value of <code>abbrev</code> to correctly interpret the meaning of
+the timestamp and the resulting value of <code>tp</code>.
+</p>
+
+<p>
+As an example of how this option can be both useful <i>and</i> dangerous, consider
+an example where we need to parse the timestamp "Thu Apr 07 11:45:28 AEST 2016", and
+we want to discover what the corresponding time is in UTC, and what timezone this
+timestamp represents.
+</p>
+
+<p>
+The following program parses this, and then searches
+the entire timezone database looking for timezones which have "AEST" as an abbreviation
+at a local time of Apr 07 11:45:28 2016.  The program finds the first one, notes its UTC
+offset, and then searches for more.  If it finds more, and the UTC offset is the same,
+it simply outputs the name of each additional timezone found.  If the additional timezones
+have a different UTC offset, that is noted too by outputting the UTC timestamp associated
+with the additional timezone.
+</p>
+
+<blockquote><pre>
+#include "tz.h"
+#include &lt;string&gt;
+#include &lt;iostream&gt;
+#include &lt;sstream&gt;
+#include &lt;cassert&gt;
+
+int
+main()
+{
+    using namespace std::chrono;
+    using namespace date;
+    auto&amp; db = get_tzdb();
+    std::istringstream in("Thu Apr 07 11:45:28 AEST 2016");
+    time_point&lt;system_clock, seconds&gt; tp_local;
+    std::string abbrev;
+    parse(in, "%a %b %d %T %Z %Y", tp_local, abbrev);
+    assert(!in.fail());
+    auto i = std::find_if(db.zones.begin(), db.zones.end(),
+                          [&amp;tp_local, &amp;abbrev](auto const&amp; z)
+                          {
+                              return z.get_info(tp_local, tz::local).abbrev == abbrev;
+                          });
+    if (i != db.zones.end())
+    {
+        auto tp_utc = i-&gt;to_sys(tp_local);
+        std::cout &lt;&lt; tp_utc &lt;&lt; " UTC " &lt;&lt; i-&gt;name() &lt;&lt; '\n';
+        for (++i; i != db.zones.end(); ++i)
+        {
+            if (i-&gt;get_info(tp_local, tz::local).abbrev != abbrev)
+                continue;
+            auto tp = i-&gt;to_sys(tp_local);
+            if (tp != tp_utc)
+                std::cout &lt;&lt; tp &lt;&lt; " UTC ";
+            std::cout &lt;&lt; i-&gt;name() &lt;&lt; '\n';
+        }
+    }
+}
+</pre></blockquote>
+
+<p>
+This program outputs:
+</p>
+
+<blockquote><pre>
+2016-04-07 01:45:28 UTC Australia/Brisbane
+Australia/Currie
+Australia/Hobart
+Australia/Lindeman
+Australia/Melbourne
+Australia/Sydney
+</pre></blockquote>
+
+<p>
+This indicates that "Thu Apr 07 11:45:28 AEST 2016" unambiguously refers to
+2016-04-07 01:45:28 UTC (a UTC offset of +1000).  However which IANA timezone is referred
+to is ambiguous.  This means that past or future timepoints using any of these timezones
+may or may not have the same UTC offsets (or abbreviations) among this set of timezones.
+</p>
+
+<p>
+And this is a good case.  Consider just altering the abbreviation in the above example
+from AEST to BST.  Now the output is:
+</p>
+
+<blockquote><pre>
+2016-04-07 10:45:28 UTC Europe/London
+2016-04-07 00:45:28 UTC Pacific/Bougainville
+</pre></blockquote>
+
+<p>
+Meaning:  Not only do we not know what timezone this refers to, it could mean one of
+two different UTC timepoints!
+</p>
+
+<p>
+So in summary, it is dangerous to parse timezone abbreviations.  You should avoid it if at
+all possible.  However, if you are forced to, this library has the power to find out every
+thing that is knowable about that timestamp.
 </p>
 
 <a name="ThreadSafety"></a><h3>Thread Safety</h3>
