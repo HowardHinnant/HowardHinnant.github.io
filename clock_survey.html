@@ -1,0 +1,221 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>Clcok Survey</title>
+
+	<style>
+	p {text-align:justify}
+	li {text-align:justify}
+	blockquote.note
+	{
+		background-color:#E0E0E0;
+		padding-left: 15px;
+		padding-right: 15px;
+		padding-top: 1px;
+		padding-bottom: 1px;
+	}
+	ins {color:#00A000}
+	del {color:#A00000}
+	code {white-space:pre;}
+	</style>
+</head>
+<body>
+
+<address align=right>
+<br/>
+<br/>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
+2016-07-09<br/>
+<a rel="license" href="http://creativecommons.org/licenses/by/4.0/"> <img alt="Creative
+Commons License" style="border-width:0"
+src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br /> This work is licensed
+under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative
+Commons Attribution 4.0 International License</a>.
+</address>
+<hr/>
+<h1 align=center><code>&lt;chrono&gt;</code> Clock Survey</h1>
+
+<p>
+This survey shows you how to discover the properties of the three
+<code>&lt;chrono&gt;</code> clocks:
+</p>
+
+<ul>
+<li><code>std::chrono::system_clock</code></li>
+<li><code>std::chrono::steady_clock</code></li>
+<li><code>std::chrono::high_resolution_clock</code></li>
+</ul>
+
+<p>
+Here is code to discover each clock's properties:
+</p>
+
+<blockquote><pre>
+#include &lt;climits&gt;
+#include &lt;chrono&gt;
+#include &lt;cstddef&gt;
+#include &lt;cstdlib&gt;
+#ifndef _MSC_VER
+#   include &lt;cxxabi.h&gt;
+#endif
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;string&gt;
+#include &lt;typeinfo&gt;
+#include &lt;type_traits&gt;
+
+template &lt;typename T&gt;
+std::string
+type_name()
+{
+    typedef typename std::remove_reference&lt;T&gt;::type TR;
+    std::unique_ptr&lt;char, void(*)(void*)&gt; own
+           (
+#ifndef _MSC_VER
+                abi::__cxa_demangle(typeid(TR).name(), nullptr,
+                                           nullptr, nullptr),
+#else
+                nullptr,
+#endif
+                std::free
+           );
+    std::string r = own != nullptr ? own.get() : typeid(TR).name();
+    if (std::is_const&lt;TR&gt;::value)
+        r += " const";
+    if (std::is_volatile&lt;TR&gt;::value)
+        r += " volatile";
+    if (std::is_lvalue_reference&lt;T&gt;::value)
+        r += "&amp;";
+    else if (std::is_rvalue_reference&lt;T&gt;::value)
+        r += "&amp;&amp;";
+    return r;
+}
+
+template &lt;class Clock&gt;
+void
+stats(std::string const&amp; msg)
+{
+    std::cout &lt;&lt; msg &lt;&lt; '\n';
+    const std::size_t bits = CHAR_BIT * sizeof(typename Clock::rep);
+    std::cout &lt;&lt; "    rep is " &lt;&lt; type_name&lt;typename Clock::rep&gt;() &lt;&lt; " : "
+              &lt;&lt; bits &lt;&lt; " bits\n";
+    std::cout &lt;&lt; "    period is " &lt;&lt; Clock::period::num &lt;&lt; '/'
+              &lt;&lt; Clock::period::den &lt;&lt; '\n';
+    std::cout &lt;&lt; "    is_steady is " &lt;&lt; Clock::is_steady &lt;&lt; '\n';
+}
+
+int
+main()
+{
+    using namespace std::chrono;
+    stats&lt;system_clock&gt;("system_clock");
+    stats&lt;steady_clock&gt;("steady_clock");
+    stats&lt;high_resolution_clock&gt;("high_resolution_clock");
+    if (std::is_same&lt;high_resolution_clock, system_clock&gt;::value)
+        std::cout &lt;&lt; "high_resolution_clock is the same type as system_clock\n";
+    if (std::is_same&lt;high_resolution_clock, steady_clock&gt;::value)
+        std::cout &lt;&lt; "high_resolution_clock is the same type as steady_clock\n";
+    if (std::is_same&lt;system_clock, steady_clock&gt;::value)
+        std::cout &lt;&lt; "system_clock is the same type as steady_clock\n";
+}
+</pre></blockquote>
+
+<p>
+There are three implementations of <code>&lt;chrono&gt;</code> that I am aware of:
+</p>
+
+<ul>
+<li>LLVM's libc++</li>
+<li>gcc's libstdc++</li>
+<li>Visual Studio (VS)</li>
+</ul>
+
+<p>
+The results are (I've taken minor liberities with the formatting):
+</p>
+
+<p><b>libc++:</b></p>
+
+<blockquote><pre>
+system_clock
+    rep is long long : 64 bits
+    period is 1/1,000,000
+    is_steady is 0
+
+steady_clock
+    rep is long long : 64 bits
+    period is 1/1,000,000,000
+    is_steady is 1
+
+high_resolution_clock
+    rep is long long : 64 bits
+    period is 1/1,000,000,000
+    is_steady is 1
+
+high_resolution_clock is the same type as steady_clock
+</pre></blockquote>
+
+<p><b>libstdc++:</b></p>
+
+<blockquote><pre>
+system_clock
+    rep is long : 64 bits
+    period is 1/1,000,000,000
+    is_steady is 0
+
+steady_clock
+    rep is long : 64 bits
+    period is 1/1,000,000,000
+    is_steady is 1
+
+high_resolution_clock
+    rep is long : 64 bits
+    period is 1/1,000,000,000
+    is_steady is 0
+
+high_resolution_clock is the same type as system_clock
+</pre></blockquote>
+
+<p><b>VS:</b></p>
+
+<blockquote><pre>
+system_clock
+    rep is __int64 : 64 bits
+    period is 1/10,000,000
+    is_steady is 0
+
+steady_clock
+    rep is __int64 : 64 bits
+    period is 1/1,000,000,000
+    is_steady is 1
+
+high_resolution_clock
+    rep is __int64 : 64 bits
+    period is 1/1,000,000,000
+    is_steady is 1
+
+high_resolution_clock is the same type as steady_clock
+</pre></blockquote>
+
+<p>
+There exist online compilers for each of these implementations, and so you can check
+these results for yourself, on each of these three platforms.
+</p>
+
+<ul>
+<li><a href="http://melpon.org/wandbox/permlink/uZFy3uMFXs7bLBQO">LLVM's libc++</a></li>
+<li><a href="http://melpon.org/wandbox/permlink/qhXOxKN7t587uXgm">gcc's libstdc++</a></li>
+<li><a href="http://webcompiler.cloudapp.net">Visual Studio (VS)</a></li>
+</ul>
+
+<p>
+I have further found that each implementation of <code>std::chrono::system_clock</code>
+is measuring <a href="https://en.wikipedia.org/wiki/Unix_time">Unix Time</a>.  That is,
+they count <i>non-leap-seconds</i> since 1970-01-01 00:00:00 UTC, except with a precision
+as noted by the survey above.  You can confirm this yourself with the software
+<a href="http://howardhinnant.github.io/date_algorithms.html#How%20can%20I%20confirm%20that%20your%20assertions%20about%20<code>chrono</code>%20compatibility%20are%20correct?">at this link</a>.
+</p>
+
+</body>
+</html>
