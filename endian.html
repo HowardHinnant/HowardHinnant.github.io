@@ -27,7 +27,7 @@ Document number: DxxxxR0<br>
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2016-08-19<br/>
+2016-08-20<br/>
 </address>
 <hr/>
 <h1 align=center><code>endian</code>, Just <code>endian</code></h1>
@@ -134,14 +134,70 @@ added to <code>class endian</code> with no backwards compatibility problems
 You can either build compile-time traits with this, or use it at run time.  For example:
 </p>
 
-<pre>
+<blockquote><pre>
 if (endian::native == endian::big)
     // handle big endian
 else if (endian::native == endian::little)
-    // handle big endian
-else
     // handle little endian
-</pre>
+else
+    // handle mixed endian
+</pre></blockquote>
+
+<p>
+As another common example, here is a complete implementation of <code>hton</code>
+and <code>ntoh</code> (except for the hard part):
+</p>
+
+<blockquote><pre>
+template &lt;class Integral&gt;
+constexpr
+inline
+std::enable_if_t
+&lt;
+    std::is_integral&lt;Integral&gt;{} &amp;&amp;
+    (1 &lt; sizeof(Integral) &amp;&amp; <b>std::endian::native != std::endian::big</b>),
+    Integral
+&gt;
+hton(Integral x)
+{
+    return reverse_bytes(x);
+}
+
+template &lt;class Integral&gt;
+constexpr
+inline
+std::enable_if_t
+&lt;
+    std::is_integral&lt;Integral&gt;{} &amp;&amp;
+    (1 == sizeof(Integral) || <b>std::endian::native == std::endian::big</b>),
+    Integral
+&gt;
+hton(Integral x)
+{
+    return x;
+}
+
+template &lt;class Integral&gt;
+constexpr
+inline
+std::enable_if_t
+&lt;
+    std::is_integral&lt;Integral&gt;{},
+    Integral
+&gt;
+ntoh(Integral x)
+{
+    return hton(x);
+}
+</pre></blockquote>
+
+<p>
+A <code>constexpr</code> implementation of <code>reverse_bytes</code> <i>is</i>
+possible, and is left as an exercise for the reader.  If you <i>do</i> manage to
+figure out how to do it, please don't tell anyone on SG12 as they have
+been working for years to ensure that it is impossible.
+</p>
+
 </blockquote>
 
 <p>
@@ -235,7 +291,7 @@ little-endian in the execution environment.  Big-endian is a format for storage
 of binary data in which the most significant byte is placed first, with the rest
 in descending order. Little-endian is a format for storage or transmission of
 binary data in which the least significant byte is placed first, with the rest
-in ascending order. This subclause describes the endian of the execution
+in ascending order. This subclause describes the endianness of the execution
 environment.
 </p>
 <pre>
