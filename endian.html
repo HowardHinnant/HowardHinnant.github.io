@@ -2,7 +2,7 @@
         "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
-	<title>Endian</title>
+	<title>endian</title>
 
 	<style>
 	p {text-align:justify}
@@ -27,16 +27,16 @@ Document number: DxxxxR0<br>
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2015-10-12<br/>
+2016-08-19<br/>
 </address>
 <hr/>
-<h1 align=center>Endian</h1>
+<h1 align=center><code>endian</code>, Just <code>endian</code></h1>
 
 <h2>Contents</h2>
 
 <ul>
 <li><a href="#Introduction">Introduction</a></li>
-<li><a href="#ExampleUse">Example Use</a></li>
+<li><a href="#Proposal">Proposal</a></li>
 <li><a href="#Implementation">Implementation</a></li>
 <li><a href="#Wording">Wording</a></li>
 </ul>
@@ -44,203 +44,219 @@ Document number: DxxxxR0<br>
 <a name="Introduction"></a><h2>Introduction</h2>
 
 <p>
-This paper proposes a new header <code>&lt;endian&gt;</code>.  This header
-contains an <code>enum class</code> named <code>endian</code> as described
-herein. The purpose of this header is to describe at compile time, the nature of
-the <a href="https://en.wikipedia.org/wiki/Endianness">endianness</a> of the
-targeted platform.
+A ancient, time-honored tradition among C++ programmers is detecting the
+endian of their execution environment:
 </p>
 
-<p>
-Big endian and little endian are the most common forms of endianness encountered
-today.  Big endian refers to the most significant bytes appearing first in a multi-byte
-data structure such as an <code>int</code> or <code>pointer</code>.  Little endian
-refers to the least significant bytes appearing first.  Big endian ordering is
-preferred (by convention) when transferring binary data over a network.
-</p>
+<blockquote><p>
+<a href="http://stackoverflow.com/q/1001307/576911">Detecting endianness programmatically in a C++ program</a>
+</p></blockquote>
 
 <p>
-Historically there has also existed <i>mixed endian</i>.  This proposal does contain
-support for mixed endian.
+There are many hacks that work <i>most</i> of the time.  None of them seem bullet proof.
+Few give the answer as a compile-time constant.  And in every single case:
 </p>
 
-<p>
-Some hardware is capable of switching endian, and maintaining distinct endian
-settings for data and code segments.  This proposal does contain
-support for run-time endian.
-</p>
+<blockquote><p><b>
+The compiler knows the answer!
+</b></p></blockquote>
 
 <p>
-This paper proposes a simple <code>enum class endian</code>:
+It is a no-brainer for the committee to provide an API so that the programmer can query
+the implementation for an answer to this common question.
+</p>
+
+<a name="Proposal"></a><h2>Proposal</h2>
+
+<p>
+Put into <code>&lt;type_traits&gt;</code>:
 </p>
 
 <blockquote><pre>
-namespace std {
-
 enum class endian
 {
-    native = <i>see below</i>,
-    little = <i>see below</i>,
-    big    = <i>see below</i>
+    little = __ORDER_LITTLE_ENDIAN__,
+    big    = __ORDER_BIG_ENDIAN__,
+    native = __BYTE_ORDER__
 };
-
-}  // namespace std
 </pre></blockquote>
 
 <p>
-For little endian targets, <code>endian::native == endian::little</code>.
-For big endian targets, <code>endian::native == endian::big</code>.
-For mixed endian and run-time endian targets, <code>endian::native</code> equals neither
-<code>endian::little</code> nor <code>endian::big</code>.
-</p>
-
-<a name="ExampleUse"></a><h2>Example Use</h2>
-
-<p>
-Sometimes low-level code needs to know what endian it is running on so that it
-can deal with binary data that may or may not have other endian storage.  For
-example consider a case where one needs to read integers out of a binary file,
-and the file is known to store 4 byte signed integers in little endian format.
-In order to write code which is both portable and high performance, one needs to
-reverse the bytes after reading the integer on big endian machines, and not do
-so on little endian machines.  And the decision on little endian machines should
-have <em>zero overhead</em>.
+with appropriate constants for platforms that don't define <code>__BYTE_ORDER__</code>
+et al.  That's it.  That's the entire proposal.
 </p>
 
 <p>
-Here is how one might portably handle different endians for this problem:
+<u>Objection #1:</u> Some modern processors can switch endian at run time.  How can this
+be a compile-time constant?
+</p>
+
+<blockquote><p>
+No operating system tolerates switching endian at run time once an application has
+launched.  Every compiler knows what endian it has to target.
+</p></blockquote>
+
+<p>
+<u>Objection #2:</u> Where are the functions to translate scalars between native endian
+and big or little endian?
+</p>
+
+<blockquote><p>
+Those are good features to have.  But they do not represent everything that is needed.
+And they can more easily be built on top of <code>class endian</code> once it exists.
+At a minimum we need <code>class endian</code> as soon as possible (1998 would be nice).
+This proposal aims to get the minimum required functionality in as quickly as possible.
+</p></blockquote>
+
+<p>
+<u>Objection #3:</u> I am quite sure that PDP endian is on the way back in.  PDP is
+neither big nor little endian.  This proposal doesn't handle that!
+</p>
+
+<blockquote><p>
+<ol>
+<li>This proposal handles "mixed endian" today by ensuring that
+<code>endian::native</code> equals neither <code>endian::big</code> nor
+<code>endian::little</code>.</li>
+<li>Today, no C++14 compiler targets a machine that is not big endian or little
+endian.</li>
+<li>If tomorrow we need another flavor of endian, a new member could easily be
+added to <code>class endian</code> with no backwards compatibility problems
+(e.g. <code>endian::pdp</code>).</li>
+</ol>
+</p></blockquote>
+
+<p>
+<u>How do I use this?</u>
+</p>
+
+<blockquote><p>
+You can either build compile-time traits with this, or use it at run time.  For example:
+</p>
+
+<pre>
+if (endian::native == endian::big)
+    // handle big endian
+else if (endian::native == endian::little)
+    // handle big endian
+else
+    // handle mixed endian
+</pre>
+</blockquote>
+
+<p>
+<u>Why not just a macro?</u>
+</p>
+
+<blockquote><p>
+This API was chosen because there are a few times when a program needs to do
+<i>more</i> than just query endianness.  Sometimes a program needs to either
+<i>declare</i> or <i>request</i> endianness.  This API provides a universal way
+of doing so.  For example a fingerprinting hash object such as
+<a href="https://en.wikipedia.org/wiki/SHA-2">SHA-2</a> traffics in big endian.
+This might be advertised like:
 </p>
 
 <blockquote><pre>
-template &lt;class T&gt;
-constexpr
-inline
-void
-maybe_reverse_bytes(T&amp; t, std::true_type) noexcept
+class sha256
 {
-    // do nothing for little endian
-}
-
-template &lt;class T&gt;
-constexpr
-inline
-void
-maybe_reverse_bytes(T&amp; t, std::false_type) noexcept
-{
-    using namespace std;
-    static_assert(<b>endian::native == endian::big</b>, "mixed endian not supported");
-    reverse_bytes(t);
-}
-
-template &lt;class T&gt;
-constexpr
-inline
-void
-maybe_reverse_bytes(T&amp; t) noexcept
-{
-    using namespace std;
-    maybe_reverse_bytes(t, bool_constant&lt;<b>endian::native == endian::little</b>&gt;{});
-}
+public: 
+    static constexpr std::endian endian = std::endian::big;
+    // ...
 </pre></blockquote>
 
 <p>
-By using tag dispatching on <code>bool_constant</code>, the decision is made at
-<i>compile-time</i>, and thus there is no run time branch decision.  On little endian
-machines <code>maybe_reverse_bytes</code> compiles down to <b>zero</b> machine
-instructions.
-</p>
-
-<p>
-This is a very simple, very efficient solution to this problem.
-</p>
+The type <code>sha256</code> may need to meet a type concept that requires a public
+nested value of type <code>std::endian</code> that specifies how input should be 
+preprocessed, or that specifies how some of the output is encoded.  Details like this
+are crucial for inter-machine communication.
+</p></blockquote>
 
 <a name="Implementation"></a><h2>Implementation</h2>
 
-<p>
-Across gcc and clang, the following is a portable implementation.  Other compilers
-would need to add similar infrastructure if not present already:
-</p>
-
 <blockquote><pre>
-namespace std {
-
 enum class endian
 {
-    native = __BYTE_ORDER__,
+#ifdef _WIN32
+    little = 0,
+    big    = 1,
+    native = little
+#else
     little = __ORDER_LITTLE_ENDIAN__,
     big    = __ORDER_BIG_ENDIAN__
+    native = __BYTE_ORDER__,
+#endif
 };
-
-}  // namespace std
 </pre></blockquote>
 
 <p>
-Note that though this is exceedingly simple, programmers can not portably write this
-code.  Therefore their std::lib implementors should provide it.
+On the platform on which I'm writing this, this preprocesses to:
 </p>
+
+<blockquote><pre>
+enum class endian
+{
+    little = 1234,
+    big    = 4321,
+    native = 1234
+};
+</pre></blockquote>
+
 
 <a name="Wording"></a><h2>Wording</h2>
 
 <ol>
-
 <li>
 <p>
-Add a row to Table 16 &mdash; C++ headers for freestanding implementations
+Add to [meta.type.synop].
 </p>
-<blockquote>
-18.x Endian <code>&lt;endian&gt;</code>
-</blockquote>
-</li>
-
-<li>
-<p>
-Add a row to Table 29 &mdash; Language support library summary:
-</p>
-<blockquote>
-18.x Endian <code>&lt;endian&gt;</code>
-</blockquote>
-</li>
-
-<li>
-<p>
-Add a new section to Chapter 18:  Endian [support.endian]:
-</p>
-
-<blockquote>
-<p>
-The header <code>&lt;endian&gt;</code> defines a enum class related to the
-endianness of the execution environment.
-</p>
-
-<p>
-<b>Header <code>&lt;endian&gt;</code> synopsis</b>
-</p>
-
 <blockquote><pre>
-namespace std {
-
 enum class endian
 {
-    native = <i>see below</i>,
     little = <i>see below</i>,
-    big    = <i>see below</i>
+    big    = <i>see below</i>,
+    native = <i>see below</i>
 };
-
-}  // namespace std
 </pre></blockquote>
 
+</li>
+
+<li>
 <p>
-The values of <code>endian::little</code> and <code>endian::big</code> shall not
-be equal to one another.  If the execution environment has little endian, then
-<code>endian::native</code> shall be equal to <code>endian::little</code>.
-Otherwise if the execution environment has big endian, then
-<code>endian::native</code> shall be equal to <code>endian::big</code>.
-Otherwise <code>endian::native</code> shall be equal to neither 
-<code>endian::little</code> nor <code>endian::big</code>.
+Add a new section after [meta.logical]:
+</p>
+<blockquote>
+<p>
+<b>20.15.9 Endian [meta.endian]</b>
+</p>
+<p> 
+Two common methods of byte ordering in multibyte scalar types are big-endian and
+little-endian in the execution environment.  Big-endian is a format for storage
+of binary data in which the most significant byte is placed first, with the rest
+in descending order. Little-endian is a format for storage or transmission of
+binary data in which the least significant byte is placed first, with the rest
+in ascending order. This subclause describes the endian of the execution
+environment.
+</p>
+<pre>
+enum class endian
+{
+    little = <i>see below</i>,
+    big    = <i>see below</i>,
+    native = <i>see below</i>
+};
+</pre>
+<p>
+<code>endian::little</code> shall not be equal to <code>endian::big</code>.  If
+the execution environment is big-endian, <code>endian::native</code> shall be
+equal to <code>endian::big</code>.  If the execution environment is
+little-endian, <code>endian::native</code> shall be equal to
+<code>endian::little</code>.  Otherwise <code>endian::native</code> shall have a
+value that is not equal to either of <code>endian::big</code> nor
+<code>endian::little</code>.
 </p>
 
-<blockquote>
-
+</blockquote>
 </li>
 
 </ol>
