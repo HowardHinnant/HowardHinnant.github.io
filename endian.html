@@ -177,6 +177,10 @@ hton(Integral x)
     return x;
 }
 
+static_assert(std::endian::native == std::endian::big ||
+              std::endian::native == std::endian::little,
+              "These aren't the endians you're looking for.  Move along.");
+
 template &lt;class Integral&gt;
 constexpr
 inline
