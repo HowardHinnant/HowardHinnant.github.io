@@ -103,8 +103,8 @@ and big or little endian?
 
 <blockquote><p>
 Those are good features to have.  But they do not represent everything that is needed.
-And they can more easily be built on top of <code>class endian</code> once it exists.
-At a minimum we need <code>class endian</code> as soon as possible (1998 would be nice).
+And they can more easily be built on top of <code>enum class endian</code> once it exists.
+At a minimum we need <code>enum class endian</code> as soon as possible (1998 would be nice).
 This proposal aims to get the minimum required functionality in as quickly as possible.
 </p></blockquote>
 
@@ -121,7 +121,7 @@ neither big nor little endian.  This proposal doesn't handle that!
 <li>Today, no C++14 compiler targets a machine that is not big endian or little
 endian.</li>
 <li>If tomorrow we need another flavor of endian, a new member could easily be
-added to <code>class endian</code> with no backwards compatibility problems
+added to <code>enum class endian</code> with no backwards compatibility problems
 (e.g. <code>endian::pdp</code>).</li>
 </ol>
 </p></blockquote>
