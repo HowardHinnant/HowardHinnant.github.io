@@ -29,7 +29,7 @@
 <br>
 <a href="mailto:howard.hinnant@gmail.com">Howard Hinnant</a><br>
 
-2015-01-17<br/>
+2016-08-23<br/>
 <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">
 <img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br />
 This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
@@ -108,14 +108,14 @@ public:
     allocator() noexcept {}  <font color="#C80000">// not required, unless used</font>
     template &lt;class U&gt; allocator(allocator&lt;U&gt; const&amp;) noexcept {}
 
-    value_type*
+    value_type*  <font color="#C80000">// Use pointer if pointer is not a value_type*</font>
     allocate(std::size_t n)
     {
         return static_cast&lt;value_type*&gt;(::operator new (n*sizeof(value_type)));
     }
 
     void
-    deallocate(value_type* p, std::size_t) noexcept
+    deallocate(value_type* p, std::size_t) noexcept  <font color="#C80000">// Use pointer if pointer is not a value_type*</font>
     {
         ::operator delete(p);
     }
