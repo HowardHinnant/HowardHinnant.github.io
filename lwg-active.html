@@ -40,7 +40,7 @@
 </tr>
 </table>
 <h1>C++ Standard Library Active Issues List (Revision D100)</h1>
-<p><p>Revised 2016-10-14 at 14:10:28 UTC</p>
+<p><p>Revised 2016-10-14 at 14:10:49 UTC</p>
 </p>
   <p>Reference ISO/IEC IS 14882:2014(E)</p>
   <p>Also see:</p>
@@ -38883,6 +38883,15 @@ by <tt>concatenate_buffer_sequences</tt> must transform the value types
 of the underlying sequences. This requires that the returned range
 have iterators returning rvalues when dereferenced. This is incompatible
 with the strict aliasing requirement of <tt>ForwardIterator</tt>.
+</p>
+
+<p>
+Because [networking.ts] requires a buffer sequence iterator's <tt>value_type</tt> be
+convertible to <tt>const_buffer</tt> or <tt>mutable_buffer</tt>, it stands to reason that
+implementations cannot make use of the iterator's <tt>operator-&gt;</tt> in any meaningful
+way. Removing the requirement to implement <tt>operator-&gt;</tt> in buffer sequence
+iterators allows a broader class of range adapters to meet the requirements of
+buffer sequences.
 </p>
 
 <p>
