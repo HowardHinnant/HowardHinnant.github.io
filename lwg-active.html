@@ -40,7 +40,7 @@
 </tr>
 </table>
 <h1>C++ Standard Library Active Issues List (Revision D100)</h1>
-<p><p>Revised 2016-10-14 at 19:10:05 UTC</p>
+<p><p>Revised 2016-10-14 at 20:10:23 UTC</p>
 </p>
   <p>Reference ISO/IEC IS 14882:2014(E)</p>
   <p>Also see:</p>
@@ -38844,19 +38844,26 @@ This wording is relative to N4606.
 </p>
 <p><b>View all issues with</b> <a href="lwg-status.html#LEWG">LEWG</a> status.</p>
 <p><b>Discussion:</b></p>
-<p>
-In <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4588.pdf">N4588</a>
-(Networking TS) 16.2 [buffer.reqmts] the requirements for buffer
-sequence iterators indirectly adopt the C++ standard strict aliasing
-requirements of <tt>ForwardIterator</tt>. From C++Std 24.2.5 [forward.iterators]
-</p>
 
-<blockquote>
+
 <p>
-6. If <tt>a</tt> and <tt>b</tt> are both dereferenceable, then <tt>a == b</tt> if and
-only if <tt>*a</tt> and <tt>*b</tt> are bound to the same object.
+(Paraphrased from <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4128.html">N4128</a>,
+ 3.3.7 "Ranges For The Standard Library")
 </p>
-</blockquote>
+<blockquote><p>
+The [networking.ts] dependence on <tt>ForwardIterator</tt> in the buffer
+sequence requirements ties together the traversal and access properties of
+iterators. For instance, no forward iterator may return an <i>rvalue</i> proxy
+when it is dereferenced; the <tt>ForwardIterator</tt> concept requires that
+unary <tt>operator*</tt> return an lvalue. This problem is not new to ranges;
+however, it has serious consequnces for lazy ranges that apply transformations
+to buffer sequence elements on the fly. If the transformation function does not
+return an <i>lvalue</i>, the range’s iterator can model no concept stronger than
+<tt>InputIterator</tt>, even if the resulting iterator could in theory support
+<tt>BidirectionalIterator</tt>. The result in practice is that most range
+adaptors today will not be compatible with [networking.ts], thereby limiting the
+types that [networking.ts] can be passed, for no good reason.
+</p></blockquote>
 
 <p>
 The strict aliasing requirement is widely recognized as a
@@ -38899,8 +38906,7 @@ requirements of <tt>ForwardIterator</tt>. A solution that meets the strict
 aliasing rules of <tt>ForwardIterator</tt>, would be to evaluate the transformed
 sequence upon construction (for example, by storing each transformed
 <tt>const_buffer</tt> in a <tt>vector</tt>). Unfortunately this work-around is
-more expensive since it fails to avoid the heap allocation in the original
-example.
+more expensive since it would add heap allocation which the original example avoids.
 </p>
 
 <p>
