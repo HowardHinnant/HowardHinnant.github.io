@@ -123,7 +123,7 @@ void memuse()
 // Create a vector&lt;T&gt; template with a small buffer of 200 bytes.
 //   Note for vector it is possible to reduce the alignment requirements
 //   down to alignof(T) because vector doesn't allocate anything but T's.
-//   And if we're wrong about that guess, it is a comple-time error, not
+//   And if we're wrong about that guess, it is a compile-time error, not
 //   a run time error.
 template &lt;class T, std::size_t BufSize = 200&gt;
 using SmallVector = std::vector&lt;T, short_alloc&lt;T, BufSize, alignof(T)&gt;&gt;;
