@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+
+<script>
+var request = {};
+request.method = "ldap.search";
+request.params = {};
+request.params.CID = "45d0677d-a336-463b-ad99-c82137d03a00";
+request.params.baseDN = "ou=people,dc=example,dc=com";
+request.params.scope = "ONE";
+request.params.filter = "(givenName=John)";
+request.id = 1;
+request.jsonrpc = "2.0";
+request.ripplerpc = "2.0";
+alert(JSON.stringify(request))
+</script>
+
+</body>
+</html>
