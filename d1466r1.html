@@ -1,0 +1,619 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>chrono fixes</title>
+
+	<style>
+	p {text-align:justify}
+	li {text-align:justify}
+	blockquote.note
+	{
+		background-color:#E0E0E0;
+		padding-left: 15px;
+		padding-right: 15px;
+		padding-top: 1px;
+		padding-bottom: 1px;
+	}
+	ins {color:#00A000}
+	del {color:#A00000}
+	code {white-space:pre;}
+	table, th, td {
+		border: 1px solid black;
+		border-collapse: collapse;
+		padding: 10px;
+	}
+	</style>
+</head>
+<body>
+
+<address align=right>
+Document number: D1466r1<br>
+<br/>
+<br/>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
+2019-02-06<br/>
+</address>
+<hr/>
+<h1 align=center>Miscellaneous minor fixes for chrono</h1>
+
+<h2>Contents</h2>
+
+<ul>
+<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#Wording">Wording</a></li>
+</ul>
+
+<a name="Introduction"></a><h2>Introduction</h2>
+
+<p>
+This is a collection of minor fixes and upgrades to the <code>&lt;chrono&gt;</code>
+library that have come to my attention since the acceptance of
+<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0355r7.html">P0355r7</a>.
+</p>
+
+<a name="Wording"></a><h2>Wording</h2>
+
+<ol>
+
+<!-- is_leap_second -->
+<li>
+
+<blockquote class=note>
+<p>
+Feedback from the field asks for a way to identify if a <code>utc_time</code> represents
+a leap second.  This proposed API is the only API that has field experience in providing
+that information in a way that is efficient, and provides all information the client
+desires when making a query in this area.  It is used in the implementation of the
+conversion between <code>utc_time</code> and <code>sys_time</code>, and in the parsing
+and formatting of <code>utc_time</code>, so is likely to be present in any event.  If
+we choose to specify it, it can be spelled without underscores, and be available to
+clients of <code>&lt;chrono&gt;</code>.
+</p>
+</blockquote>
+
+<p>
+Insert new paragraphs in 26.7.2.3 Non-member functions [time.clock.utc.nonmembers]:
+</p>
+
+<blockquote>
+<pre>
+template &lt;class Duration&gt;
+pair&lt;bool, seconds&gt;
+is_leap_second(utc_time&lt;Duration&gt; const&amp; ut)
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> A <code>pair&lt;bool, seconds&gt;</code> where
+<code>first</code> is true if <code>ut</code> is during a leap second insertion,
+and otherwise false. <code>second</code> is the number of leap seconds between
+1970-01-01 and <code>ut</code>. If <code>first</code> is true, the leap second
+referred to by <code>ut</code> is included in the count.
+</p>
+</blockquote>
+</blockquote>
+
+</li>
+
+<!-- %Q %q -->
+<li>
+
+<blockquote class=note>
+<p>
+Feedback from the field asks for a way to customize the spacing between a duration's
+value and its unit (e.g. supply a space, or a Unicode custom space between the value
+and the unit).  This item proposes <code>%Q</code> to represent the durations's value
+and <code>%q</code> to represent the duration's unit, for formatting only.  Example:
+<code>format("%Q %q", 45ms) == "45 ms"</code>.
+</p>
+</blockquote>
+
+<p>
+Add two new rows to  Table 87 &mdash; Meaning of <code>format</code> conversion
+specifiers:
+</p>
+
+<blockquote>
+<table>
+<tr>
+<td><code>%Q</code></td>
+<td>The duration's numeric value (as if extracted via <code>.count()</code>).</td>
+</tr>
+<tr>
+<td><code>%q</code></td>
+<td>The duration's unit suffix as specified in [time.duration.io].</td>
+</tr>
+</table>
+</blockquote>
+
+</li>
+
+<!-- weekday encoding controversy -->
+<li>
+
+<blockquote class=note>
+<p>
+About half of the clients are upset that the currently specified encoding for
+<code>weekday</code> implies that Sunday is the first day of the week (consistent
+with the current C and C++ specifications for <code>tm.tm_wday</code>), and the
+other half of the clients will be upset if the <code>weekday</code> encoding
+follows the ISO specification of [1, 7] maps to [Monday, Sunday].
+</p>
+<p>
+This change strikes a compromise in an attempt to please everyone (a nearly
+impossible task).
+</p>
+<ul>
+<li>
+<p>
+The <code>weekday{unsigned}</code> constructor accepts both mappings, which means
+that [0, 6] maps to [Monday, Saturday] <b>and</b> [1, 7] maps to [Monday, Sunday].
+This is possible by simply accepting [0, 7] where [1, 6] maps to [Monday, Saturday]
+and both 0 and 7 map to Sunday.
+</p>
+</li>
+<li>
+<p>
+The explicit conversion to <code>unsigned</code> is removed from <code>weekday</code>
+and named conversions are inserted in its place: <code>c_encoding()</code> and
+<code>iso_encoding()</code>.  The client can choose which mapping from <code>weekday</code>
+to <code>unsigned</code> he desires by choosing one of these member functions.
+</p>
+</li>
+</ul>
+</blockquote>
+
+<p>
+Modify 26.8.6.2 [time.cal.wd.members] as indicated:
+</p>
+
+<blockquote>
+
+<pre>
+constexpr explicit weekday(unsigned wd) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Effects:</i> Constructs an object of type <code>weekday</code> by
+initializing <code>wd_</code> with <code>wd</code>, <ins>except if <code>wd_ == 7</code>,
+stores <code>0</code></ins>. The value held is unspecified if wd is
+not in the range [0, 255].
+</p>
+</blockquote>
+
+<pre>
+<del>constexpr explicit operator unsigned() const noexcept;</del>
+</pre>
+<blockquote>
+<p>
+<del><i>Returns:</i> <code>wd_</code>.</del>
+</p>
+</blockquote>
+
+<pre>
+<ins>constexpr unsigned c_encoding() const noexcept;</ins>
+</pre>
+<blockquote>
+<p>
+<ins><i>Returns:</i> <code>wd_</code>.</ins>
+</p>
+</blockquote>
+
+<pre>
+<ins>constexpr unsigned iso_encoding() const noexcept;</ins>
+</pre>
+<blockquote>
+<p>
+<ins><i>Returns:</i> <code>unsigned{((wd_ == 0u) ? 7u : wd_)}</code>.</ins>
+</p>
+</blockquote>
+
+
+</blockquote>
+
+</li>
+
+<!-- Missing link comparison operators -->
+<li>
+
+<blockquote class=note>
+<p>
+<code>link</code> is missing some comparison operator definitions.  The declarations
+are correctly in the synopsis.  The missing definitions should be the "usual"
+formula based on <code>==</code> and <code>&lt;</code>.
+</p>
+</blockquote>
+
+<p>
+Add paragraphs to 26.10.9.3 Non-member functions [time.zone.link.nonmembers]:
+</p>
+
+<blockquote>
+<pre>
+bool operator!=(const link&amp; x, const link&amp; y) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x == y)</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&gt; (const link&amp; x, const link&amp; y) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> <code>y &lt; x</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&lt;=(const link&amp; x, const link&amp; y) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(y &lt; x)</code>.
+</p>
+</blockquote>
+
+<pre>
+bool operator&gt;=(const link&amp; x, const link&amp; y) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> <code>!(x &lt; y)</code>.
+</p>
+</blockquote>
+
+</blockquote>
+
+</li>
+
+<!-- time_of_day -->
+<li>
+
+<blockquote class=note>
+<p>
+<code>time_of_day</code> is poorly specified.  It suffers from an overly complicated
+specification, and at the same time, insufficient functionality from that specification.
+This note both simplifies the specification while providing more pertinent functionality.
+However the basic functionality is maintained:  <code>time_of_day</code> is an
+<code>{hours, minutes, seconds, subseconds}</code> structure which easily converts to
+and from a <code>duration</code> and provides easy formatting.
+</p>
+</blockquote>
+
+<blockquote>
+<p>
+26.9 Class template <code>time_of_day</code> [time.tod]
+</p>
+
+<p>
+26.9.1 Overview [time.tod.overview]
+</p>
+
+<blockquote><pre>
+template &lt;class Duration&gt;
+class time_of_day
+{
+public:
+    using precision = <i>see below</i>
+
+    constexpr time_of_day() = default;
+    constexpr explicit time_of_day(Duration d) noexcept;
+
+    constexpr chrono::hours hours() const noexcept;
+    constexpr chrono::minutes minutes() const noexcept;
+    constexpr chrono::seconds seconds() const noexcept;
+    constexpr precision subseconds() const noexcept;
+
+    constexpr explicit operator  precision()   const noexcept;
+    constexpr          precision to_duration() const noexcept;
+
+    constexpr void make24() noexcept;
+    constexpr void make12() noexcept;
+};
+
+template &lt;class charT, class traits, class Duration&gt;
+basic_ostream&lt;charT, traits&gt;&amp;
+operator&lt;&lt;(basic_ostream&lt;charT, traits&gt;&amp; os, time_of_day&lt;Duration&gt; const&amp; tod);
+</pre></blockquote>
+
+<p>
+The <code>time_of_day</code> class template splits a duration into a “broken down” time
+<i>hours:minutes:seconds</i> and possibly <i>subseconds</i>, where <i>subseconds</i>
+will be a <code>duration</code> unit based on a negative power of 10.
+The <code>Duration</code> template parameter dictates the precision to which the time is
+broken down. A <code>time_of_day</code> object can also
+represent a 12-hour time format or a 24-hour time format, keeping track of whether
+<code>hours()</code> returns a 24-hour representation, or a 12-hour am representation,
+or a 12-hour pm representation.
+</p>
+
+<p>
+<code>time_of_day</code> is a trivially copyable and standard-layout class type.
+</p>
+
+<p>
+26.9.2 Members [time.tod.members]
+</p>
+
+<pre>
+using precision = <i>see below</i>
+</pre>
+
+<blockquote>
+<p>
+<code>precision</code> is a <code>duration</code> type with a <code>rep</code> that
+has type <code>common_type_t&lt;Duration::rep, seconds::rep&gt;</code>.  The
+<code>period</code> of <code>precision</code> is
+<code>ratio&lt;1, 10<sup>width</sup>&gt;</code> where <code>width</code> is the smallest
+possible integer in the range [0, 18] such that <code>precision</code> will exactly
+represent all values of <code>Duration</code>.  If no such value of <code>width</code>
+exists, then <code>width</code> shall be 6.
+</p>
+
+<p>
+[<i>Example:</i>
+</p>
+<table>
+<tr>
+<th><code>Duration</code></th>
+<th><code>precision</code></th>
+</tr>
+<tr>
+<td><code>hours</code></td>
+<td><code>seconds</code></td>
+</tr>
+<tr>
+<td><code>minutes</code></td>
+<td><code>seconds</code></td>
+</tr>
+<tr>
+<td><code>seconds</code></td>
+<td><code>seconds</code></td>
+</tr>
+<tr>
+<td><code>milliseconds</code></td>
+<td><code>milliseconds</code></td>
+</tr>
+<tr>
+<td><code>microseconds</code></td>
+<td><code>microseconds</code></td>
+</tr>
+<tr>
+<td><code>nanoseconds</code></td>
+<td><code>nanoseconds</code></td>
+</tr>
+<tr>
+<td><code>duration&lt;double, hours::period&gt;</code></td>
+<td><code>duration&lt;double&gt;</code></td>
+</tr>
+<tr>
+<td><code>duration&lt;double&gt;</code></td>
+<td><code>duration&lt;double&gt;</code></td>
+</tr>
+<tr>
+<td><code>duration&lt;double, milli&gt;</code></td>
+<td><code>duration&lt;double, milli&gt;</code></td>
+</tr>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 2&gt;&gt;</code></td>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 10&gt;&gt;</code></td>
+</tr>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 3&gt;&gt;</code></td>
+<td><code>duration&lt;seconds::rep, micro&gt;</code></td>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 4&gt;&gt;</code></td>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 100&gt;&gt;</code></td>
+</tr>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 5&gt;&gt;</code></td>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 10&gt;&gt;</code></td>
+</tr>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 6&gt;&gt;</code></td>
+<td><code>duration&lt;seconds::rep, micro&gt;</code></td>
+<tr>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 7&gt;&gt;</code></td>
+<td><code>duration&lt;seconds::rep, micro&gt;</code></td>
+<tr>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 8&gt;&gt;</code></td>
+<td><code>duration&lt;seconds::rep, milli&gt;</code></td>
+<tr>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 9&gt;&gt;</code></td>
+<td><code>duration&lt;seconds::rep, micro&gt;</code></td>
+<tr>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 10&gt;&gt;</code></td>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 10&gt;&gt;</code></td>
+<tr>
+<tr>
+<td><code>duration&lt;seconds::rep, ratio&lt;756, 625&gt;&gt;</code> <i>microfortnights</i></td>
+<td><code>duration&lt;seconds::rep, ratio&lt;1, 10000&gt;&gt;</code></td>
+<tr>
+</table>
+<p>
+<i>&mdash; end example</i>]
+</p>
+<blockquote>
+
+<pre>
+constexpr explicit time_of_day(Duration d) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Effects:</i> constructs an object of type <code>time_of_day</code> which represents
+the <code>Duration d</code> with precision <code>precision</code>.  The <code>hours</code>,
+<code>minutes</code>, <code>seconds</code> and <code>subseconds</code> are stored.  Also
+stored is the fact if <code>d</code> is negative or non-negative, and the fact that
+<code>hours()</code> is currently encoded in 24-hour format (whether or not <code>d</code>
+is in a 24-hour range).
+</p>
+<p>
+<i>Ensures:</i>
+</p>
+<blockquote>
+<p>
+<code>hours()</code> returns <code>duration_cast&lt;chrono::hours&gt;(abs(d))</code>.
+[<i>Note:</i> This is consistent with a 24-hour format<i>&mdash; end note</i>]
+</p>
+<p>
+<code>minutes()</code> returns <code>duration_cast&lt;chrono::minutes&gt;(abs(d) - hours())</code>.
+</p>
+<p>
+<code>seconds()</code> returns <code>duration_cast&lt;chrono::seconds&gt;(abs(d) - hours() - minutes())</code>.
+</p>
+<p>
+If
+<code>treat_as_floating_point&lt;precision::rep&gt;</code> is <code>true_type</code>,
+<code>subseconds()</code> returns <code>abs(d) - hours() - minutes() - seconds()</code>.
+Else <code>subseconds()</code> returns <code>duration_cast&lt;precision&gt;(abs(d) - hours() - minutes() - seconds())</code>.
+[<i>Note:</i> When <code>precision</code> is <code>seconds</code> with integral
+representation, <code>subseconds()</code> always returns <code>0s</code> <i>&mdash; end note</i>]
+</p>
+<p>
+If <code>treat_as_floating_point&lt;precision::rep&gt;</code> is <code>true_type</code>,
+<code>to_duration()</code> returns <code>d</code>, else <code>to_duration()</code>
+returns <code>floor&lt;precision&gt;(d)</code>.
+</p>
+</blockquote>
+</blockquote>
+
+<pre>
+constexpr chrono::hours hours() const noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> The stored hour of <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr chrono::minutes minutes() const noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> The stored minute of <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr chrono::seconds seconds() const noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> The stored second of <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr precision subseconds() const noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> The stored subsecond of <code>*this</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr precision to_duration() const noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> The <code>duration</code> which <code>*this</code> represents.
+</p>
+</blockquote>
+
+<pre>
+constexpr explicit operator precision() const noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> <code>to_duration()</code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr void make24() noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Effects:</i> If <code>*this</code> is a 12-hour time, converts to a 24-hour time.
+Otherwise, no effects.  If <code>hours().count()</code> is not in the range [1, 12],
+the effects are unspecified.
+</p>
+</blockquote>
+
+<pre>
+constexpr void make12() noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Effects:</i> If <code>*this</code> is a 24-hour time, converts to a 12-hour time.
+Otherwise, no effects.  If <code>hours().count()</code> is not in the range [0, 23],
+the effects are unspecified.
+</p>
+</blockquote>
+
+<p>
+26.9.3 Non-members [time.tod.nonmembers]
+</p>
+
+<pre>
+template &lt;class charT, class traits, class Duration&gt;
+basic_ostream&lt;charT, traits&gt;&amp;
+operator&lt;&lt;(basic_ostream&lt;charT, traits&gt;&amp; os, time_of_day&lt;Duration&gt; const&amp; tod);
+</pre>
+<blockquote>
+<p>
+<i>Effects:</i> If <code>tod</code> is a 24-hour time, outputs to <code>os</code>
+according to the format
+<code>"%T"</code> (26.11). Otherwise outputs to <code>os</code> according to the format
+<code>"%I:%M:%S%p"</code> (26.11).  If <code>tod.to_duration()</code> returns a negative value,
+the output is preceded with <code>'-'</code>.
+</p>
+<p>
+<i>Returns:</i> <code>os</code>.
+</p>
+<p>
+[<i>Example:</i>
+</p>
+<blockquote><pre>
+cout &lt;&lt; time_of_day{-4083007ms} &lt;&lt; '\n';
+for (auto ms : {4083007ms, 65745123ms})
+{
+     time_of_day tod{ms};
+     cout &lt;&lt; tod &lt;&lt; '\n';
+     tod.make12();
+     cout &lt;&lt; tod &lt;&lt; '\n';
+}
+</pre></blockquote>
+<p>
+Produces the output (assuming the "C" locale):
+</p>
+<blockquote><pre>
+-01:08:03.007
+01:08:03.007
+1:08:03.007AM
+18:15:45.123
+6:15:45.123PM
+</pre></blockquote>
+<p>
+<i>&mdash; end example</i>]
+</p>
+</blockquote>
+
+</blockquote>
+
+
+</li>
+
+</ol>
+
+</body>
+</html>
