@@ -32,7 +32,7 @@ Document number: D1466r1<br>
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2019-02-06<br/>
+2019-02-17<br/>
 </address>
 <hr/>
 <h1 align=center>Miscellaneous minor fixes for chrono</h1>
@@ -284,6 +284,23 @@ and from a <code>duration</code> and provides easy formatting.
 </blockquote>
 
 <blockquote>
+
+<p>
+26.2 Header <code>&lt;chrono&gt;</code> synopsis [time.syn]
+</p>
+
+<pre>
+template &lt;class Duration&gt; class time_of_day;
+<del>template&lt;&gt; class time_of_day&lt;hours&gt;;</del>
+<del>template&lt;&gt; class time_of_day&lt;minutes&gt;;</del>
+<del>template&lt;&gt; class time_of_day&lt;seconds&gt;;</del>
+<del>template&lt;class Rep, class Period&gt; class time_of_day&lt;duration&lt;Rep, Period&gt;&gt;;</del>
+</pre>
+
+<p>
+Replace [time.tod] with:
+</p>
+
 <p>
 26.9 Class template <code>time_of_day</code> [time.tod]
 </p>
@@ -440,7 +457,7 @@ exists, then <code>width</code> shall be 6.
 <p>
 <i>&mdash; end example</i>]
 </p>
-<blockquote>
+</blockquote>
 
 <pre>
 constexpr explicit time_of_day(Duration d) noexcept;
@@ -592,6 +609,7 @@ for (auto ms : {4083007ms, 65745123ms})
      tod.make12();
      cout &lt;&lt; tod &lt;&lt; '\n';
 }
+cout &lt;&lt; time_of_day{65745s} &lt;&lt; '\n';
 </pre></blockquote>
 <p>
 Produces the output (assuming the "C" locale):
@@ -602,6 +620,7 @@ Produces the output (assuming the "C" locale):
 1:08:03.007AM
 18:15:45.123
 6:15:45.123PM
+18:15:45
 </pre></blockquote>
 <p>
 <i>&mdash; end example</i>]
