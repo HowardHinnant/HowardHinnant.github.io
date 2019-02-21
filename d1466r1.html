@@ -32,7 +32,7 @@ Document number: D1466r1<br>
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2019-02-17<br/>
+2019-02-20<br/>
 </address>
 <hr/>
 <h1 align=center>Miscellaneous minor fixes for chrono</h1>
@@ -56,7 +56,7 @@ library that have come to my attention since the acceptance of
 
 <ol>
 
-<!-- is_leap_second -->
+<!-- get_leap_second_info -->
 <li>
 
 <blockquote class=note>
@@ -73,22 +73,42 @@ clients of <code>&lt;chrono&gt;</code>.
 </blockquote>
 
 <p>
+Insert into the synopsis 26.2 Header <code>&lt;chrono&gt;</code> synopsis [time.syn]:
+</p>
+
+<blockquote>
+<pre>
+struct get_leap_second_info_t;
+
+template &lt;class Duration&gt;
+   get_leap_second_info_t get_leap_second_info(utc_time&lt;Duration&gt; const&amp; ut);
+</pre>
+</blockquote>
+
+<p>
 Insert new paragraphs in 26.7.2.3 Non-member functions [time.clock.utc.nonmembers]:
 </p>
 
 <blockquote>
 <pre>
+struct get_leap_second_info_t
+{
+    bool    is_leap_second;
+    seconds elapsed;
+};
+
 template &lt;class Duration&gt;
-pair&lt;bool, seconds&gt;
-is_leap_second(utc_time&lt;Duration&gt; const&amp; ut)
+get_leap_second_info_t
+get_leap_second_info(utc_time&lt;Duration&gt; const&amp; ut);
 </pre>
 <blockquote>
 <p>
-<i>Returns:</i> A <code>pair&lt;bool, seconds&gt;</code> where
-<code>first</code> is true if <code>ut</code> is during a leap second insertion,
-and otherwise false. <code>second</code> is the number of leap seconds between
-1970-01-01 and <code>ut</code>. If <code>first</code> is true, the leap second
-referred to by <code>ut</code> is included in the count.
+<i>Returns:</i> A <code>get_leap_second_info_t</code> where
+<code>is_leap_second</code> is true if <code>ut</code> is during a
+leap second insertion, and otherwise false. <code>elapsed</code> is
+the number of leap seconds between 1970-01-01 and <code>ut</code>. If
+<code>is_leap_second</code> is true, the leap second referred to by
+<code>ut</code> is included in the count.
 </p>
 </blockquote>
 </blockquote>
