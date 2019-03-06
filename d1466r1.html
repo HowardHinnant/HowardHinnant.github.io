@@ -78,10 +78,10 @@ Insert into the synopsis 26.2 Header <code>&lt;chrono&gt;</code> synopsis [time.
 
 <blockquote>
 <pre>
-struct leap_second_info_result;
+struct leap_second_info;
 
 template &lt;class Duration&gt;
-   leap_second_info_result get_leap_second_info(utc_time&lt;Duration&gt; const&amp; ut);
+   leap_second_info get_leap_second_info(utc_time&lt;Duration&gt; const&amp; ut);
 </pre>
 </blockquote>
 
@@ -91,7 +91,7 @@ Insert new paragraphs in 26.7.2.3 Non-member functions [time.clock.utc.nonmember
 
 <blockquote>
 <pre>
-struct leap_second_info_result
+struct leap_second_info
 {
     bool    is_leap_second;
     seconds elapsed;
@@ -99,19 +99,19 @@ struct leap_second_info_result
 </pre>
 
 <p>
-The type <code>leap_second_info_result</code> has  data members, and special
+The type <code>leap_second_info</code> has  data members, and special
 members specified above. It has no base classes or members other than those
 specified.
 </p>
 
 <pre>
 template &lt;class Duration&gt;
-leap_second_info_result
+leap_second_info
 get_leap_second_info(utc_time&lt;Duration&gt; const&amp; ut);
 </pre>
 <blockquote>
 <p>
-<i>Returns:</i> A <code>leap_second_info_result</code> where
+<i>Returns:</i> A <code>leap_second_info</code> where
 <code>is_leap_second</code> is true if <code>ut</code> is during a
 leap second insertion, and otherwise false. <code>elapsed</code> is
 the number of leap seconds between 1970-01-01 and <code>ut</code>. If
