@@ -32,7 +32,7 @@ Document number: D1466r1<br>
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2019-03-05<br/>
+2019-03-06<br/>
 </address>
 <hr/>
 <h1 align=center>Miscellaneous minor fixes for chrono</h1>
@@ -224,66 +224,10 @@ not in the range [0, 255].
 </pre>
 <blockquote>
 <p>
-<ins><i>Returns:</i> <code>unsigned{((wd_ == 0u) ? 7u : wd_)}</code>.</ins>
+<ins><i>Returns:</i> <code>wd_ == 0u ? 7u : wd_</code>.</ins>
 </p>
 </blockquote>
 
-
-</blockquote>
-
-</li>
-
-<!-- Missing link comparison operators -->
-<li>
-
-<blockquote class=note>
-<p>
-<code>link</code> is missing some comparison operator definitions.  The declarations
-are correctly in the synopsis.  The missing definitions should be the "usual"
-formula based on <code>==</code> and <code>&lt;</code>.
-</p>
-</blockquote>
-
-<p>
-Add paragraphs to 26.10.9.3 Non-member functions [time.zone.link.nonmembers]:
-</p>
-
-<blockquote>
-<pre>
-bool operator!=(const link&amp; x, const link&amp; y) noexcept;
-</pre>
-<blockquote>
-<p>
-<i>Returns:</i> <code>!(x == y)</code>.
-</p>
-</blockquote>
-
-<pre>
-bool operator&gt; (const link&amp; x, const link&amp; y) noexcept;
-</pre>
-<blockquote>
-<p>
-<i>Returns:</i> <code>y &lt; x</code>.
-</p>
-</blockquote>
-
-<pre>
-bool operator&lt;=(const link&amp; x, const link&amp; y) noexcept;
-</pre>
-<blockquote>
-<p>
-<i>Returns:</i> <code>!(y &lt; x)</code>.
-</p>
-</blockquote>
-
-<pre>
-bool operator&gt;=(const link&amp; x, const link&amp; y) noexcept;
-</pre>
-<blockquote>
-<p>
-<i>Returns:</i> <code>!(x &lt; y)</code>.
-</p>
-</blockquote>
 
 </blockquote>
 
@@ -440,10 +384,10 @@ class hh_mm_ss
     precision       ss;     // exposition only
 
 public:
-    static unsigned constexpr fractional_width = <i>see below</i>
-    using precision                            = <i>see below</i>
+    static unsigned constexpr fractional_width = <i>see below</i>;
+    using precision                            = <i>see below</i>;
 
-    constexpr hh_mm_ss() noexcept;
+    constexpr hh_mm_ss() noexcept : hh_mm_ss{Duration::zero()} {}
     constexpr explicit hh_mm_ss(Duration d) noexcept;
 
     constexpr bool is_negative() const noexcept;
@@ -474,11 +418,16 @@ duration.
 </p>
 
 <p>
+If <code>Duration</code> is not an instance of <code>duration</code>, the program
+is ill-formed.
+</p>
+
+<p>
 26.9.2 Members [time.hms.members]
 </p>
 
 <pre>
-static unsigned constexpr fractional_width = <i>see below</i>
+static unsigned constexpr fractional_width = <i>see below</i>;
 </pre>
 
 <blockquote>
@@ -577,22 +526,13 @@ exists, then <code>fractional_width</code> is 6.
 </blockquote>
 
 <pre>
-using precision = <i>see below</i>
+using precision = <i>see below</i>;
 </pre>
 
 <blockquote>
 <p>
-<code>precision</code> is a specialization of <code>duration</code> whose
-<code>rep</code> has type <code>common_type_t&lt;Duration::rep, seconds::rep&gt;</code>,
-and whose <code>period</code> is <code>ratio&lt;1, 10<sup>fractional_width</sup>&gt;</code>.
+<code>precision</code> is <code>duration&lt;common_type_t&lt;Duration::rep, seconds::rep&gt;, ratio&lt;1, 10<sup>fractional_width</sup>&gt;&gt;</code>.
 </p>
-</blockquote>
-
-<pre>
-constexpr hh_mm_ss() noexcept;
-</pre>
-<blockquote>
-<i>Effects:</i> Constructed as if with <code>Duration{}</code>.
 </blockquote>
 
 <pre>
@@ -607,7 +547,7 @@ stored is the fact if <code>d</code> is negative or non-negative.
 </p>
 <blockquote>
 <p>
-Stores <code>d &lt; Duration{}</code> in <code>is_neg</code>.
+Stores <code>d &lt; Duration::zero()</code> in <code>is_neg</code>.
 </p>
 <p>
 Stores <code>duration_cast&lt;chrono::hours&gt;(abs(d))</code> in <code>h</code>.
@@ -620,7 +560,7 @@ Stores <code>duration_cast&lt;chrono::seconds&gt;(abs(d) - hours() - minutes())<
 </p>
 <p>
 If
-<code>treat_as_floating_point&lt;precision::rep&gt;</code> is <code>true_type</code>,
+<code>treat_as_floating_point_v&lt;precision::rep&gt;</code> is <code>true</code>,
 stores <code>abs(d) - hours() - minutes() - seconds()</code> in <code>ss</code>.
 Else stores <code>duration_cast&lt;precision&gt;(abs(d) - hours() - minutes() - seconds())</code>
 in <code>ss</code>.
@@ -629,7 +569,7 @@ representation, <code>subseconds()</code> always returns <code>0s</code> <i>&mda
 </p>
 </blockquote>
 <p>
-<i>Ensures:</i> If <code>treat_as_floating_point&lt;precision::rep&gt;</code> is <code>true_type</code>,
+<i>Ensures:</i> If <code>treat_as_floating_point_v&lt;precision::rep&gt;</code> is <code>true</code>,
 <code>to_duration()</code> returns <code>d</code>, else <code>to_duration()</code>
 returns <code>floor&lt;precision&gt;(d)</code>.
 </p>
@@ -783,11 +723,9 @@ constexpr hours make12(hours h) noexcept;
 </pre>
 <blockquote>
 <p>
-<i>Expects:</i> <code>0h &lt;= h &amp;&amp; h &lt;= 23h</code>.
-</p>
-<p>
 <i>Returns:</i> The 12-hour equivalent of <code>h</code> in the range
-<code>[1h, 12h]</code>.
+<code>[1h, 12h]</code>.  If <code>h</code> is not in the range
+<code>[0h, 23h]</code>, the value returned is unspecified.
 </p>
 </blockquote>
 
@@ -796,14 +734,12 @@ constexpr hours make24(hours h, bool is_pm) noexcept;
 </pre>
 <blockquote>
 <p>
-<i>Expects:</i> <code>1h &lt;= h &amp;&amp; h &lt;= 12h</code>.
-</p>
-<p>
 <i>Returns:</i> If <code>is_pm</code> is <code>false</code>, returns the 24-hour
 equivalent of <code>h</code> in the range <code>[0h, 11h]</code>, assuming <code>h</code>
 represents an ante meridiem hour.  Else returns the 24-hour equivalent of <code>h</code>
 in the range <code>[12h, 23h]</code>, assuming <code>h</code> represents a post
-meridiem hour.
+meridiem hour.  If <code>h</code> is not in the range
+<code>[1h, 12h]</code>, the value returned is unspecified.
 </p>
 </blockquote>
 
