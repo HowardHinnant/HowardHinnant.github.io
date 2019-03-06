@@ -96,7 +96,15 @@ struct leap_second_info_result
     bool    is_leap_second;
     seconds elapsed;
 };
+</pre>
 
+<p>
+The type <code>leap_second_info_result</code> has  data members, and special
+members specified above. It has no base classes or members other than those
+specified.
+</p>
+
+<pre>
 template &lt;class Duration&gt;
 leap_second_info_result
 get_leap_second_info(utc_time&lt;Duration&gt; const&amp; ut);
