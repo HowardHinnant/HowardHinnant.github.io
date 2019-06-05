@@ -32,7 +32,7 @@ Document number: D1466r2<br>
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2019-06-04<br/>
+2019-06-05<br/>
 </address>
 <hr/>
 <h1 align=center>Miscellaneous minor fixes for chrono</h1>
@@ -52,6 +52,10 @@ Document number: D1466r2<br>
 <p>
 <b>R2:</b>
 <ul>
+<li>
+In the description of <code>hh_mm_ss</code>, allow
+<i>subseconds</i> to be based on a non-positive power of 10.
+</li>
 <li>
 Update <code>__cpp_lib_chrono</code>.
 </li>
@@ -100,7 +104,7 @@ Return type of <code>is_leap_second</code> changed from
 Corrected type-o in author's note concerning <code>weekday</code>.
 </li>
 <li>
-Corrected type-o in <code>weekday::iso_encoding</code> <ins>Returns:</ins> clause.
+Corrected type-o in <code>weekday::iso_encoding</code> <i>Returns:</i> clause.
 </li>
 <li>
 Removed the insertion of "missing" <code>link</code> comparison operators.  They
@@ -548,7 +552,7 @@ operator&lt;&lt;(basic_ostream&lt;charT, traits&gt;&amp; os, hh_mm_ss&lt;Duratio
 <p>
 The <code>hh_mm_ss</code> class template splits a duration into a multi-field time
 structure <i>hours:minutes:seconds</i> and possibly <i>subseconds</i>, where <i>subseconds</i>
-will be a <code>duration</code> unit based on a negative power of 10.
+will be a <code>duration</code> unit based on a non-positive power of 10.
 The <code>Duration</code> template parameter dictates the precision to which the time is
 split.  A <code>hh_mm_ss</code> models negative durations with a distinct
 <code>is_negative</code> getter that returns <code>true</code> when the input duration
