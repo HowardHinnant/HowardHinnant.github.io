@@ -28,11 +28,11 @@
 <body>
 
 <address align=right>
-Document number: D1466r1<br>
+Document number: d1466r3<br>
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2019-03-06<br/>
+2019-07-16<br/>
 </address>
 <hr/>
 <h1 align=center>Miscellaneous minor fixes for chrono</h1>
@@ -40,8 +40,117 @@ Document number: D1466r1<br>
 <h2>Contents</h2>
 
 <ul>
+<li><a href="#Revision">Revision History</a></li>
 <li><a href="#Introduction">Introduction</a></li>
 <li><a href="#Wording">Wording</a></li>
+</ul>
+
+<a name="Revision"></a><h2>Revision History</h2>
+
+<ul>
+<li>
+<p>
+<b>R3:</b>
+<ul>
+<li>
+Reword the <code>weekday(unsigned)</code> constructor to not use the word "stores."
+</li>
+<li>
+Reword the <code>hh_mm_ss(Duration)</code> constructor to not use the word "stores."
+</li>
+</ul>
+</li>
+
+<li>
+<p>
+<b><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1466r2.html">R2:</a></b>
+<ul>
+<li>
+Removed superflous and questionably grammatical wording from the <code>hh_mm_ss</code>
+constructor <i>Effects</i> clause..
+</li>
+<li>
+Removed <code>noexcept</code> from <code>hh_mm_ss</code> constructor.
+</li>
+<li>
+In the description of <code>hh_mm_ss</code>, allow
+<i>subseconds</i> to be based on a non-positive power of 10.
+</li>
+<li>
+Update <code>__cpp_lib_chrono</code>.
+</li>
+<li>
+Reference current working draft
+<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4810.pdf">N4810</a>
+and update section numbers.
+</li>
+<li>
+Remove errant "," in [time.clock.utc.nonmembers].
+</li>
+<li>
+Remove use of removed conversion from <code>weekday</code> to
+<code>unsigned</code> in specification.
+</li>
+<li>
+Removed use of the term "broken down".
+</li>
+<li>
+Changed <code>floor</code> to <code>duration_cast</code> in the
+<i>Ensures:</i> clause of the <code>hh_mm_ss</code> constructor.
+</li>
+<li>
+Changed <code>make12</code> and <code>make24</code> to use
+<code>const hours&amp;</code> parameters instead of <code>hours</code>.
+</li>
+</ul>
+</p>
+</li>
+
+<li>
+<p>
+<b><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1466r1.html">R1:</a></b>
+<ul>
+<li>
+Introduced <code>struct leap_second_info</code>.
+</li>
+<li>
+<code>is_leap_second</code> renamed to <code>get_leap_second_info</code>.
+</li>
+<li>
+Return type of <code>is_leap_second</code> changed from
+<code>pair&lt;bool, seconds&gt;</code> to <code>leap_second_info</code>.
+</li>
+<li>
+Corrected type-o in author's note concerning <code>weekday</code>.
+</li>
+<li>
+Corrected type-o in <code>weekday::iso_encoding</code> <i>Returns:</i> clause.
+</li>
+<li>
+Removed the insertion of "missing" <code>link</code> comparison operators.  They
+are implicitly specified by the existing standard.
+</li>
+<li>
+Rename <code>time_of_day</code> to <code>hh_mm_ss</code>.
+</li>
+<li>
+Move <code>make12</code>/<code>make24</code> from <code>hh_mm_ss</code> to
+namespace scope.
+</li>
+<li>
+Add <code>fractional_width</code> to <code>hh_mm_ss</code>.
+</li>
+<li>
+Improve <code>hh_mm_ss</code> specification.
+</li>
+</ul>
+</p>
+</li>
+
+<li>
+<p>
+<b><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1466r0.html">R0:</a></b> Original paper.
+</li>
 </ul>
 
 <a name="Introduction"></a><h2>Introduction</h2>
@@ -50,11 +159,20 @@ Document number: D1466r1<br>
 This is a collection of minor fixes and upgrades to the <code>&lt;chrono&gt;</code>
 library that have come to my attention since the acceptance of
 <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0355r7.html">P0355r7</a>.
+This paper is written with respect to
+<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4810.pdf">N4810</a>.
 </p>
 
 <a name="Wording"></a><h2>Wording</h2>
 
 <ol>
+
+<!-- Update __cpp_lib_chrono -->
+<li>
+Update the value of the <code>__cpp_lib_chrono</code> in table
+"Standard library feature-test macros" of [support.limits.general] to reflect date
+of approval of this proposal.
+</li>
 
 <!-- get_leap_second_info -->
 <li>
@@ -73,7 +191,7 @@ clients of <code>&lt;chrono&gt;</code>.
 </blockquote>
 
 <p>
-Insert into the synopsis 26.2 Header <code>&lt;chrono&gt;</code> synopsis [time.syn]:
+Insert into the synopsis 27.2 Header <code>&lt;chrono&gt;</code> synopsis [time.syn]:
 </p>
 
 <blockquote>
@@ -86,7 +204,7 @@ template &lt;class Duration&gt;
 </blockquote>
 
 <p>
-Insert new paragraphs in 26.7.2.3 Non-member functions [time.clock.utc.nonmembers]:
+Insert new paragraphs in 27.7.2.3 Non-member functions [time.clock.utc.nonmembers]:
 </p>
 
 <blockquote>
@@ -99,7 +217,7 @@ struct leap_second_info
 </pre>
 
 <p>
-The type <code>leap_second_info</code> has  data members, and special
+The type <code>leap_second_info</code> has data members and special
 members specified above. It has no base classes or members other than those
 specified.
 </p>
@@ -192,7 +310,7 @@ to <code>unsigned</code> he desires by choosing one of these member functions.
 </blockquote>
 
 <p>
-Modify 26.8.6.2 [time.cal.wd.members] as indicated:
+Modify 27.8.6.2 [time.cal.wd.members] as indicated:
 </p>
 
 <blockquote>
@@ -203,8 +321,7 @@ constexpr explicit weekday(unsigned wd) noexcept;
 <blockquote>
 <p>
 <i>Effects:</i> Constructs an object of type <code>weekday</code> by
-initializing <code>wd_</code> with <code>wd</code>, <ins>except if <code>wd_ == 7</code>,
-stores <code>0</code></ins>. The value held is unspecified if wd is
+initializing <code>wd_</code> with <code>wd<ins> == 7 ? 0 : wd</ins></code>. The value held is unspecified if wd is
 not in the range [0, 255].
 </p>
 </blockquote>
@@ -239,6 +356,44 @@ not in the range [0, 255].
 
 </blockquote>
 
+<p>
+Modify 27.8.6.3 [time.cal.wd.nonmembers] as indicated:
+</p>
+
+<blockquote>
+<pre>
+constexpr bool operator==(const weekday&amp; x, const weekday&amp; y) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> <code><del>unsigned{x} == unsigned{y}</del> <ins>x.wd_ == y.wd_</ins></code>.
+</p>
+</blockquote>
+
+<pre>
+constexpr weekday operator+(const weekday&amp; x, const days&amp; y) noexcept;
+</pre>
+<blockquote>
+<p>
+<i>Returns:</i> <code>weekday{modulo(static_cast&lt;long long&gt;(<del>unsigned{</del>x<ins>.wd_</ins><del>}</del>) + y.count(), 7)}</code>.
+</p>
+</blockquote>
+
+<pre>
+template&lt;class charT, class traits&gt;
+  basic_ostream&lt;charT, traits&gt;&amp;
+    operator&lt;&lt;(basic_ostream&lt;charT, traits&gt;&amp; os, const weekday&amp; wd);
+</pre>
+<blockquote>
+<p>
+<i>Effects:</i> If <code>wd.ok() == true</code> inserts
+<code>format(os.getloc(), fmt, wd)</code> where <code>fmt</code> is <code>"%a"</code>
+widened to <code>charT</code>. Otherwise inserts
+<code>unsigned{wd<ins>.wd_</ins>} << " is not a valid weekday"</code>.
+</p>
+</blockquote>
+</blockquote>
+
 </li>
 
 <!-- hh_mm_ss -->
@@ -266,7 +421,7 @@ seconds, subseconds}</code> structure which easily converts to and from a
 <blockquote>
 
 <p>
-Modify 26.1 General [time.general]
+Modify 27.1 General [time.general]
 </p>
 
 <blockquote>
@@ -283,25 +438,25 @@ Modify 26.1 General [time.general]
 </tr>
 
 <tr>
-<td>26.8</td>
+<td>27.8</td>
 <td>Civil calendar</td>
 <td></td>
 </tr>
 
 <tr>
-<td>26.9</td>
+<td>27.9</td>
 <td>Class template <del><code>time_of_day</code></del><ins><code>hh_mm_ss</code></ins></td>
 <td></td>
 </tr>
 
 <tr>
-<td><ins>26.10</ins></td>
+<td><ins>27.10</ins></td>
 <td><ins>12/24 hour functions</ins></td>
 <td></td>
 </tr>
 
 <tr>
-<td><del>26.10</del><ins>26.11</ins></td>
+<td><del>27.10</del><ins>27.11</ins></td>
 <td>Time zones</td>
 <td></td>
 </tr>
@@ -313,14 +468,14 @@ Modify 26.1 General [time.general]
 </blockquote>
 
 <p>
-Modify 26.2 Header <code>&lt;chrono&gt;</code> synopsis [time.syn]
+Modify 27.2 Header <code>&lt;chrono&gt;</code> synopsis [time.syn]
 </p>
 
 <blockquote>
 
 <pre>
 ...
-// 26.9, class template <del>time_of_day</del><ins>hh_mm_ss</ins>
+// 27.9, class template <del>time_of_day</del><ins>hh_mm_ss</ins>
 template &lt;class Duration&gt; class <del>time_of_day</del><ins>hh_mm_ss</ins>;
 <del>template&lt;&gt; class time_of_day&lt;hours&gt;;</del>
 <del>template&lt;&gt; class time_of_day&lt;minutes&gt;;</del>
@@ -341,18 +496,18 @@ template&lt;class charT, class traits, class <del>Rep, class Period</del><ins>Du
     operator&lt;&lt;(basic_ostream&lt;charT, traits&gt;&amp; os,
                const <del>time_of_day</del><ins>hh_mm_ss</ins>&lt;<ins>D</ins><del>d</del>uration<del>&lt;Rep, Period&gt;</del>&gt;&amp; t);
 
-<ins>// 26.10, 12/24 hour functions
-constexpr bool is_am(hours const&amp; h) noexcept;
-constexpr bool is_pm(hours const&amp; h) noexcept;
-constexpr hours make12(hours h) noexcept;
-constexpr hours make24(hours h, bool is_pm) noexcept;</ins>
+<ins>// 27.10, 12/24 hour functions
+constexpr bool is_am(const hours&amp; h) noexcept;
+constexpr bool is_pm(const hours&amp; h) noexcept;
+constexpr hours make12(const hours&amp; h) noexcept;
+constexpr hours make24(const hours&amp; h, bool is_pm) noexcept;</ins>
 ...
 </pre>
 
 </blockquote>
 
 <p>
-Modify 26.7.1.3 Non-member functions [time.clock.system.nonmembers]
+Modify 27.7.1.3 Non-member functions [time.clock.system.nonmembers]
 </p>
 
 <blockquote>
@@ -374,11 +529,11 @@ Replace [time.tod] with [time.hms]:
 <blockquote>
 
 <p>
-26.9 Class template <code>hh_mm_ss</code> [time.hms]
+27.9 Class template <code>hh_mm_ss</code> [time.hms]
 </p>
 
 <p>
-26.9.1 Overview [time.hms.overview]
+27.9.1 Overview [time.hms.overview]
 </p>
 
 <blockquote><pre>
@@ -396,7 +551,7 @@ public:
     using precision                            = <i>see below</i>;
 
     constexpr hh_mm_ss() noexcept : hh_mm_ss{Duration::zero()} {}
-    constexpr explicit hh_mm_ss(Duration d) noexcept;
+    constexpr explicit hh_mm_ss(Duration d);
 
     constexpr bool is_negative() const noexcept;
     constexpr chrono::hours hours() const noexcept;
@@ -414,11 +569,11 @@ operator&lt;&lt;(basic_ostream&lt;charT, traits&gt;&amp; os, hh_mm_ss&lt;Duratio
 </pre></blockquote>
 
 <p>
-The <code>hh_mm_ss</code> class template splits a duration into a “broken down” time
-<i>hours:minutes:seconds</i> and possibly <i>subseconds</i>, where <i>subseconds</i>
-will be a <code>duration</code> unit based on a negative power of 10.
+The <code>hh_mm_ss</code> class template splits a duration into a multi-field time
+structure <i>hours:minutes:seconds</i> and possibly <i>subseconds</i>, where <i>subseconds</i>
+will be a <code>duration</code> unit based on a non-positive power of 10.
 The <code>Duration</code> template parameter dictates the precision to which the time is
-broken down.  A <code>hh_mm_ss</code> models negative durations with a distinct
+split.  A <code>hh_mm_ss</code> models negative durations with a distinct
 <code>is_negative</code> getter that returns <code>true</code> when the input duration
 is negative.  The individual duration fields always return non-negative durations even
 when <code>is_negative()</code> indicates the structure is representing a negative
@@ -431,7 +586,7 @@ is ill-formed.
 </p>
 
 <p>
-26.9.2 Members [time.hms.members]
+27.9.2 Members [time.hms.members]
 </p>
 
 <pre>
@@ -544,34 +699,31 @@ using precision = <i>see below</i>;
 </blockquote>
 
 <pre>
-constexpr explicit hh_mm_ss(Duration d) noexcept;
+constexpr explicit hh_mm_ss(Duration d);
 </pre>
 <blockquote>
 <p>
 <i>Effects:</i> constructs an object of type <code>hh_mm_ss</code> which represents
-the <code>Duration d</code> with precision <code>precision</code>.  The <code>hours</code>,
-<code>minutes</code>, <code>seconds</code> and <code>subseconds</code> are stored.  Also
-stored is the fact if <code>d</code> is negative or non-negative.
+the <code>Duration d</code> with precision <code>precision</code>.
 </p>
 <blockquote>
 <p>
-Stores <code>d &lt; Duration::zero()</code> in <code>is_neg</code>.
+Initializes <code>is_neg</code> with <code>d &lt; Duration::zero()</code>.
 </p>
 <p>
-Stores <code>duration_cast&lt;chrono::hours&gt;(abs(d))</code> in <code>h</code>.
+Initializes <code>h</code> with <code>duration_cast&lt;chrono::hours&gt;(abs(d))</code>.
 </p>
 <p>
-Stores <code>duration_cast&lt;chrono::minutes&gt;(abs(d) - hours())</code> in <code>m</code>.
+Initializes <code>m</code> with <code>duration_cast&lt;chrono::minutes&gt;(abs(d) - hours())</code>.
 </p>
 <p>
-Stores <code>duration_cast&lt;chrono::seconds&gt;(abs(d) - hours() - minutes())</code> in <code>s</code>.
+Initializes <code>s</code> with <code>duration_cast&lt;chrono::seconds&gt;(abs(d) - hours() - minutes())</code>.
 </p>
 <p>
 If
 <code>treat_as_floating_point_v&lt;precision::rep&gt;</code> is <code>true</code>,
-stores <code>abs(d) - hours() - minutes() - seconds()</code> in <code>ss</code>.
-Else stores <code>duration_cast&lt;precision&gt;(abs(d) - hours() - minutes() - seconds())</code>
-in <code>ss</code>.
+initializes <code>ss</code> with <code>abs(d) - hours() - minutes() - seconds()</code>.
+Else initializes <code>ss</code> with <code>duration_cast&lt;precision&gt;(abs(d) - hours() - minutes() - seconds())</code>.
 [<i>Note:</i> When <code>precision</code> is <code>seconds</code> with integral
 representation, <code>subseconds()</code> always returns <code>0s</code> <i>&mdash; end note</i>]
 </p>
@@ -579,7 +731,7 @@ representation, <code>subseconds()</code> always returns <code>0s</code> <i>&mda
 <p>
 <i>Ensures:</i> If <code>treat_as_floating_point_v&lt;precision::rep&gt;</code> is <code>true</code>,
 <code>to_duration()</code> returns <code>d</code>, else <code>to_duration()</code>
-returns <code>floor&lt;precision&gt;(d)</code>.
+returns <code>duration_cast&lt;precision&gt;(d)</code>.
 </p>
 </blockquote>
 
@@ -648,7 +800,7 @@ constexpr explicit operator precision() const noexcept;
 </blockquote>
 
 <p>
-26.9.3 Non-members [time.hms.nonmembers]
+27.9.3 Non-members [time.hms.nonmembers]
 </p>
 
 <pre>
@@ -694,13 +846,13 @@ Produces the output (assuming the "C" locale):
 </blockquote>
 
 <p>
-Insert a new section, 26.10 12/24 hour functions [time.12]:
+Insert a new section, 27.10 12/24 hour functions [time.12]:
 </p>
 
 <blockquote>
 
 <p>
-26.10 12/24 hour functions [time.12]
+27.10 12/24 hour functions [time.12]
 </p>
 
 <p>
@@ -709,7 +861,7 @@ time of day.
 </p>
 
 <pre>
-constexpr bool is_am(hours const&amp; h) noexcept;
+constexpr bool is_am(const hours&amp; h) noexcept;
 </pre>
 <blockquote>
 <p>
@@ -718,7 +870,7 @@ constexpr bool is_am(hours const&amp; h) noexcept;
 </blockquote>
 
 <pre>
-constexpr bool is_pm(hours const&amp; h) noexcept;
+constexpr bool is_pm(const hours&amp; h) noexcept;
 </pre>
 <blockquote>
 <p>
@@ -727,7 +879,7 @@ constexpr bool is_pm(hours const&amp; h) noexcept;
 </blockquote>
 
 <pre>
-constexpr hours make12(hours h) noexcept;
+constexpr hours make12(const hours&amp; h) noexcept;
 </pre>
 <blockquote>
 <p>
@@ -738,7 +890,7 @@ constexpr hours make12(hours h) noexcept;
 </blockquote>
 
 <pre>
-constexpr hours make24(hours h, bool is_pm) noexcept;
+constexpr hours make24(const hours&amp; h, bool is_pm) noexcept;
 </pre>
 <blockquote>
 <p>
