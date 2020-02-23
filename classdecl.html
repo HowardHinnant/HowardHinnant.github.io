@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>C++ class declarations</title>
+	<style>
+	p {text-align:justify}
+	li {text-align:justify}
+	blockquote.note
+	{
+		background-color:#E0E0E0;
+		padding-left: 15px;
+		padding-right: 15px;
+		padding-top: 1px;
+		padding-bottom: 1px;
+	}
+	ins {color:#00A000}
+	del {color:#A00000}
+	code {white-space:pre;}
+	</style>
+</head>
+<body>
+
+<address align=right>
+<br/>
+<br/>
+<a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
+2020-02-22<br/>
+</address>
+<hr/>
+
+<h1 align=center>How I Declare My <code>class</code> And Why</h1>
+
+<p>
+When I first learned C++ decades ago, I was taught that data members should be private
+and appear at the bottom of the class declaration.  The rationale for this was that
+the data members were just implementation details, and less important that the class'
+API.
+</p>
+
+<p>
+And I followed this rule for decades ...
+</p>
+
+<p>
+But I've since come to the conclusion that this is exactly wrong.
+</p>
+
+<p>
+But I've since come to the conclusion that this is exactly wrong.
+</p>
+
+<p>
+When I'm reading a class declaration, the very first things I want to know are:
+</p>
+
+<ol>
+<li>
+What resources does this class own?
+</li>
+<li>
+Can the class be default constructed?
+</li>
+<li>
+Can the class be copied or moved?
+</li>
+<li>
+How can the class be constructed (other than by default, copy or move)?
+</li>
+<li>
+What else can one do with the class?
+</li>
+</ol>
+
+<p>
+Note that this is an <i>ordered</i> list: top priority is listed first.
+</p>
+
+<p>
+Why is it so important that I first learn about resources?
+</p>
+
+<p><b>data members:</b></p>
+
+<p>
+Once I know that a class owns a dynamically sized array of integers, or several strings,
+or a pointer to an incomplete class, or whatever, I immediately start to get a feel for
+what this class does.  Getting an overview of the data members and their names gives me
+that first impression:
+</p>
+
+<blockquote>
+<pre>
+class year_month_day
+{
+    year  y_;
+    month m_;
+    day   d_;
+
+public:
+    // ...
+</pre>
+</blockquote>
+
+<p><b>destructor:</b></p>
+
+<p>
+With the data members in view, the next most important item for knowing what resources
+are owned is the destructor.  Is that pointer data member owning or not owning?  The
+destructor will say.  So after the data members, the destructor, if it is to be user-declared
+is next:
+</p>
+
+<blockquote>
+<pre>
+class tzdb_list
+{
+    std::atomic&lt;tzdb*&gt; head_{nullptr};
+
+public:
+    ~tzdb_list();
+    // ...
+</pre>
+</blockquote>
+
+<p>
+Even if the definition of the destructor is not visible (and it shouldn't be at this point),
+just the existence of the user-declared destructor, combined with the list of data members,
+usually gives a pretty good general idea of what a class owns or doesn't own.
+<code>~tzdb_list()</code> apparently needs to do something with the <code>head_</code>
+data member which is an atomic pointer.  The most likely scenario is that it is going
+to delete one or more <code>tzdb</code>.
+</p>
+
+<p>
+And if the destructor is implicitly compiler declared and provided, then it is not
+explicitly listed first.  If the reader expects to see the destructor as the first thing
+after the data members, then when it is missing, the reader can clearly see it is missing,
+as opposed to searching the entire class declaration for a destructor.
+</p>
+
+<blockquote>
+<pre>
+class year_month_day
+{
+    year  y_;
+    month m_;
+    day   d_;
+
+public:
+    year_month_day() = default;
+    // ...
+</pre>
+</blockquote>
+
+<p>
+<code>year_month_day</code> clearly has a compiler-declared destructor, otherwise it
+would appear prior to the default constructor.  And this means that simply running the
+destructor for each data member (still clearly visible) is sufficient to destruct the
+<code>year_month_day</code>.  Indeed, have the data members close by <i>is key</i> to
+understanding what the compiler-provided special members do!
+</p>
+
+<p>
+With the data members and the destructor known, and knowing <i>nothing else</i> about a
+class, I know what resources a class owns.  And no other information is as important and
+concise as this for a quick overview of a class's purpose.
+</p>
+
+<p><b>default constructor:</b></p>
+
+<p>
+Next, and only if it needs to be user-declared, I list the default constructor.
+</p>
+
+<blockquote>
+<pre>
+class day
+{
+    unsigned char d_;
+
+public:
+    day() = default;
+    // ...
+</pre>
+</blockquote>
+
+<p>
+Even if it is compiler-provided, it is often necessary to user-declare it if you want one,
+since if you declare <i>any</i> other constructor, the default constructor is inhibited if
+not user-declared.  And by declaring if (if needed) right after the destructor (if needed),
+the reader knows where to look for it, and does <i>not</i> have to search the entire class
+declaration to find out if the default constructor is user-declared or not.
+</p>
+
+<p>
+And if the default constructor is compiler-provided (either implicitly or explicitly),
+with the data members nearby, it is easy for the reader to see what the compiler-provided
+default constructor does.
+</p>
+
+<p>
+In the above example for <code>class day</code> it is easy to see that <code>~day()</code>
+is compiler-provided, and is trivial because of the single <code>unsigned char</code>
+data member.  And that it has a trivial default constructor that works just the same way
+as default constructing an <code>unsigned char</code>.  We've only looked at a few lines of
+code of <code>class day</code> and we already know a lot about it.
+</p>
+
+<p><b>copy special members: copy constructor, copy assignment operator</b></p>
+
+<p>
+If the class needs user-declared copy members, they are declared next, copy constructor
+first, copy assignment operator second.
+</p>
+
+<blockquote>
+<pre>
+template &lt;class T&gt;
+class shared_ptr
+{
+    T*                 ptr_  = nullptr;
+    shared_weak_count* cntl_ = nullptr;
+
+public:
+    ~shared_ptr();
+    shared_ptr() = default;
+    shared_ptr(shared_ptr const&amp; sp) noexcept;
+    shared_ptr&amp; operator=(shared_ptr const&amp; sp) noexcept;
+    // ...
+</pre>
+</blockquote>
+
+<p>
+As we get into more complicated class types, readability becomes more and more important.
+In the above example, we can see that something non-trivial needs to happen in the
+destructor, likely leading to ownership of the two pointer data members.
+</p>
+
+<p>
+We can also see that the default constructor consists of the state that both pointer
+data members are set to <code>nullptr</code>.  This constructor is implicitly both
+<code>constexpr</code> and <code>noexcept</code>.
+</p>
+
+<p>
+And we can see that this class is copyable, but (most likely) not trivially copyable.
+However we can copy without risk of throwing exceptions!  Except for the descriptive
+name <code>shared_ptr</code> we do not yet know exactly how this class copies, but we
+do know that it can be copied.
+</p>
+
+<p><b>move special members: move constructor, move assignment operator</b></p>
+
+<p>
+If the class needs user-declared move members, they are declared next, move constructor
+first, move assignment operator second.
+</p>
+
+<blockquote>
+<pre>
+template &lt;class T, class D = default_delete&lt;T&gt;&gt;
+class unique_ptr
+{
+public:
+    using deleter_type = D;
+    using pointer = compute_pointer_t&lt;T, deleter_type&gt;;
+
+private:
+    pointer ptr_ = nullptr;
+    deleter_type d_;
+
+public:
+    ~unique_ptr();
+    unique_ptr() = default;
+    unique_ptr(unique_ptr&amp;&amp; ptr) noexcept;
+    unique_ptr&amp; operator=(unique_ptr&amp;&amp; ptr) noexcept;
+    // ...
+</pre>
+</blockquote>
+
+<p>
+In the above example we can quickly see that <code>ptr_</code> is likely an owned resource
+because of the user-declared destructor.  And that the type is default constructible by
+setting <code>ptr_</code> to <code>nullptr</code>.  We can also quickly see that
+<code>unique_ptr</code> is <i>not</i> copyable because the copy members are noticeably
+missing between the default constructor and the move members.  User-declared move members
+will implicitly delete the copy members.  With very few lines of code we can quickly see
+that <code>unique_ptr</code> is a move-only type that owns a resource.
+</p>
+
+<p><b>Everything else:</b></p>
+
+<p>
+In the first few lines of code we can see the data members, and all six of the special
+member functions, whether or not they are user-declared.  And where any of the six
+special members are compiler-provided, the list of data members (and bases if any) tell
+us what the special members do.
+</p>
+
+<p>
+Next I like to provide the rest of the constructors, followed by the rest of the member
+functions.
+</p>
+
+<p>
+I have found that this ordering of the declarations, including omitting any that are not
+needed, provides the best readability in class declarations.  It is consistent and concise
+as possible.  It provides the most important characteristics of a class as soon as
+possible to the reader.  It prevents the reader from having to search the entire class
+declaration for compiler-declared special members which are otherwise invisible to the
+reader.
+</p>
+
+</body>
+</html>
