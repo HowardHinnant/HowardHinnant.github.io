@@ -47,10 +47,6 @@ But I've since come to the conclusion that this is exactly wrong.
 </p>
 
 <p>
-But I've since come to the conclusion that this is exactly wrong.
-</p>
-
-<p>
 When I'm reading a class declaration, the very first things I want to know are:
 </p>
 
@@ -188,8 +184,8 @@ public:
 <p>
 Even if it is compiler-provided, it is often necessary to user-declare it if you want one,
 since if you declare <i>any</i> other constructor, the default constructor is inhibited if
-not user-declared.  And by declaring if (if needed) right after the destructor (if needed),
-the reader knows where to look for it, and does <i>not</i> have to search the entire class
+not user-declared.  And by declaring right after the destructor (if needed), the reader
+knows where to look for it, and does <i>not</i> have to search the entire class
 declaration to find out if the default constructor is user-declared or not.
 </p>
 
