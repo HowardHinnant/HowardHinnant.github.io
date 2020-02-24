@@ -330,7 +330,7 @@ Nor do I follow the newer "rule of 0".  I follow
 <p>
 Nothing is more important than correctness.  And each of the 6 special members must be
 correct, no matter whether it is user-provided, user-declared and compiler-provided,
-or implicitly compiler-provided.
+implicitly compiler-provided, or does not exist at all.
 </p>
 
 <p>
@@ -342,5 +342,16 @@ entire class declaration for compiler-declared special members which are otherwi
 invisible to the reader.
 </p>
 
+<p>
+And perhaps this now-well-known table can help with knowing which special member functions
+get implicitly defaulted, deleted or inhibited when the user declares other special member functions:
+</p>
+
+<img src="smf.jpg" width=800>
+
+<p>
+See <a href="https://www.youtube.com/watch?v=vLinb2fgkHk&feature=youtu.be"> this
+presentation for a detailed description of this table.</a>
+</p>
 </body>
 </html>
