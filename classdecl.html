@@ -299,13 +299,47 @@ Next I like to provide the rest of the constructors, followed by the rest of the
 functions.
 </p>
 
+<p><b>Rule of what?</b></p>
+
 <p>
-I have found that this ordering of the declarations, including omitting any that are not
-needed, provides the best readability in class declarations.  It is consistent and concise
-as possible.  It provides the most important characteristics of a class as soon as
-possible to the reader.  It prevents the reader from having to search the entire class
-declaration for compiler-declared special members which are otherwise invisible to the
-reader.
+So I don't follow a "rule of 5".  After all, there are 6 special members:
+</p>
+
+<ol>
+<li>destructor</li>
+<li>default constructor</li>
+<li>copy constructor</li>
+<li>copy assignment</li>
+<li>move constructor</li>
+<li>move assignment</li>
+</ol>
+
+<p>
+Nor do I follow the newer "rule of 0".  I follow
+<a href="coding_guidelines.html">my own priorities</a>.
+</p>
+
+<ol>
+<li>Correctness</li>
+<li>Run time performance</li>
+<li>Compile time performance</li>
+<li>Maintainability / Easy to read</li>
+<li>Easy to write</li>
+</ol>
+
+<p>
+Nothing is more important than correctness.  And each of the 6 special members must be
+correct, no matter whether it is user-provided, user-declared and compiler-provided,
+or implicitly compiler-provided.
+</p>
+
+<p>
+Additionally I have found that this ordering of the declarations, including omitting any
+that are not needed, provides the best readability in class declarations.  It is
+consistent and concise as possible.  It provides the most important characteristics of a
+class as soon as possible to the reader.  It prevents the reader from having to search the
+entire class declaration for compiler-declared special members which are otherwise
+invisible to the reader.
 </p>
 
 </body>
