@@ -516,8 +516,8 @@ Can be tested with:
 <pre>
 static_assert( std::is_nothrow_destructible&lt;unique_ptr&lt;int&gt;&gt;{});
 static_assert( std::is_nothrow_default_constructible&lt;unique_ptr&lt;int&gt;&gt;{});
-static_assert(!std::is_nothrow_copy_constructible&lt;unique_ptr&lt;int&gt;&gt;{});
-static_assert(!std::is_nothrow_copy_assignable&lt;unique_ptr&lt;int&gt;&gt;{});
+static_assert(!std::is_copy_constructible&lt;unique_ptr&lt;int&gt;&gt;{});
+static_assert(!std::is_copy_assignable&lt;unique_ptr&lt;int&gt;&gt;{});
 static_assert( std::is_nothrow_move_constructible&lt;unique_ptr&lt;int&gt;&gt;{});
 static_assert( std::is_nothrow_move_assignable&lt;unique_ptr&lt;int&gt;&gt;{});
 </pre>
