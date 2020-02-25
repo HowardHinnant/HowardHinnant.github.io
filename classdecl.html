@@ -25,7 +25,7 @@
 <br/>
 <br/>
 <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
-2020-02-23<br/>
+2020-02-24<br/>
 </address>
 <hr/>
 
@@ -341,6 +341,195 @@ class as soon as possible to the reader.  It prevents the reader from having to 
 entire class declaration for compiler-declared special members which are otherwise
 invisible to the reader.
 </p>
+
+<p><b>Testing</b></p>
+
+<p>
+No matter how you declare your class and its special members, unit tests are the place
+to be verbose.
+</p>
+
+<hr>
+
+<p>This:</p>
+
+<blockquote>
+<pre>
+class year_month_day
+{
+    year  y_;
+    month m_;
+    day   d_;
+
+public:
+    year_month_day() = default;
+    // ...
+</pre>
+</blockquote>
+
+<p>
+Can be tested with:
+</p>
+
+<blockquote>
+<pre>
+static_assert(std::is_trivially_destructible&lt;year_month_day&gt;{});
+static_assert(std::is_trivially_default_constructible&lt;year_month_day&gt;{});
+static_assert(std::is_trivially_copy_constructible&lt;year_month_day&gt;{});
+static_assert(std::is_trivially_copy_assignable&lt;year_month_day&gt;{});
+static_assert(std::is_trivially_move_constructible&lt;year_month_day&gt;{});
+static_assert(std::is_trivially_move_assignable&lt;year_month_day&gt;{});
+</pre>
+</blockquote>
+
+<hr>
+
+<p>
+This:
+</p>
+
+<blockquote><pre>
+class tzdb_list
+{
+    std::atomic&lt;tzdb*&gt; head_{nullptr};
+
+public:
+    ~tzdb_list();
+    tzdb_list() = default;
+    tzdb_list(tzdb_list&amp;&amp; x) noexcept;
+    // ...
+</pre></blockquote>
+
+<p>
+Can be tested with:
+</p>
+
+<blockquote>
+<pre>
+static_assert( std::is_nothrow_destructible&lt;tzdb_list&gt;{});
+static_assert( std::is_nothrow_default_constructible&lt;tzdb_list&gt;{});
+static_assert(!std::is_copy_constructible&lt;tzdb_list&gt;{});
+static_assert(!std::is_copy_assignable&lt;tzdb_list&gt;{});
+static_assert( std::is_nothrow_move_constructible&lt;tzdb_list&gt;{});
+static_assert(!std::is_move_assignable&lt;tzdb_list&gt;{});
+</pre>
+</blockquote>
+
+<hr>
+
+<p>This:</p>
+
+<blockquote>
+<pre>
+class day
+{
+    unsigned char d_;
+
+public:
+    day() = default;
+    // ...
+</pre>
+</blockquote>
+
+<p>
+Can be tested with:
+</p>
+
+<blockquote>
+<pre>
+static_assert(std::is_trivially_destructible&lt;day&gt;{});
+static_assert(std::is_trivially_default_constructible&lt;day&gt;{});
+static_assert(std::is_trivially_copy_constructible&lt;day&gt;{});
+static_assert(std::is_trivially_copy_assignable&lt;day&gt;{});
+static_assert(std::is_trivially_move_constructible&lt;day&gt;{});
+static_assert(std::is_trivially_move_assignable&lt;day&gt;{});
+</pre>
+</blockquote>
+
+<hr>
+
+<p>This:</p>
+
+<blockquote>
+<pre>
+template &lt;class T&gt;
+class shared_ptr
+{
+    T*                 ptr_  = nullptr;
+    shared_weak_count* cntl_ = nullptr;
+
+public:
+    ~shared_ptr();
+    shared_ptr() = default;
+    shared_ptr(shared_ptr const&amp; sp) noexcept;
+    shared_ptr&amp; operator=(shared_ptr const&amp; sp) noexcept;
+    // ...
+</pre>
+</blockquote>
+
+<p>
+Can be tested with:
+</p>
+
+<blockquote>
+<pre>
+static_assert(std::is_nothrow_destructible&lt;shared_ptr&lt;int&gt;&gt;{});
+static_assert(std::is_nothrow_default_constructible&lt;shared_ptr&lt;int&gt;&gt;{});
+static_assert(std::is_nothrow_copy_constructible&lt;shared_ptr&lt;int&gt;&gt;{});
+static_assert(std::is_nothrow_copy_assignable&lt;shared_ptr&lt;int&gt;&gt;{});
+static_assert(std::is_nothrow_move_constructible&lt;shared_ptr&lt;int&gt;&gt;{});
+static_assert(std::is_nothrow_move_assignable&lt;shared_ptr&lt;int&gt;&gt;{});
+</pre>
+</blockquote>
+
+<hr>
+
+<p>And this:</p>
+
+<blockquote>
+<pre>
+template &lt;class T, class D = default_delete&lt;T&gt;&gt;
+class unique_ptr
+{
+public:
+    using deleter_type = D;
+    using pointer = compute_pointer_t&lt;T, deleter_type&gt;;
+
+private:
+    pointer ptr_ = nullptr;
+    deleter_type d_;
+
+public:
+    ~unique_ptr();
+    unique_ptr() = default;
+    unique_ptr(unique_ptr&amp;&amp; ptr) noexcept;
+    unique_ptr&amp; operator=(unique_ptr&amp;&amp; ptr) noexcept;
+    // ...
+</pre>
+</blockquote>
+
+<p>
+Can be tested with:
+</p>
+
+<blockquote>
+<pre>
+static_assert( std::is_nothrow_destructible&lt;unique_ptr&lt;int&gt;&gt;{});
+static_assert( std::is_nothrow_default_constructible&lt;unique_ptr&lt;int&gt;&gt;{});
+static_assert(!std::is_nothrow_copy_constructible&lt;unique_ptr&lt;int&gt;&gt;{});
+static_assert(!std::is_nothrow_copy_assignable&lt;unique_ptr&lt;int&gt;&gt;{});
+static_assert( std::is_nothrow_move_constructible&lt;unique_ptr&lt;int&gt;&gt;{});
+static_assert( std::is_nothrow_move_assignable&lt;unique_ptr&lt;int&gt;&gt;{});
+</pre>
+</blockquote>
+<hr>
+
+<p>
+In each case, readable and concise in the declaration, thorough and verbose in the unit
+test.
+</p>
+
+<p><b>Education</b></p>
 
 <p>
 And perhaps this now-well-known table can help with knowing which special member functions
