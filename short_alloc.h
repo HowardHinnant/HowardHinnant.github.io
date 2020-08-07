@@ -23,8 +23,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cstddef>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 template <std::size_t N, std::size_t alignment = alignof(std::max_align_t)>
 class arena
@@ -53,7 +54,10 @@ private:
 
     bool
     pointer_in_buffer(char* p) noexcept
-        {return buf_ <= p && p <= buf_ + N;}
+    {
+        return std::uintptr_t(buf_) <= std::uintptr_t(p) &&
+               std::uintptr_t(p) <= std::uintptr_t(buf_) + N;
+    }
 };
 
 template <std::size_t N, std::size_t alignment>
