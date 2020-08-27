@@ -56,7 +56,7 @@ private:
     pointer_in_buffer(char* p) noexcept
     {
         return std::uintptr_t(buf_) <= std::uintptr_t(p) &&
-               std::uintptr_t(p) < std::uintptr_t(buf_) + N;
+               std::uintptr_t(p) <= std::uintptr_t(buf_) + N;
     }
 };
 
