@@ -67,7 +67,7 @@ The <code>%S</code> flag as specified in the
 It has been shipping in MSVC for over a year now.
 </p>
 <p>
-It has been implented in gcc 14.0.0.
+It has been implemented in gcc 14.0.0.
 </p>
 <p>
 <code>%S</code> has been documented by the standard, by books, by
@@ -90,7 +90,7 @@ information.  This is true in conversion of units, and it remains true
 in formatting.  All information is preserved unless truncating
 behavior is explicitly requested.   And when it is explicitly
 requested, there exists options on which way to truncate:  towards
-zero, towards negative infinity, towards postive infinity, or to
+zero, towards negative infinity, towards positive infinity, or to
 nearest.
 </p>
 
@@ -109,7 +109,7 @@ This paper proposes a solution that is <i>precision neutral</i>.
 
 <p>
 No single precision is promoted above others or given special
-priviledges.  It is not up to <code>&lt;chrono&gt;</code> to decide
+privileges.  It is not up to <code>&lt;chrono&gt;</code> to decide
 that one precision is better than another.  That decision is up to the
 OS which talks directly to the hardware. And up to the client, who
 knows what precision is best for their application.
@@ -147,7 +147,7 @@ specification changes, there is no pain point.  Formatting and parsing
 this respect for the client around and then when the client gets ready
 to create a logging statement suddenly say:  Oh, you probably want the
 precision a bunch of committee members decided upon.  No,
-<code>&lt;chrono&gt;</code> should give the client the preicsion he
+<code>&lt;chrono&gt;</code> should give the client the precision he
 has already asked for (as the default, of course there should be a way
 to change it).
 </p>
