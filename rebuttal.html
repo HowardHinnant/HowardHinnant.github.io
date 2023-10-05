@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Rebuttal to Additional format specifiers for time_point</title>
+    <meta name="generator" content="BBEdit 14.6" />
+</head>
+<body>
+<address align=right>
+Document number: DxxxxR0
+<br/>
+Date: 2023-10-05
+<br/>
+Audience:  Library Evolution Working Group
+<br/>
+Reply-to: <a href="mailto:howard.hinnant@gmail.com">Howard E. Hinnant</a><br/>
+</address>
+<hr/>
+<h1 align=center>Rebuttal to Additional format specifiers for <code>time_point</code></h1>
+
+<h2>Contents</h2>
+
+<ul>
+<li><a href="#Introduction">Introduction</a></li>
+<li><a href="#Bad">Having a standard specify run-time changes to existing code is
+<b>Bad</b><sup>TM</sup></a></li>
+<li><a href="#Existing">The <code>%S</code> flag as specified in the
+<code>&lt;chrono&gt;</code> library is existing code</a></li>
+<li><a href="#Good"><code>%S</code> is a good design</a></li>
+</ul>
+
+<a name="Introduction"></a><h2>Introduction</h2>
+
+<p>
+This paper is written to express strong opposition to changing the
+meaning of <code>%S</code> as proposed in <a
+href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2945r0
+.html">P2945R0</a>. To be perfectly clear, this paper expresses no
+objection to adding syntax to specify precision to <code>%S</code>.
+This would not break any code.  The only objection is to changing the
+meaning of <code>%S</code> from representing seconds exactly, to
+representing only the integral part of seconds.
+</p>
+
+<a name="Bad"></a><h2>
+Having a standard specify run-time changes to existing code is
+<b>Bad</b><sup>TM</sup>
+</h2>
+
+<p>
+The proper way to change a standard is to deprecate the old behavior,
+and provide new syntax for the new behavior.  Let both behaviors
+coexist for a few cycles, then remove the deprecated specification.
+</p>
+<p>
+Doing otherwise risks introducing run-time errors to existing code by
+simply upgrading to a new version of C++.  Such run-time errors have
+the potential for raising safety and security issues.
+</p>
+
+<a name="Existing"><h2>
+The <code>%S</code> flag as specified in the
+<code>&lt;chrono&gt;</code> library is existing code
+</h2>
+
+<p>
+It has been shipping in MSVC for over a year now.
+</p>
+<p>
+It has been implented in gcc 14.0.0.
+</p>
+<p>
+<code>%S</code> has been documented by the standard, by books, by
+countless informal articles and postings, and by my date library.
+</p>
+<p>
+<code>%S</code> has 7 years of positive field experience with this
+syntax and behavior in my date library.
+</p>
+
+<a name="Good"><h2>
+<code>%S</code> is a good design
+</h2>
+
+<p>
+The design of <code>%S</code> follows the principles first laid down
+by the C++11 version of <code>&lt;chrono&gt;</code>. 
+<code>&lt;chrono&gt;</code> does not implicitly throw away
+information.  This is true in conversion of units, and it remains true
+in formatting.  All information is preserved unless truncating
+behavior is explicitly requested.   And when it is explicitly
+requested, there exists options on which way to truncate:  towards
+zero, towards negative infinity, towards postive infinity, or to
+nearest.
+</p>
+
+<p>
+<code>&lt;chrono&gt;</code> was precision-neutral in C++11, and
+remains so a decade later in C++23.  <a
+href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2661.
+htm#History">From N2661</a>, written 2008-06-11:
+</p>
+
+<blockquote>
+<p>
+This paper proposes a solution that is <i>precision neutral</i>.
+</p>
+</blockquote>
+
+<p>
+No single precision is promoted above others or given special
+priviledges.  It is not up to <code>&lt;chrono&gt;</code> to decide
+that one precision is better than another.  That decision is up to the
+OS which talks directly to the hardware. And up to the client, who
+knows what precision is best for their application.
+<code>&lt;chrono&gt;</code> is just a middleman to make the syntax
+between the OS and the client portable.
+</p>
+
+<p>
+Clients often change the OS’s precision to their specification’s
+precision at the point of input, such as wrapping a call to now:
+</p>
+
+<blockquote><pre>
+auto
+GetCurrentTime()
+{
+   using namespace std::chrono;
+   return floor&lt;milliseconds&gt;(system_clock::now());
+}
+</pre></blockquote>
+
+<p>
+And then traffic in those <code>time_point</code>s throughout their
+library or application.  There may be many points of both formatting
+and parsing involved throughout their application.  And at each point
+they don’t have to worry about synchronizing their parse and format
+statements with their specification’s precision.  They can just ask
+for the time: <code>“%F %T”</code> (etc.).  And when their
+specification changes, there is no pain point.  Formatting and parsing
+<em>by default</em> automatically adjust.
+</p>
+
+<p>
+<code>&lt;chrono&gt;</code> does not (and should not) carry all of
+this respect for the client around and then when the client gets ready
+to create a logging statement suddenly say:  Oh, you probably want the
+precision a bunch of committee members decided upon.  No,
+<code>&lt;chrono&gt;</code> should give the client the preicsion he
+has already asked for (as the default, of course there should be a way
+to change it).
+</p>
+
+<p>
+Clients also value symmetry between the parsing and formatting strings
+so that they only have to learn one micro-language and not two. 
+During parsing <code>%S</code> takes its precision from the type being
+parsed, and reads up to that amount of precision from the input
+stream.  A piece-wise redesign of <code>&lt;chrono&gt;</code> without
+an in-depth knowledge of the entire library is foolhardy at best.  And
+in this case also disruptive and dangerous.
+</p>
+
+<p>
+<code>%S</code> does not need to have identical functionality to other
+languages. There are many ways in which <code>&lt;chrono&gt;</code>
+differs from other date time libraries.  These differences are what
+makes the <code>&lt;chrono&gt;</code> solution superior, in
+safety, functionality and performance.
+</p>
+
+</body>
+</html>
