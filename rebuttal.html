@@ -9,7 +9,7 @@
 <address align=right>
 Document number: DxxxxR0
 <br/>
-Date: 2023-10-06
+Date: 2023-10-13
 <br/>
 Audience:  Library Evolution Working Group
 <br/>
@@ -146,7 +146,7 @@ foo()
 {
     auto tp = GetCurrentTime();
     // ...
-    // maybe do some arithmetic or conversions to local time here
+    // maybe do some arithmetic or conversions to and from local time here
     // ...
     // Formatted with milliseconds precision as specified back in the implementation of GetCurrentTime()
     datafile << std::format("{:%FT%TZ}", tp);
